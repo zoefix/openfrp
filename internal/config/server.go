@@ -66,8 +66,13 @@ func (c *Server) ApplyDefaults() {
 
 // Validate reports the first configuration problem found.
 func (c *Server) Validate() error {
-	if err := validatePort(c.BindPort); err != nil {
-		return fmt.Errorf("bind_port: %w", err)
+	// Zero means "let the kernel choose". ApplyDefaults substitutes the
+	// standard port for an unset value, so a config loaded from disk never
+	// reaches here with zero; only a caller that set it deliberately does.
+	if c.BindPort != 0 {
+		if err := validatePort(c.BindPort); err != nil {
+			return fmt.Errorf("bind_port: %w", err)
+		}
 	}
 	if c.VhostHTTPPort != 0 {
 		if err := validatePort(c.VhostHTTPPort); err != nil {
@@ -82,7 +87,7 @@ func (c *Server) Validate() error {
 	if c.VhostHTTPPort != 0 && c.VhostHTTPPort == c.VhostHTTPSPort {
 		return fmt.Errorf("vhost_http_port and vhost_https_port must differ")
 	}
-	if c.BindPort == c.VhostHTTPPort || c.BindPort == c.VhostHTTPSPort {
+	if c.BindPort != 0 && (c.BindPort == c.VhostHTTPPort || c.BindPort == c.VhostHTTPSPort) {
 		return fmt.Errorf("bind_port %d collides with a vhost port", c.BindPort)
 	}
 	if c.MaxPoolCount < 1 {

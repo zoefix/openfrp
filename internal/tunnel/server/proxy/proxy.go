@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
+	"github.com/zoefix/openfrp/internal/tunnel/vhost"
 )
 
 // WorkConnSource supplies connections back to the owning client.
@@ -41,11 +42,28 @@ type Proxy interface {
 	Close() error
 }
 
+// RouteRegistrar publishes and withdraws domain routes.
+//
+// Declared here, on the consuming side, so a proxy depends only on the two
+// operations it actually performs rather than on the whole router.
+type RouteRegistrar interface {
+	Add(patterns []string, route vhost.Route) error
+	Remove(runID, proxyName string)
+	// RemoveClient withdraws every route a client owns, which is what a
+	// disconnect needs. Remove alone cannot express it: it matches on both the
+	// run ID and the proxy name.
+	RemoveClient(runID string)
+}
+
 // Options carries everything a proxy needs at construction.
 type Options struct {
 	Spec   protocol.ProxySpec
 	Source WorkConnSource
 	Logger *slog.Logger
+
+	// RunID identifies the owning client, so domain routes can be attributed
+	// and withdrawn when it disconnects.
+	RunID string
 
 	// BindAddr is the address the server binds port-based proxies on.
 	BindAddr string
@@ -54,6 +72,15 @@ type Options struct {
 	AcceptLoops int
 	// ReusePort enables the multi-accept path.
 	ReusePort bool
+
+	// Routes is where domain-routed proxies register themselves. Nil means the
+	// server has no vhost listener configured, and publishing an http or https
+	// tunnel will be refused with that explanation.
+	Routes RouteRegistrar
+	// VhostHTTPPort and VhostHTTPSPort are reported back to the client so it
+	// can tell the user where the tunnel is reachable.
+	VhostHTTPPort  int
+	VhostHTTPSPort int
 }
 
 // Factory builds a proxy of one kind.

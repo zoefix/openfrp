@@ -13,12 +13,10 @@ import (
 
 	"github.com/zoefix/openfrp/internal/config"
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
+	"github.com/zoefix/openfrp/internal/tunnel/server/proxy"
 	"github.com/zoefix/openfrp/internal/tunnel/transport"
+	"github.com/zoefix/openfrp/internal/tunnel/vhost"
 	"github.com/zoefix/openfrp/pkg/netutil"
-
-	// Register the proxy kinds. Blank imports keep the registry populated
-	// without server needing to name each factory.
-	_ "github.com/zoefix/openfrp/internal/tunnel/server/proxy"
 )
 
 // handshakeTimeout bounds the greeting and first message on a new connection.
@@ -33,10 +31,12 @@ type Server struct {
 	cfg      *config.Server
 	logger   *slog.Logger
 	registry *Registry
+	router   *vhost.Router
 	version  string
 
 	listenerMu sync.Mutex
 	listener   net.Listener
+	vhosts     []*vhostListener
 
 	wg sync.WaitGroup
 }
@@ -57,12 +57,39 @@ func New(cfg *config.Server, logger *slog.Logger, version string) (*Server, erro
 		cfg:      cfg,
 		logger:   logger,
 		registry: NewRegistry(),
+		router:   vhost.NewRouter(),
 		version:  version,
 	}, nil
 }
 
 // Registry exposes the connected sessions.
 func (s *Server) Registry() *Registry { return s.registry }
+
+// Router exposes the domain routing table.
+func (s *Server) Router() *vhost.Router { return s.router }
+
+// VhostAddr reports the bound address of one vhost listener, or nil when that
+// scheme is not configured.
+func (s *Server) VhostAddr(scheme vhost.Scheme) net.Addr {
+	s.listenerMu.Lock()
+	defer s.listenerMu.Unlock()
+
+	for _, v := range s.vhosts {
+		if v.scheme == scheme {
+			return v.addr()
+		}
+	}
+	return nil
+}
+
+// routeRegistrar hands proxies only the two operations they need, so the vhost
+// proxies never see the full router.
+func (s *Server) routeRegistrar() proxy.RouteRegistrar {
+	if len(s.vhosts) == 0 {
+		return nil
+	}
+	return s.router
+}
 
 // Addr reports the bound control address, or nil before Serve has bound it.
 func (s *Server) Addr() net.Addr {
@@ -100,6 +127,39 @@ func (s *Server) Listen(ctx context.Context) error {
 		"addr", ln.Addr().String(),
 		"accept_loops", netutil.AcceptLoops(ln),
 		"version", s.version)
+
+	// Bind the vhost listeners here too, so a port conflict fails startup
+	// rather than surfacing later as an unexplained publish rejection.
+	vhostPorts := []struct {
+		scheme vhost.Scheme
+		port   int
+	}{
+		{vhost.SchemeHTTP, s.cfg.VhostHTTPPort},
+		{vhost.SchemeHTTPS, s.cfg.VhostHTTPSPort},
+	}
+
+	for _, want := range vhostPorts {
+		if want.port == 0 {
+			continue
+		}
+		v := newVhostListener(want.scheme, want.port, s.cfg.BindAddr,
+			s.router, s.registry, s.logger, s.cfg.AcceptLoops)
+		if err := v.listen(ctx); err != nil {
+			for _, started := range s.vhosts {
+				started.close()
+			}
+			s.vhosts = nil
+			ln.Close()
+			s.listener = nil
+			return err
+		}
+		s.vhosts = append(s.vhosts, v)
+	}
+
+	if len(s.vhosts) == 0 {
+		s.logger.Info("no vhost ports configured; http and https tunnels " +
+			"cannot be published")
+	}
 	return nil
 }
 
@@ -111,12 +171,25 @@ func (s *Server) Serve(ctx context.Context) error {
 
 	s.listenerMu.Lock()
 	ln := s.listener
+	vhosts := append([]*vhostListener(nil), s.vhosts...)
 	s.listenerMu.Unlock()
 
 	go func() {
 		<-ctx.Done()
 		ln.Close()
 	}()
+
+	// Each vhost listener serves alongside the control listener.
+	for _, v := range vhosts {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			if err := v.serve(ctx); err != nil {
+				s.logger.Error("vhost listener stopped",
+					"scheme", string(v.scheme), "error", err)
+			}
+		}()
+	}
 
 	defer s.wg.Wait()
 	defer s.registry.CloseAll()
@@ -270,12 +343,22 @@ func (s *Server) Close() error {
 	s.listenerMu.Lock()
 	ln := s.listener
 	s.listener = nil
+	vhosts := s.vhosts
+	s.vhosts = nil
 	s.listenerMu.Unlock()
 
 	s.registry.CloseAll()
 
-	if ln != nil {
-		return ln.Close()
+	var errs []error
+	for _, v := range vhosts {
+		if err := v.close(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	return nil
+	if ln != nil {
+		if err := ln.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }

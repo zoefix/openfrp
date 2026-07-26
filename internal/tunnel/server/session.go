@@ -43,6 +43,10 @@ type Session struct {
 	bindAddr    string
 	acceptLoops int
 	reusePort   bool
+
+	routes         proxy.RouteRegistrar
+	vhostHTTPPort  int
+	vhostHTTPSPort int
 }
 
 type runningProxy struct {
@@ -63,6 +67,10 @@ type SessionOptions struct {
 	BindAddr    string
 	AcceptLoops int
 	ReusePort   bool
+
+	Routes         proxy.RouteRegistrar
+	VhostHTTPPort  int
+	VhostHTTPSPort int
 }
 
 func newSession(opts SessionOptions) *Session {
@@ -84,6 +92,10 @@ func newSession(opts SessionOptions) *Session {
 		bindAddr:    opts.BindAddr,
 		acceptLoops: opts.AcceptLoops,
 		reusePort:   opts.ReusePort,
+
+		routes:         opts.Routes,
+		vhostHTTPPort:  opts.VhostHTTPPort,
+		vhostHTTPSPort: opts.VhostHTTPSPort,
 	}
 }
 
@@ -196,9 +208,14 @@ func (s *Session) AddProxy(ctx context.Context, spec protocol.ProxySpec) (int, e
 		Spec:        spec,
 		Source:      s,
 		Logger:      s.logger,
+		RunID:       s.runID,
 		BindAddr:    s.bindAddr,
 		AcceptLoops: s.acceptLoops,
 		ReusePort:   s.reusePort,
+
+		Routes:         s.routes,
+		VhostHTTPPort:  s.vhostHTTPPort,
+		VhostHTTPSPort: s.vhostHTTPSPort,
 	})
 	if err != nil {
 		return 0, err
@@ -279,6 +296,13 @@ func (s *Session) Close() error {
 
 	s.closeOnce.Do(func() {
 		close(s.done)
+
+		// Withdraw every domain this client claimed. Individual proxy Close
+		// calls do this too, but a client that drops mid-publish can leave a
+		// route behind, and a stale route would black-hole its hostname.
+		if s.routes != nil {
+			s.routes.RemoveClient(s.runID)
+		}
 
 		s.proxiesMu.Lock()
 		for _, running := range s.proxies {

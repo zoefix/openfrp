@@ -70,6 +70,10 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		BindAddr:    s.cfg.BindAddr,
 		AcceptLoops: s.cfg.AcceptLoops,
 		ReusePort:   s.cfg.AcceptLoops != 1,
+
+		Routes:         s.routeRegistrar(),
+		VhostHTTPPort:  s.cfg.VhostHTTPPort,
+		VhostHTTPSPort: s.cfg.VhostHTTPSPort,
 	})
 
 	if replaced := s.registry.Add(session); replaced != nil {

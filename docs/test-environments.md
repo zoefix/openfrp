@@ -98,20 +98,56 @@ Note that DNS is set up the same way for the same reason — a `*.aiqno.com`
 record does not cover `test.2rd.aiqno.com` either, which is why that name needs
 its own record. The routing rule deliberately mirrors the DNS rule.
 
-### Two environment quirks that cost time
+### OpenClash silently eats the control connection
 
-**Only ports 22, 80 and 443 reach the server.** 7000 behaves exactly like 16000,
-where nothing listens: accepted in 0 ms and immediately reset, so the traffic
-never arrives. Port 80 answers in 4 ms. Deploying a usable client therefore
-needs the provider firewall opened for the control port.
+This one cost the most time and is worth reading before debugging any
+"connection lost / login: EOF" report.
 
-**The development machine resolves through a fake-IP proxy.** Every hostname
-returns a distinct 198.18.x.x address from the RFC 2544 benchmarking range, and
-requests carrying certain Host values are dropped before leaving the machine.
-Tests from that machine must pin the address with `--resolve`, and anything
-that still fails should be re-checked from the server before being treated as a
-routing bug — two hosts looked broken from the laptop and were correct on the
-server.
+The control port looked firewalled. It was not. **OpenClash on the router
+transparently proxies all TCP**, via an unconditional nft rule:
+
+```
+ip protocol tcp counter redirect to :7892
+```
+
+That captures the router's own outbound traffic as well as the LAN's. Clash
+then applies its rule list, and its log shows exactly what happened:
+
+```
+[TCP] ...:53239 --> 64.83.33.99:22   match DstPort(22) using SSH[…直连]
+[TCP] ...:39868 --> 64.83.33.99:7000 match Match      using 其他[香港 A05 …]
+```
+
+Port 22 has a specific rule and goes direct. Port 7000 falls through to the
+catch-all `MATCH` and is routed through a Hong Kong proxy node that cannot
+relay it, so the connection is accepted locally and then dropped. The server
+never sees a packet — its log stays empty while the client reports EOF after a
+successful TCP connect.
+
+A further wrinkle in this particular setup: the VPS is itself one of the
+configured Clash nodes (`server: 64.83.33.99` in the profile), so Clash was
+trying to tunnel traffic bound for that host through another proxy.
+
+The fix is one rule, placed above the final `MATCH`:
+
+```yaml
+- "IP-CIDR,<server-ip>/32,DIRECT,no-resolve"
+```
+
+**This is not an exotic setup.** OpenClash, Passwall, ShellCrash and similar are
+extremely common on exactly the routers this project targets, and all of them
+install a catch-all TCP redirect. Expect this to be the single most frequent
+support question, and note the symptom precisely: a TCP connect that succeeds
+in 0 ms — impossible for a remote host — followed by an immediate close.
+
+### The development machine resolves through a fake-IP proxy
+
+Every hostname returns a distinct 198.18.x.x address from the RFC 2544
+benchmarking range, and requests carrying certain Host values are dropped
+before leaving the machine. Tests from that machine must pin the address with
+`--resolve`, and anything that still fails should be re-checked from the server
+before being treated as a routing bug — two hosts looked broken from the laptop
+and were correct on the server.
 
 ## SSH automation
 

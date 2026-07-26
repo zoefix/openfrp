@@ -202,6 +202,23 @@ by the consumer; `pkg/` free of business logic.
 | P6 | ACME issuance, edge TLS termination, hot cert reload | |
 | P7–P11 | remaining providers, renewal, status panel, QUIC/KCP, eBPF sockmap | |
 
+## If the client cannot connect
+
+A transparent proxy on the router is the most likely cause, not a firewall.
+OpenClash, Passwall and ShellCrash all install an unconditional TCP redirect,
+and the control port usually falls through to their catch-all rule and gets
+routed via a proxy node that cannot relay it.
+
+The symptom is distinctive: **the TCP connect succeeds in 0 ms** — impossible
+for a remote host — and the connection is then closed, so the client reports
+`login: EOF` while the server's log stays completely empty.
+
+Fix it with a direct rule ahead of the final `MATCH`:
+
+```yaml
+- "IP-CIDR,<server-ip>/32,DIRECT,no-resolve"
+```
+
 ## Target environments
 
 Both test systems are documented in

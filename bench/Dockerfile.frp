@@ -1,0 +1,43 @@
+# Upstream frp, fetched from its GitHub release, on the same base as our own
+# image so the comparison is not confounded by a different libc or scheduler.
+# The echo backend runs inside the client container, so it is built here too.
+# Same source as OpenFrp's, so both stacks face an identical backend.
+FROM golang:1.25 AS echobuild
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/echo-backend ./bench/echo
+
+FROM debian:bookworm-slim
+
+ARG FRP_VERSION=0.70.0
+# TARGETARCH is only populated by buildx. Fall back to uname so a plain
+# `docker build` works too, rather than failing with an opaque arch error.
+ARG TARGETARCH=""
+
+RUN set -eu; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends curl tar iproute2 ca-certificates; \
+    rm -rf /var/lib/apt/lists/*; \
+    arch="${TARGETARCH}"; \
+    if [ -z "${arch}" ]; then \
+        case "$(uname -m)" in \
+            x86_64)         arch=amd64 ;; \
+            aarch64|arm64)  arch=arm64 ;; \
+            armv7l|armv7)   arch=arm ;; \
+            *) echo "unsupported machine $(uname -m)" >&2; exit 1 ;; \
+        esac; \
+    fi; \
+    echo "fetching frp ${FRP_VERSION} for linux/${arch}"; \
+    curl -fsSL -o /tmp/frp.tar.gz \
+        "https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_${arch}.tar.gz"; \
+    tar -xzf /tmp/frp.tar.gz -C /tmp; \
+    mv "/tmp/frp_${FRP_VERSION}_linux_${arch}/frps" /usr/local/bin/frps; \
+    mv "/tmp/frp_${FRP_VERSION}_linux_${arch}/frpc" /usr/local/bin/frpc; \
+    rm -rf /tmp/frp*; \
+    frps --version
+
+COPY --from=echobuild /out/echo-backend /usr/local/bin/echo-backend
+COPY bench/shape.sh /usr/local/bin/shape.sh
+RUN chmod +x /usr/local/bin/shape.sh

@@ -1,0 +1,8 @@
+{
+  "bind_addr": "0.0.0.0",
+  "bind_port": 7000,
+  "token": "bench-token",
+  "max_pool_count": 64,
+  "accept_loops": 0,
+  "log": { "level": "warn", "format": "text" }
+}

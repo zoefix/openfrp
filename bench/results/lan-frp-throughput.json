@@ -1,0 +1,9 @@
+{
+  "mode": "throughput",
+  "label": "frp/lan",
+  "target": "frps:6000",
+  "seconds": 10.001,
+  "bytes": 7786430464,
+  "mb_per_second": 742.53,
+  "errors": 1
+}

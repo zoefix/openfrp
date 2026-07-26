@@ -1,0 +1,12 @@
+{
+  "mode": "latency",
+  "label": "openfrp/lan",
+  "target": "openfrps:6000",
+  "seconds": 10,
+  "requests": 525669,
+  "qps": 52564.9,
+  "errors": 0,
+  "p50_ms": 0.468,
+  "p99_ms": 2.218,
+  "p999_ms": 3.484
+}

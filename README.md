@@ -11,8 +11,32 @@ Three pieces:
 | **`openfrpc`** | Runs on the router. Maintains tunnels, provisions the server over SSH, and (from P5) manages DNS and certificates locally. |
 | **`luci-app-openfrp`** | The LuCI web UI. Every management action happens here. |
 
-Status: **P0 complete** — protocol, transport, server, client and TCP tunnels
-are working end to end. See [the roadmap](#roadmap).
+Status: **P1 complete** — tunnels, wildcard domain routing, HTTP vhost and TLS
+passthrough all work end to end. See [the roadmap](#roadmap).
+
+## Domain routing
+
+Any number of tunnels share ports 80 and 443, routed by name. A `*` label
+matches **exactly one** level and may appear at any depth:
+
+| Pattern | Matches | Does not match |
+|---|---|---|
+| `aaa.com` | `aaa.com` | any subdomain |
+| `*.aaa.com` | `www.aaa.com` | `x.bb.aaa.com` |
+| `*.bb.aaa.com` | `x.bb.aaa.com` | `y.x.bb.aaa.com` |
+
+Exact names beat wildcards, deeper wildcards beat shallower ones, and a bare
+`*` is an opt-in catch-all.
+
+This differs from frp, where `*.aaa.com` also matches `x.bb.aaa.com`. Ours
+mirrors DNS and TLS certificate scope — a Let's Encrypt `*.aaa.com` covers one
+level — so a route can never resolve to a tunnel whose certificate does not
+cover the name. Under frp's rule that mismatch is silent and unpleasant to
+debug.
+
+HTTPS is routed on the TLS SNI **without decrypting**: the server forwards
+ciphertext untouched and the backend owns the certificate. Edge termination,
+where the router issues the certificate and pushes it up, lands in P6.
 
 ## Why it is faster than frp
 
@@ -59,9 +83,10 @@ Additional wins: `SO_REUSEPORT` multi-accept removes accept-queue lock
 contention, and the SSH provisioner enables BBR on the server as part of
 deployment.
 
-None of this is a claim until it is measured. The `bench/` harness (P1) runs
-frp and OpenFrp side by side under identical `tc netem` conditions, and
-`docs/benchmark.md` will publish the numbers **including the cases we lose**.
+None of this is a claim until it is measured. The [`bench/`](bench/) harness
+runs frp and OpenFrp side by side under identical `tc netem` conditions.
+Results are in [`docs/benchmark.md`](docs/benchmark.md), **including the cases
+we lose**.
 
 ## Build
 
@@ -111,21 +136,8 @@ understand one format.
 Unknown fields are rejected rather than ignored — a typo in a key should fail
 loudly, not silently disable the thing you meant to configure.
 
-### Domain patterns
-
-A `*` label matches **exactly one** level, and may appear at any depth:
-
-| Pattern | Matches | Does not match |
-|---|---|---|
-| `aaa.com` | `aaa.com` | any subdomain |
-| `*.aaa.com` | `www.aaa.com` | `x.bb.aaa.com` |
-| `*.bb.aaa.com` | `x.bb.aaa.com` | `y.x.bb.aaa.com` |
-
-Exact names beat wildcards; deeper wildcards beat shallower ones.
-
-This differs from frp, where `*.aaa.com` also matches `x.bb.aaa.com`. Ours
-matches DNS and TLS certificate semantics — a Let's Encrypt `*.aaa.com` covers
-one level only — so a route can never succeed while its certificate fails.
+Domain patterns for `http` and `https` tunnels follow the rules in
+[Domain routing](#domain-routing) above.
 
 ## Layout
 
@@ -133,11 +145,12 @@ Packages are organised by domain, not by technical layer.
 
 ```
 cmd/                     entrypoints, one subcommand per file
+bench/                   side-by-side comparison against frp
 internal/
   tunnel/
     protocol/            wire format, shared by both daemons
     transport/           TCP dialer, opt-in yamux
-    vhost/               domain routing            (P1)
+    vhost/               wildcard routing, Host and SNI sniffing
     server/  client/     the two daemons
   dns/                   DNS providers             (P5)
   cert/                  ACME issuance             (P6)
@@ -158,7 +171,7 @@ by the consumer; `pkg/` free of business logic.
 | | | |
 |---|---|---|
 | **P0** | protocol, transport, server, client, TCP tunnels | ✅ done |
-| P1 | domain routing, HTTP proxy, SNI passthrough, `bench/` | |
+| **P1** | wildcard domain routing, HTTP vhost, SNI passthrough, `bench/` | ✅ done |
 | P2 | OpenWrt `.apk` and LuCI app | |
 | P3 | SSH server provisioning | |
 | P4 | cloud API signing, schema-driven forms | |

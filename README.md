@@ -52,10 +52,12 @@ connection with its own congestion window. Multiplexing is available
 (`transport.mux`) but opt-in, and when enabled the window defaults to 8 MiB
 rather than yamux's 256 KiB.
 
-Measured, this is worth **3.4× the throughput and less than half the p99** on a
-lossy link. It is worth nothing on a clean one — see
-[the benchmark](docs/benchmark.md), which also records where an earlier
-prediction about this turned out to be wrong.
+Measured against frp on a lossy link with 32 concurrent streams, this is worth
+**3.5× the QPS at 3% loss** and roughly a fifth of the p99 at 1% loss. On a
+clean link it is worth nothing at all: latency alone does not trigger
+head-of-line blocking, because there is nothing to retransmit. See
+[the benchmark](docs/benchmark.md), which also records the prediction this
+project got wrong.
 
 **2. frp copies every byte through userspace.** NIC → kernel → frps → kernel →
 frpc → kernel → NIC.

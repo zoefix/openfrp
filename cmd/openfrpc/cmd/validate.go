@@ -1,0 +1,63 @@
+package cmd
+
+import (
+	"context"
+	"flag"
+	"fmt"
+
+	"github.com/zoefix/openfrp/internal/config"
+)
+
+func init() {
+	register(&Command{
+		Name:    "validate",
+		Summary: "check a configuration file and exit",
+		Run:     runValidate,
+	})
+}
+
+// runValidate parses and validates a config without starting anything.
+//
+// The init script calls this after rendering UCI, so a bad configuration is
+// reported once, clearly, at the point the user changed it — rather than as a
+// procd respawn loop that has to be dug out of syslog.
+func runValidate(_ context.Context, args []string) error {
+	fs := flag.NewFlagSet("validate", flag.ExitOnError)
+	configPath := fs.String("c", "/var/etc/openfrp.json", "path to the configuration file")
+	quiet := fs.Bool("q", false, "report only errors")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	cfg, err := config.LoadClient(*configPath)
+	if err != nil {
+		return err
+	}
+
+	if *quiet {
+		return nil
+	}
+
+	enabled := cfg.EnabledTunnels()
+	fmt.Printf("configuration is valid: %s\n", *configPath)
+	fmt.Printf("  server    %s:%d\n", cfg.ServerAddr, cfg.ServerPort)
+	fmt.Printf("  transport %s, mux=%v, pool=%d\n",
+		cfg.Transport.Protocol, cfg.Transport.Mux, cfg.Transport.PoolCount)
+	fmt.Printf("  tunnels   %d enabled of %d\n", len(enabled), len(cfg.Tunnels))
+
+	for _, tunnel := range enabled {
+		switch {
+		case len(tunnel.Domains) > 0:
+			fmt.Printf("    %-16s %-6s %s:%d  ← %v\n", tunnel.Name, tunnel.Type,
+				tunnel.LocalIP, tunnel.LocalPort, tunnel.Domains)
+		case tunnel.RemotePort != 0:
+			fmt.Printf("    %-16s %-6s %s:%d  ← port %d\n", tunnel.Name, tunnel.Type,
+				tunnel.LocalIP, tunnel.LocalPort, tunnel.RemotePort)
+		default:
+			fmt.Printf("    %-16s %-6s %s:%d  ← server-allocated port\n", tunnel.Name,
+				tunnel.Type, tunnel.LocalIP, tunnel.LocalPort)
+		}
+	}
+
+	return nil
+}

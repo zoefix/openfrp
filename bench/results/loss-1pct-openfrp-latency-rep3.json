@@ -1,0 +1,12 @@
+{
+  "mode": "latency",
+  "label": "openfrp/loss-1pct",
+  "target": "openfrps:6000",
+  "seconds": 10.001,
+  "requests": 9225,
+  "qps": 922.4,
+  "errors": 0,
+  "p50_ms": 26.916,
+  "p99_ms": 129.097,
+  "p999_ms": 314.242
+}

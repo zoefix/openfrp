@@ -1,0 +1,12 @@
+{
+  "mode": "latency",
+  "label": "frp/loss-1pct",
+  "target": "frps:6000",
+  "seconds": 10.001,
+  "requests": 3442,
+  "qps": 344.2,
+  "errors": 0,
+  "p50_ms": 53.154,
+  "p99_ms": 1072.96,
+  "p999_ms": 2143.857
+}

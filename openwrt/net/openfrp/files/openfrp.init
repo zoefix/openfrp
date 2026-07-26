@@ -41,6 +41,14 @@ start_service() {
 		return 1
 	fi
 
+	# Validate before handing the config to procd. Without this a bad setting
+	# becomes a respawn loop that has to be dug out of syslog; with it the
+	# reason is printed once, here, next to the change that caused it.
+	if ! "$PROG" validate -c "$CONF" -q; then
+		echo "openfrp: refusing to start, configuration is invalid" >&2
+		return 1
+	fi
+
 	# The credentials file is world-readable by default and holds an auth
 	# token plus, potentially, an SSH password.
 	chmod 600 /etc/config/openfrp 2>/dev/null

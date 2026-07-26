@@ -13,7 +13,10 @@
 # match internal/config exactly. That is deliberate — a typo should fail loudly
 # at startup rather than silently disable the option it was meant to set.
 #
-set -eu
+# set -u is deliberately absent. OpenWrt's /lib/functions.sh reads
+# $IPKG_INSTROOT without a default, so `set -u` makes sourcing it fail
+# outright. Errors are handled explicitly below instead.
+set -e
 
 . /usr/share/libubox/jshn.sh
 . /lib/functions.sh
@@ -74,7 +77,14 @@ add_tunnel() {
 	# Domain patterns for http and https tunnels. Emitted only when present,
 	# because the daemon rejects an empty list on those types with a clearer
 	# message than an empty array would produce.
-	if [ -n "$(uci -q get "openfrp.$section.domains" || true)" ]; then
+	#
+	# Read through config_get rather than `uci get`: config_get honours
+	# UCI_CONFIG_DIR, which is what makes this script testable against a
+	# throwaway config, and it avoids a subprocess per tunnel. A list option
+	# comes back space separated, which is enough to test for presence.
+	local domains
+	config_get domains "$section" domains
+	if [ -n "$domains" ]; then
 		json_add_array domains
 		config_list_foreach "$section" domains append_domain
 		json_close_array

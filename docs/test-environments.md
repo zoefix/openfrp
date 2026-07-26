@@ -32,43 +32,48 @@ touch any configuration outside this project.
 
 ## Server (public VPS)
 
-`root@154.36.180.102`
+`root@64.83.33.99`
 
 | | |
 |---|---|
 | Distro | Debian GNU/Linux 12 (bookworm) |
 | Kernel | 6.1.0-10-amd64 |
 | Arch | x86_64 |
-| CPU / memory | 2 cores / 1967 MB |
-| Disk free | 58 GB |
+| CPU / memory | 2 cores / 1967 MB (1650 MB available) |
+| Disk free | 57 GB |
 | Init | systemd |
 | Firewall | nftables present, **ruleset empty** |
-| SSH host key | `ecdsa-sha2-nistp256 SHA256:dTeZDwBSiviam4DzDqWn8AGWZtVhA0ohAiZMOx1loqI` |
+| SSH host key | `ecdsa-sha2-nistp256 SHA256:794oKSSizXBNwcQP/gzTd2sSVCarefIpDigD174HmU4` |
+| Deploy tooling present | `curl wget tar gzip sha256sum setcap systemctl useradd` |
 
-### Port 80 and 443 are already taken
+### Ports
 
-```
-LISTEN *:443  users:(("nekoshare",pid=596698,fd=3))
-LISTEN *:80   users:(("nekoshare",pid=596698,fd=6))
-```
+80 and 443 are **free**, so the vhost listeners can take the standard ports.
 
-An unrelated service owns both. The vhost listeners cannot claim them without
-displacing it, so `vhost_http_port` / `vhost_https_port` must be configurable
-and the deploy pipeline must **detect the conflict and refuse rather than
-fight for the port**. This is the concrete case the `detect` step exists for.
-
-### BBR is available but not active
-
-Out of the box:
+Occupied, and to be avoided when allocating tunnel ports:
 
 ```
-net.ipv4.tcp_congestion_control = cubic
+22            sshd
+10001, 20809  v2ray
+```
+
+The deploy pipeline still has to probe for occupancy rather than assume: the
+previous test host had 80 and 443 taken by an unrelated service, and the
+correct behaviour there is to report the conflict, not to fight for the port.
+
+### BBR is available but not loaded
+
+```
+net.ipv4.tcp_congestion_control          = cubic
 net.ipv4.tcp_available_congestion_control = reno cubic
+modinfo tcp_bbr → /lib/modules/6.1.0-10-amd64/kernel/net/ipv4/tcp_bbr.ko
 ```
 
-After `modprobe tcp_bbr` the available set becomes `reno cubic bbr`. So the
-deploy step that enables BBR must load the module first, then set the sysctl,
-then persist both — the sysctl alone silently fails while the module is absent.
+The module ships with the kernel but is not loaded, which is why BBR does not
+appear in the available set. The deploy step must therefore **`modprobe
+tcp_bbr` first, then set the sysctl, then persist both** — setting the sysctl
+alone fails silently while the module is absent. Verified on the previous host:
+after loading, the available set became `reno cubic bbr`.
 
 ## SSH automation
 

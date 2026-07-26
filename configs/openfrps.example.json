@@ -1,0 +1,16 @@
+{
+  "bind_addr": "0.0.0.0",
+  "bind_port": 7000,
+  "token": "change-me-to-a-long-random-string",
+
+  "vhost_http_port": 8080,
+  "vhost_https_port": 8443,
+
+  "max_pool_count": 64,
+  "accept_loops": 0,
+
+  "log": {
+    "level": "info",
+    "format": "text"
+  }
+}

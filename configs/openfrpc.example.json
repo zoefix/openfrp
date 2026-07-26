@@ -1,0 +1,42 @@
+{
+  "server_addr": "203.0.113.10",
+  "server_port": 7000,
+  "token": "change-me-to-a-long-random-string",
+  "name": "home-router",
+
+  "transport": {
+    "protocol": "tcp",
+    "mux": false,
+    "mux_stream_window": 8388608,
+    "pool_count": 8,
+    "tls_enable": false,
+    "heartbeat_interval": "20s",
+    "heartbeat_timeout": "90s",
+    "dial_timeout": "10s"
+  },
+
+  "tunnels": [
+    {
+      "name": "ssh",
+      "enabled": true,
+      "type": "tcp",
+      "local_ip": "192.168.1.1",
+      "local_port": 22,
+      "remote_port": 6022
+    },
+    {
+      "name": "nas-web",
+      "enabled": false,
+      "type": "http",
+      "local_ip": "192.168.1.100",
+      "local_port": 80,
+      "domains": ["aaa.com", "www.aaa.com", "*.aaa.com", "*.bb.aaa.com"],
+      "tls_mode": "none"
+    }
+  ],
+
+  "log": {
+    "level": "info",
+    "format": "text"
+  }
+}

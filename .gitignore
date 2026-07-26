@@ -1,0 +1,21 @@
+# Build output
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Go
+vendor/
+
+# Local dev
+*.db
+*.db-wal
+*.db-shm
+/tmp/
+.env
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

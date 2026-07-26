@@ -11,8 +11,26 @@ Three pieces:
 | **`openfrpc`** | Runs on the router. Maintains tunnels, provisions the server over SSH, and (from P5) manages DNS and certificates locally. |
 | **`luci-app-openfrp`** | The LuCI web UI. Every management action happens here. |
 
-Status: **P1 complete** — tunnels, wildcard domain routing, HTTP vhost and TLS
-passthrough all work end to end. See [the roadmap](#roadmap).
+Status: **P3 complete** — tunnels, wildcard domain routing, HTTP vhost, TLS
+passthrough, the OpenWrt package and LuCI app, and one-command server
+provisioning all work end to end against real hardware. See
+[the roadmap](#roadmap).
+
+## Provisioning a server
+
+```bash
+openfrpc deploy -host 203.0.113.10 -binary ./dist/openfrps_linux_amd64
+```
+
+Detects the distribution, architecture and init system; creates a service
+user; uploads and checksums the binary; writes the configuration; installs a
+systemd, OpenRC or sysvinit service; opens the firewall; enables BBR; and
+verifies the result. Re-running upgrades in place — every step is idempotent.
+
+A password is never accepted as a flag, because `/proc/*/cmdline` is readable
+by every local process on the router. Pass credentials as JSON on stdin with
+`-stdin`, or use key authentication. `-dry-run` prints the plan without
+touching anything.
 
 ## Domain routing
 
@@ -178,7 +196,7 @@ by the consumer; `pkg/` free of business logic.
 | **P0** | protocol, transport, server, client, TCP tunnels | ✅ done |
 | **P1** | wildcard domain routing, HTTP vhost, SNI passthrough, `bench/` | ✅ done |
 | P2 | OpenWrt `.apk` and LuCI app | |
-| P3 | SSH server provisioning | |
+| **P3** | SSH server provisioning | ✅ done |
 | P4 | cloud API signing, schema-driven forms | |
 | P5 | DNS management, first five providers | |
 | P6 | ACME issuance, edge TLS termination, hot cert reload | |

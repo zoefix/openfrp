@@ -1,0 +1,38 @@
+[Unit]
+Description=OpenFrp server
+Documentation=https://github.com/zoefix/openfrp
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{.User}}
+Group={{.User}}
+ExecStart={{.BinaryPath}} -c {{.ConfigPath}}
+Restart=on-failure
+RestartSec=5s
+
+# Binding 80 and 443 needs privilege the service otherwise does not have.
+# Granting just this capability is what lets it run as a non-root user.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# The server moves bytes and reads one config file. Everything below is
+# unnecessary for that and is therefore denied.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+ReadWritePaths={{.StateDir}}
+
+# A tunnel server is a file-descriptor-bound workload: one or two per proxied
+# connection, plus the warm pool of every client.
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

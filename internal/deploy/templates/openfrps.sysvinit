@@ -1,0 +1,56 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          openfrps
+# Required-Start:    $network $remote_fs
+# Required-Stop:     $network $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: OpenFrp server
+### END INIT INFO
+
+NAME=openfrps
+DAEMON={{.BinaryPath}}
+CONFIG={{.ConfigPath}}
+RUNAS={{.User}}
+PIDFILE=/run/$NAME.pid
+LOGFILE=/var/log/$NAME.log
+
+start() {
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		echo "$NAME is already running"
+		return 0
+	fi
+
+	# No capability mechanism here either; setcap is the portable way to let a
+	# non-root process bind 80 and 443.
+	if command -v setcap >/dev/null 2>&1; then
+		setcap 'cap_net_bind_service=+ep' "$DAEMON" 2>/dev/null || true
+	fi
+
+	echo "Starting $NAME"
+	su -s /bin/sh -c "$DAEMON -c $CONFIG >> $LOGFILE 2>&1 & echo \$!" "$RUNAS" > "$PIDFILE"
+}
+
+stop() {
+	[ -f "$PIDFILE" ] || { echo "$NAME is not running"; return 0; }
+	echo "Stopping $NAME"
+	kill "$(cat "$PIDFILE")" 2>/dev/null
+	rm -f "$PIDFILE"
+}
+
+status() {
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		echo "$NAME is running"
+		return 0
+	fi
+	echo "$NAME is not running"
+	return 3
+}
+
+case "$1" in
+	start)   start ;;
+	stop)    stop ;;
+	restart) stop; sleep 1; start ;;
+	status)  status ;;
+	*)       echo "usage: $0 {start|stop|restart|status}"; exit 2 ;;
+esac

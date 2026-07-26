@@ -1,0 +1,31 @@
+#!/sbin/openrc-run
+# OpenFrp server.
+
+name="openfrps"
+description="OpenFrp server"
+
+command="{{.BinaryPath}}"
+command_args="-c {{.ConfigPath}}"
+command_user="{{.User}}:{{.User}}"
+command_background=true
+pidfile="/run/openfrps.pid"
+
+output_log="/var/log/openfrps.log"
+error_log="/var/log/openfrps.log"
+
+depend() {
+	need net
+	after firewall
+}
+
+start_pre() {
+	checkpath --directory --owner "{{.User}}:{{.User}}" --mode 0750 "{{.StateDir}}"
+	checkpath --file --owner "{{.User}}:{{.User}}" --mode 0640 "$output_log"
+
+	# OpenRC has no equivalent of AmbientCapabilities, so grant the binary
+	# itself the right to bind privileged ports. Without this the service
+	# cannot listen on 80 or 443 as a non-root user.
+	if command -v setcap >/dev/null 2>&1; then
+		setcap 'cap_net_bind_service=+ep' "{{.BinaryPath}}" 2>/dev/null || true
+	fi
+}

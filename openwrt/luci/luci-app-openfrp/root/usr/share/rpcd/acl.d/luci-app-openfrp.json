@@ -1,0 +1,30 @@
+{
+	"luci-app-openfrp": {
+		"description": "Grant access to OpenFrp configuration, status and server provisioning",
+
+		"read": {
+			"ubus": {
+				"luci.openfrp": [
+					"status",
+					"job_status",
+					"log_tail"
+				],
+				"luci": [ "setInitAction" ]
+			},
+			"uci": [ "openfrp" ],
+			"file": {
+				"/etc/init.d/openfrp": [ "exec" ]
+			}
+		},
+
+		"write": {
+			"ubus": {
+				"luci.openfrp": [
+					"job_start",
+					"job_cancel"
+				]
+			},
+			"uci": [ "openfrp" ]
+		}
+	}
+}

@@ -74,6 +74,11 @@ cross: ## Cross-compile release artefacts for every target platform
 	done
 	@ls -lh $(DIST)
 
+.PHONY: bench
+bench: ## Run the frp comparison and publish the results
+	./bench/run.sh
+	./bench/publish.sh
+
 .PHONY: dev-up
 dev-up: ## Bring up the local server/client/service stack
 	docker compose -f deploy/dev/docker-compose.yml up --build

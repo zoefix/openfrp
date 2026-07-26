@@ -1,0 +1,138 @@
+#!/bin/sh
+#
+# Render /etc/config/openfrp into the JSON the daemon reads.
+#
+# The daemon understands exactly one config format. Keeping the UCI-to-JSON
+# translation here means it never has to link a UCI parser, and the same binary
+# runs unchanged on a plain Linux server.
+#
+# POSIX sh only: the target shell is busybox ash, which has no bash builtins
+# and no coreutils behind it.
+#
+# The daemon rejects unknown JSON fields, so every key emitted here has to
+# match internal/config exactly. That is deliberate — a typo should fail loudly
+# at startup rather than silently disable the option it was meant to set.
+#
+set -eu
+
+. /usr/share/libubox/jshn.sh
+. /lib/functions.sh
+
+OUT="${1:-/var/etc/openfrp.json}"
+
+# add_string emits key only when the value is non-empty, so unset options fall
+# through to the daemon's own defaults instead of being pinned to "".
+add_string() {
+	[ -n "$2" ] || return 0
+	json_add_string "$1" "$2"
+}
+
+add_int() {
+	[ -n "$2" ] || return 0
+	json_add_int "$1" "$2"
+}
+
+add_bool() {
+	[ -n "$2" ] || return 0
+	json_add_boolean "$1" "$([ "$2" = "1" ] && echo 1 || echo 0)"
+}
+
+append_domain() {
+	json_add_string "" "$1"
+}
+
+add_tunnel() {
+	local section="$1"
+	local name enabled type local_ip local_port remote_port tls_mode secret_key
+
+	config_get name "$section" name
+	config_get_bool enabled "$section" enabled 0
+	config_get type "$section" type "tcp"
+	config_get local_ip "$section" local_ip "127.0.0.1"
+	config_get local_port "$section" local_port
+	config_get remote_port "$section" remote_port
+	config_get tls_mode "$section" tls_mode
+	config_get secret_key "$section" secret_key
+
+	# A tunnel without a name or a local port cannot be published, and the
+	# daemon would refuse the whole config over it. Skip it and say so.
+	if [ -z "$name" ] || [ -z "$local_port" ]; then
+		echo "openfrp: skipping tunnel '$section': name and local_port are required" >&2
+		return 0
+	fi
+
+	json_add_object ""
+	json_add_string name "$name"
+	json_add_boolean enabled "$enabled"
+	json_add_string type "$type"
+	json_add_string local_ip "$local_ip"
+	json_add_int local_port "$local_port"
+	add_int remote_port "$remote_port"
+	add_string tls_mode "$tls_mode"
+	add_string secret_key "$secret_key"
+
+	# Domain patterns for http and https tunnels. Emitted only when present,
+	# because the daemon rejects an empty list on those types with a clearer
+	# message than an empty array would produce.
+	if [ -n "$(uci -q get "openfrp.$section.domains" || true)" ]; then
+		json_add_array domains
+		config_list_foreach "$section" domains append_domain
+		json_close_array
+	fi
+
+	json_close_object
+}
+
+main() {
+	local addr port token protocol mux pool_count tls_enable
+	local log_level name
+
+	config_load openfrp
+
+	config_get addr server addr
+	config_get port server port "7000"
+	config_get token server token
+	config_get protocol server protocol "tcp"
+	config_get_bool mux server mux 0
+	config_get pool_count server pool_count "8"
+	config_get_bool tls_enable server tls_enable 0
+	config_get log_level global log_level "info"
+	config_get name global client_name
+
+	if [ -z "$addr" ]; then
+		echo "openfrp: server address is not configured" >&2
+		return 1
+	fi
+
+	json_init
+	json_add_string server_addr "$addr"
+	json_add_int server_port "$port"
+	add_string token "$token"
+	add_string name "$name"
+
+	json_add_object transport
+	json_add_string protocol "$protocol"
+	json_add_boolean mux "$mux"
+	json_add_int pool_count "$pool_count"
+	json_add_boolean tls_enable "$tls_enable"
+	json_close_object
+
+	json_add_array tunnels
+	config_foreach add_tunnel tunnel
+	json_close_array
+
+	json_add_object log
+	json_add_string level "$log_level"
+	json_add_string format "text"
+	json_close_object
+
+	mkdir -p "$(dirname "$OUT")"
+
+	# Write through a temporary file so procd never observes a half-written
+	# config: it hashes this path to decide when to restart the daemon.
+	umask 077
+	json_dump > "$OUT.tmp"
+	mv "$OUT.tmp" "$OUT"
+}
+
+main "$@"

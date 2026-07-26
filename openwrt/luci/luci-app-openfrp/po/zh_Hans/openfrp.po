@@ -1,0 +1,309 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "OpenFrp"
+msgstr "OpenFrp"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Tunnels"
+msgstr "隧道"
+
+msgid "Server"
+msgstr "服务端"
+
+msgid "Overview"
+msgstr "概览"
+
+msgid "Service"
+msgstr "服务"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Enabled but not running"
+msgstr "已启用但未运行"
+
+msgid "Disabled"
+msgstr "已停用"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "not configured"
+msgstr "未配置"
+
+msgid "Transport"
+msgstr "传输方式"
+
+msgid "Multiplexed — shared congestion window, no kernel zero-copy"
+msgstr "多路复用——共用一个拥塞窗口，无法使用内核零拷贝"
+
+msgid "Connection pool — independent congestion windows, kernel zero-copy"
+msgstr "连接池——各自独立的拥塞窗口，可用内核零拷贝"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Type"
+msgstr "类型"
+
+msgid "Local target"
+msgstr "内网目标"
+
+msgid "Exposed as"
+msgstr "对外暴露"
+
+msgid "State"
+msgstr "状态"
+
+msgid "port %s"
+msgstr "端口 %s"
+
+msgid "server-allocated"
+msgstr "由服务端分配"
+
+msgid "No tunnels are configured yet."
+msgstr "尚未配置任何隧道。"
+
+msgid "Recent log"
+msgstr "最近日志"
+
+msgid "The daemon writes to syslog through procd."
+msgstr "守护进程通过 procd 把日志写入 syslog。"
+
+msgid "No log output yet."
+msgstr "暂无日志输出。"
+
+msgid "Could not reach the OpenFrp backend."
+msgstr "无法连接 OpenFrp 后端。"
+
+msgid ""
+"If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd "
+"restart"
+msgstr "如果刚安装完 ACL 文件，需要重启 rpcd：/etc/init.d/rpcd restart"
+
+msgid "Each tunnel exposes one local service through the server."
+msgstr "每条隧道通过服务端暴露一个内网服务。"
+
+msgid ""
+"A \"*\" label matches exactly one level and may appear at any depth: *.aaa."
+"com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, "
+"and deeper wildcards win over shallower ones."
+msgstr ""
+"「*」严格代表一层，可以出现在任意深度：*.aaa.com 匹配 www.aaa.com，但不匹配 "
+"x.bb.aaa.com。精确域名优先于泛域名，层级更深的泛域名优先于更浅的。"
+
+msgid "Tunnel"
+msgstr "隧道"
+
+msgid "unnamed"
+msgstr "未命名"
+
+msgid "A name is required"
+msgstr "名称不能为空"
+
+msgid "Use letters, digits, dot, dash or underscore only"
+msgstr "只能使用字母、数字、点、短横线或下划线"
+
+msgid "Another tunnel already uses the name %s"
+msgstr "已有另一条隧道使用名称 %s"
+
+msgid "Secret TCP"
+msgstr "私密 TCP"
+
+msgid "Local address"
+msgstr "内网地址"
+
+msgid "The LAN host running the service."
+msgstr "运行该服务的内网主机。"
+
+msgid "Local port"
+msgstr "内网端口"
+
+msgid "Remote port"
+msgstr "远程端口"
+
+msgid "Leave empty to let the server allocate one."
+msgstr "留空则由服务端自动分配。"
+
+msgid "Domains"
+msgstr "域名"
+
+msgid "Patterns routed to this tunnel over the shared HTTP and HTTPS ports."
+msgstr "通过共享的 HTTP/HTTPS 端口路由到本隧道的域名规则。"
+
+msgid "A domain needs at least two labels, for example aaa.com"
+msgstr "域名至少需要两级，例如 aaa.com"
+
+msgid "Empty label in %s"
+msgstr "%s 中存在空的标签"
+
+msgid "\"*\" is only allowed as the leftmost label"
+msgstr "「*」只能作为最左边的标签"
+
+msgid "\"*\" must be a whole label, not part of one"
+msgstr "「*」必须独占一个标签，不能是标签的一部分"
+
+msgid "%s is too broad; a wildcard needs a domain beneath it"
+msgstr "%s 范围过大；泛域名下面必须有一个具体域名"
+
+msgid "TLS handling"
+msgstr "TLS 处理方式"
+
+msgid "Passthrough — the server does not decrypt"
+msgstr "透传——服务端不解密"
+
+msgid "Terminate at the server (needs a pushed certificate)"
+msgstr "在服务端终止（需要推送证书）"
+
+msgid ""
+"Passthrough forwards the encrypted stream untouched, so the local service "
+"owns the certificate. Termination requires a certificate issued here and "
+"pushed to the server."
+msgstr ""
+"透传会原样转发加密流量，证书由内网服务自己持有。终止模式需要在本机签发证书并推"
+"送到服务端。"
+
+msgid "Secret key"
+msgstr "密钥"
+
+msgid "Visitors must present this to reach the tunnel."
+msgstr "访问者必须提供此密钥才能连接本隧道。"
+
+msgid "Where this router connects, and how to provision that server."
+msgstr "本路由器连接到哪台服务端，以及如何自动部署它。"
+
+msgid "Enable OpenFrp"
+msgstr "启用 OpenFrp"
+
+msgid "Log level"
+msgstr "日志级别"
+
+msgid "Connection"
+msgstr "连接"
+
+msgid "Server address"
+msgstr "服务端地址"
+
+msgid "Control port"
+msgstr "控制端口"
+
+msgid "Token"
+msgstr "令牌"
+
+msgid "Shared secret. Stored in plaintext on this router."
+msgstr "共享密钥。在本路由器上以明文存储。"
+
+msgid "Warm connections"
+msgstr "预热连接数"
+
+msgid "Connections kept open so an arriving request does not wait for a dial."
+msgstr "预先建立并保持的连接数，使新请求到达时无需等待建连。"
+
+msgid "Multiplex connections"
+msgstr "多路复用"
+
+msgid ""
+"Off by default, unlike frp. Multiplexing puts every tunnel behind one "
+"congestion window, so a single lost packet stalls them all, and it rules out "
+"the kernel zero-copy path. Enable only when the number of open sockets "
+"matters more than throughput."
+msgstr ""
+"与 frp 不同，此项默认关闭。多路复用会让所有隧道共用一个拥塞窗口，一个丢包就会"
+"拖住全部隧道，并且无法使用内核零拷贝。只有当连接数比吞吐更重要时才建议开启。"
+
+msgid "TLS on the control connection"
+msgstr "控制连接启用 TLS"
+
+msgid "Provision the server"
+msgstr "部署服务端"
+
+msgid ""
+"Install and configure the server over SSH. The server needs nothing installed "
+"beforehand."
+msgstr "通过 SSH 安装并配置服务端。目标服务器无需预装任何东西。"
+
+msgid "SSH host"
+msgstr "SSH 主机"
+
+msgid "SSH port"
+msgstr "SSH 端口"
+
+msgid "SSH user"
+msgstr "SSH 用户"
+
+msgid "Private key"
+msgstr "私钥"
+
+msgid "Path to a key on this router. Recommended over a password."
+msgstr "本路由器上的私钥路径。比使用密码更推荐。"
+
+msgid "Host key fingerprint"
+msgstr "主机密钥指纹"
+
+msgid "Recorded on first connection and checked afterwards."
+msgstr "首次连接时记录，之后每次校验。"
+
+msgid "Deploy"
+msgstr "部署"
+
+msgid "Deploy now"
+msgstr "立即部署"
+
+msgid ""
+"Detects the distribution and init system, installs the server, writes its "
+"configuration, opens the firewall and verifies the result. Safe to run again "
+"to upgrade in place."
+msgstr ""
+"自动探测发行版与 init 系统，安装服务端、写入配置、放行防火墙并回验结果。可重复"
+"执行以原地升级。"
+
+msgid "Set the SSH host first."
+msgstr "请先填写 SSH 主机。"
+
+msgid "Deploy server"
+msgstr "部署服务端"
+
+msgid "Deploying to %s. This can take a few minutes."
+msgstr "正在部署到 %s，可能需要几分钟。"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Start"
+msgstr "开始"
+
+msgid "Deploying server"
+msgstr "正在部署服务端"
+
+msgid "Could not start the deployment: %s"
+msgstr "无法启动部署：%s"
+
+msgid "Starting…"
+msgstr "正在启动…"
+
+msgid "Running…"
+msgstr "运行中…"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Lost track of the job: %s"
+msgstr "任务状态丢失：%s"
+
+msgid "no response"
+msgstr "无响应"
+
+msgid "Finished successfully."
+msgstr "执行成功。"
+
+msgid "Failed — see the output above."
+msgstr "执行失败——详见上方输出。"
+
+msgid "Job ended in state: %s"
+msgstr "任务结束状态：%s"

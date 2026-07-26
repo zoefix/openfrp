@@ -1,0 +1,40 @@
+{
+	"admin/services/openfrp": {
+		"title": "OpenFrp",
+		"order": 40,
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-openfrp" ],
+			"uci": { "openfrp": true }
+		}
+	},
+
+	"admin/services/openfrp/status": {
+		"title": "Status",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "openfrp/status"
+		}
+	},
+
+	"admin/services/openfrp/tunnels": {
+		"title": "Tunnels",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "openfrp/tunnels"
+		}
+	},
+
+	"admin/services/openfrp/server": {
+		"title": "Server",
+		"order": 30,
+		"action": {
+			"type": "view",
+			"path": "openfrp/server"
+		}
+	}
+}

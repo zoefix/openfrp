@@ -1,0 +1,12 @@
+{
+  "mode": "latency",
+  "label": "frp/rtt-50ms",
+  "target": "frps:6000",
+  "seconds": 10.001,
+  "requests": 11230,
+  "qps": 1122.9,
+  "errors": 0,
+  "p50_ms": 28.601,
+  "p99_ms": 31.017,
+  "p999_ms": 31.169
+}

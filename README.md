@@ -45,15 +45,17 @@ decision here, not by general optimisation.
 
 **1. frp multiplexes by default.** Every work stream shares one TCP connection
 via yamux, so all tunnels sit behind a single congestion window and a single
-retransmission queue — one lost packet stalls everything at once. Worse, the
-yamux default stream window is 256 KiB, and a stream cannot exceed
-`window / RTT`. Over a 100 ms path that caps a single stream at roughly
-**2.5 MB/s regardless of available bandwidth**.
+retransmission queue — one lost packet stalls every tunnel at once.
 
 OpenFrp defaults to a **connection pool**: each work connection is its own TCP
 connection with its own congestion window. Multiplexing is available
 (`transport.mux`) but opt-in, and when enabled the window defaults to 8 MiB
-rather than 256 KiB.
+rather than yamux's 256 KiB.
+
+Measured, this is worth **3.4× the throughput and less than half the p99** on a
+lossy link. It is worth nothing on a clean one — see
+[the benchmark](docs/benchmark.md), which also records where an earlier
+prediction about this turned out to be wrong.
 
 **2. frp copies every byte through userspace.** NIC → kernel → frps → kernel →
 frpc → kernel → NIC.
@@ -84,9 +86,10 @@ contention, and the SSH provisioner enables BBR on the server as part of
 deployment.
 
 None of this is a claim until it is measured. The [`bench/`](bench/) harness
-runs frp and OpenFrp side by side under identical `tc netem` conditions.
-Results are in [`docs/benchmark.md`](docs/benchmark.md), **including the cases
-we lose**.
+runs frp and OpenFrp side by side under identical `tc netem` conditions, and
+[`docs/benchmark.md`](docs/benchmark.md) publishes the numbers **including the
+scenarios where OpenFrp ties or loses, and one where the original theory was
+simply wrong**.
 
 ## Build
 
@@ -183,9 +186,8 @@ by the consumer; `pkg/` free of business logic.
 
 Both test systems are documented in
 [`docs/test-environments.md`](docs/test-environments.md) with the constraints
-they impose — including that the router runs OpenWrt 25.12 (so packages must be
-`.apk`, not `.ipk`) and that ports 80 and 443 on the test server are already
-occupied.
+they impose — including that the router runs OpenWrt 25.12, so packages must be
+`.apk` rather than `.ipk`.
 
 ## Licence
 

@@ -4,10 +4,16 @@
 #   ./bench/run.sh                     # the full matrix
 #   ./bench/run.sh --quick             # one scenario, for a smoke check
 #   ./bench/run.sh --duration 30s      # longer samples
+#   ./bench/run.sh --repeat 5          # more repetitions per measurement
 #
 # Results land in bench/results/ as raw JSON plus a rendered table. Every
 # scenario is run against both stacks back to back under the same shaping, so
 # a noisy host degrades both equally rather than favouring one.
+#
+# Each measurement is repeated and the MEDIAN is reported. A single sample on
+# a shared machine is not stable enough to compare: back-to-back single-sample
+# runs of this same matrix disagreed by 4x on one scenario, which is more than
+# the effect being measured.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -15,12 +21,14 @@ cd "$(dirname "$0")/.."
 COMPOSE=(docker compose -f bench/docker-compose.yml)
 RESULTS_DIR="bench/results"
 DURATION="10s"
+REPEAT=3
 QUICK=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --quick)    QUICK=1; shift ;;
         --duration) DURATION="$2"; shift 2 ;;
+        --repeat)   REPEAT="$2"; shift 2 ;;
         -h|--help)  sed -n '2,12p' "$0"; exit 0 ;;
         *)          echo "unknown flag: $1" >&2; exit 2 ;;
     esac
@@ -55,11 +63,14 @@ teardown() {
 trap teardown EXIT
 
 log "building images (frp is fetched from its GitHub release)"
-"${COMPOSE[@]}" build >/dev/null
+# --profile driver is required: `docker compose build` silently skips services
+# behind a profile, which left the load generator running a stale image and
+# reporting a shutdown artefact as an error on every run.
+"${COMPOSE[@]}" --profile driver build >/dev/null
 
 run_case() {
-    local scenario="$1" stack="$2" target="$3" mode="$4" extra="$5"
-    local out="$RESULTS_DIR/${scenario}-${stack}-${mode}.json"
+    local scenario="$1" stack="$2" target="$3" mode="$4" extra="$5" rep="$6"
+    local out="$RESULTS_DIR/${scenario}-${stack}-${mode}-rep${rep}.json"
 
     # --rm so each run is a fresh container; the tunnels themselves stay up.
     #
@@ -93,11 +104,13 @@ for entry in "${SCENARIOS[@]}"; do
     for stack in openfrp frp; do
         if [[ $stack == openfrp ]]; then target="openfrps:6000"; else target="frps:6000"; fi
 
-        log "  ${stack}: single-stream throughput"
-        run_case "$scenario" "$stack" "$target" throughput "-chunk 262144" >/dev/null
+        for rep in $(seq 1 "$REPEAT"); do
+            log "  ${stack}: throughput (${rep}/${REPEAT})"
+            run_case "$scenario" "$stack" "$target" throughput "-chunk 262144" "$rep" >/dev/null
 
-        log "  ${stack}: concurrent latency"
-        run_case "$scenario" "$stack" "$target" latency "-concurrency 32 -payload 64" >/dev/null
+            log "  ${stack}: latency (${rep}/${REPEAT})"
+            run_case "$scenario" "$stack" "$target" latency "-concurrency 32 -payload 64" "$rep" >/dev/null
+        done
     done
 done
 

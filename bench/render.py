@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 """Render benchmark JSON into a Markdown comparison.
 
-Deliberately reports every scenario, including the ones OpenFrp loses. A
-benchmark that only shows wins is marketing, and the cases where multiplexing
-is genuinely competitive are the ones a reader most needs to see.
+Each measurement is repeated, and the MEDIAN is reported with the observed
+spread alongside it. A single sample on a shared machine is not stable enough
+to compare two tunnels: back-to-back single-sample runs of this matrix
+disagreed by 4x on one scenario, which is larger than the effect being
+measured. Showing the spread lets a reader see which rows are solid and which
+are noise.
+
+Every scenario is printed, including the ones OpenFrp loses. A benchmark that
+only shows wins is marketing, and the cases where multiplexing is genuinely
+competitive are exactly what a reader needs in order to judge the defaults.
 """
 
 import json
 import pathlib
+import re
+import statistics
 import sys
 
 SCENARIO_ORDER = [
@@ -21,44 +30,75 @@ SCENARIO_ORDER = [
 
 SCENARIO_LABEL = {
     "lan": "LAN (no shaping)",
-    "rtt-50ms": "50 ms RTT",
-    "rtt-100ms": "100 ms RTT",
-    "rtt-200ms": "200 ms RTT",
-    "loss-1pct": "50 ms RTT, 1% loss",
-    "loss-3pct": "50 ms RTT, 3% loss",
+    "rtt-50ms": "50 ms delay",
+    "rtt-100ms": "100 ms delay",
+    "rtt-200ms": "200 ms delay",
+    "loss-1pct": "50 ms delay, 1% loss",
+    "loss-3pct": "50 ms delay, 3% loss",
 }
+
+# <scenario>-<stack>-<mode>-rep<N>.json, with the older unrepeated form
+# tolerated so a stale results directory does not crash the renderer.
+NAME = re.compile(r"^(?P<scenario>.+)-(?P<stack>openfrp|frp)-(?P<mode>throughput|latency)(?:-rep(?P<rep>\d+))?$")
 
 
 def load(results_dir: pathlib.Path) -> dict:
-    data = {}
-    for path in results_dir.glob("*.json"):
-        stem = path.stem
-        try:
-            scenario, stack, mode = stem.rsplit("-", 2)
-        except ValueError:
+    """Return {scenario: {stack: {mode: [sample, ...]}}}."""
+    data: dict = {}
+    for path in sorted(results_dir.glob("*.json")):
+        match = NAME.match(path.stem)
+        if not match:
             continue
         try:
             payload = json.loads(path.read_text())
         except (json.JSONDecodeError, OSError):
             continue
-        data.setdefault(scenario, {}).setdefault(stack, {})[mode] = payload
+        bucket = (
+            data.setdefault(match["scenario"], {})
+            .setdefault(match["stack"], {})
+            .setdefault(match["mode"], [])
+        )
+        bucket.append(payload)
     return data
 
 
-def ratio(ours: float, theirs: float) -> str:
-    """Format the speed-up, or a plain marker when it is not meaningful."""
-    if not theirs:
-        return "—"
-    factor = ours / theirs
-    if factor >= 1:
-        return f"**{factor:.2f}×**"
-    return f"{factor:.2f}×"
+def samples(runs: list, key: str) -> list:
+    return [r[key] for r in runs if isinstance(r.get(key), (int, float))]
 
 
-def cell(value, unit: str = "") -> str:
+def median(runs: list, key: str):
+    values = samples(runs, key)
+    return statistics.median(values) if values else None
+
+
+def spread(runs: list, key: str) -> str:
+    """Report min-max when repetitions disagree meaningfully."""
+    values = samples(runs, key)
+    if len(values) < 2:
+        return ""
+    low, high = min(values), max(values)
+    if low <= 0 or high / low < 1.15:
+        return ""
+    return f"<br><sub>{low:g}–{high:g}</sub>"
+
+
+def cell(runs: list, key: str, unit: str = "") -> str:
+    value = median(runs, key)
     if value is None:
         return "—"
-    return f"{value}{unit}"
+    return f"{value:g}{unit}{spread(runs, key)}"
+
+
+def ratio(runs_ours: list, runs_theirs: list, key: str) -> str:
+    ours, theirs = median(runs_ours, key), median(runs_theirs, key)
+    if not ours or not theirs:
+        return "—"
+    factor = ours / theirs
+    return f"**{factor:.2f}×**" if factor >= 1 else f"{factor:.2f}×"
+
+
+def get(data: dict, scenario: str, stack: str, mode: str) -> list:
+    return data.get(scenario, {}).get(stack, {}).get(mode, [])
 
 
 def main() -> int:
@@ -71,51 +111,68 @@ def main() -> int:
     scenarios = [s for s in SCENARIO_ORDER if s in data]
     scenarios += sorted(s for s in data if s not in SCENARIO_ORDER)
 
-    out = []
-    out.append("### Single-stream throughput\n")
-    out.append("Higher is better. This is where multiplexing hurts most: a stream")
-    out.append("cannot exceed window/RTT, so a shared 256 KiB window becomes the")
-    out.append("ceiling as latency grows.\n")
-    out.append("| Scenario | OpenFrp | frp | Ratio |")
-    out.append("|---|---:|---:|---:|")
+    reps = max(
+        (len(get(data, s, stack, mode))
+         for s in scenarios for stack in ("openfrp", "frp")
+         for mode in ("throughput", "latency")),
+        default=0,
+    )
+
+    out = [
+        f"Median of {reps} runs per measurement. Where repetitions disagreed by "
+        "more than 15%, the observed range is shown beneath the median.\n",
+        "### Single-stream throughput\n",
+        "Higher is better. One connection, so there is no head-of-line blocking",
+        "to suffer; this isolates the cost of moving bytes through userspace",
+        "versus splicing them in the kernel.\n",
+        "| Scenario | OpenFrp | frp | Ratio |",
+        "|---|---:|---:|---:|",
+    ]
 
     for scenario in scenarios:
-        ours = data[scenario].get("openfrp", {}).get("throughput", {})
-        theirs = data[scenario].get("frp", {}).get("throughput", {})
-        o = ours.get("mb_per_second")
-        f = theirs.get("mb_per_second")
+        ours = get(data, scenario, "openfrp", "throughput")
+        theirs = get(data, scenario, "frp", "throughput")
         out.append(
             f"| {SCENARIO_LABEL.get(scenario, scenario)} "
-            f"| {cell(o, ' MB/s')} | {cell(f, ' MB/s')} "
-            f"| {ratio(o or 0, f or 0)} |"
+            f"| {cell(ours, 'mb_per_second', ' MB/s')} "
+            f"| {cell(theirs, 'mb_per_second', ' MB/s')} "
+            f"| {ratio(ours, theirs, 'mb_per_second')} |"
         )
 
-    out.append("\n### Concurrent request latency\n")
-    out.append("32 connections doing small round trips. Lower is better.\n")
-    out.append("| Scenario | OpenFrp QPS | frp QPS | OpenFrp p99 | frp p99 |")
-    out.append("|---|---:|---:|---:|---:|")
+    out += [
+        "\n### Concurrent request latency\n",
+        "32 connections doing small round trips. Higher QPS and lower p99 are",
+        "better. This is where head-of-line blocking shows up: under loss a",
+        "multiplexed tunnel stalls every stream on one lost packet, while",
+        "independent connections stall only themselves.\n",
+        "| Scenario | OpenFrp QPS | frp QPS | Ratio | OpenFrp p99 | frp p99 |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
 
     for scenario in scenarios:
-        ours = data[scenario].get("openfrp", {}).get("latency", {})
-        theirs = data[scenario].get("frp", {}).get("latency", {})
+        ours = get(data, scenario, "openfrp", "latency")
+        theirs = get(data, scenario, "frp", "latency")
         out.append(
             f"| {SCENARIO_LABEL.get(scenario, scenario)} "
-            f"| {cell(ours.get('qps'))} | {cell(theirs.get('qps'))} "
-            f"| {cell(ours.get('p99_ms'), ' ms')} | {cell(theirs.get('p99_ms'), ' ms')} |"
+            f"| {cell(ours, 'qps')} | {cell(theirs, 'qps')} "
+            f"| {ratio(ours, theirs, 'qps')} "
+            f"| {cell(ours, 'p99_ms', ' ms')} | {cell(theirs, 'p99_ms', ' ms')} |"
         )
 
-    errors = []
+    failures = []
     for scenario in scenarios:
         for stack in ("openfrp", "frp"):
-            for mode, payload in data[scenario].get(stack, {}).items():
-                if payload.get("error") or payload.get("errors"):
-                    errors.append(
-                        f"- {scenario} / {stack} / {mode}: "
-                        f"{payload.get('error') or str(payload.get('errors')) + ' errors'}"
-                    )
-    if errors:
+            for mode in ("throughput", "latency"):
+                for run in get(data, scenario, stack, mode):
+                    if run.get("error"):
+                        failures.append(f"- {scenario} / {stack} / {mode}: {run['error']}")
+                    elif run.get("errors"):
+                        failures.append(
+                            f"- {scenario} / {stack} / {mode}: {run['errors']} connection errors"
+                        )
+    if failures:
         out.append("\n### Runs that reported errors\n")
-        out.extend(errors)
+        out.extend(sorted(set(failures)))
 
     print("\n".join(out))
     return 0

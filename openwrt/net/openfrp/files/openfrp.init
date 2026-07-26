@@ -1,0 +1,79 @@
+#!/bin/sh /etc/rc.common
+#
+# procd service for the OpenFrp client.
+#
+# shellcheck shell=ash disable=SC2034
+#
+
+# After network. The daemon retries with backoff, so a slightly early start is
+# survivable, but there is no reason to make it work for it.
+START=99
+STOP=10
+
+USE_PROCD=1
+
+PROG=/usr/bin/openfrpc
+RENDER=/usr/libexec/openfrp/render
+CONF=/var/etc/openfrp.json
+RUNDIR=/var/run/openfrp
+
+boot() {
+	# The config lives on tmpfs, so it has to be regenerated every boot.
+	start "$@"
+}
+
+start_service() {
+	local enabled log_level
+
+	config_load openfrp
+	config_get_bool enabled global enabled 0
+	config_get log_level global log_level "info"
+
+	if [ "$enabled" != "1" ]; then
+		echo "openfrp: disabled in /etc/config/openfrp" >&2
+		return 0
+	fi
+
+	mkdir -p "$RUNDIR"
+
+	if ! "$RENDER" "$CONF"; then
+		echo "openfrp: refusing to start, configuration is incomplete" >&2
+		return 1
+	fi
+
+	# The credentials file is world-readable by default and holds an auth
+	# token plus, potentially, an SSH password.
+	chmod 600 /etc/config/openfrp 2>/dev/null
+
+	procd_open_instance openfrp
+	procd_set_param command "$PROG" run -c "$CONF"
+
+	# procd hashes this file and restarts the instance when it changes, so a
+	# `reload` that produces different JSON takes effect without extra wiring.
+	procd_set_param file "$CONF"
+
+	# stdout and stderr go to syslog, which is where the LuCI status view
+	# reads them from. Cheapest possible log pipeline.
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+
+	# Restart on crash, but give up if it is crash-looping: 5 failures inside
+	# an hour means the config is wrong, and hammering it hides that.
+	procd_set_param respawn 3600 5 5
+
+	procd_set_param pidfile "$RUNDIR/openfrpc.pid"
+	procd_close_instance
+}
+
+stop_service() {
+	rm -f "$CONF"
+}
+
+reload_service() {
+	stop
+	start
+}
+
+service_triggers() {
+	procd_add_reload_trigger "openfrp"
+}

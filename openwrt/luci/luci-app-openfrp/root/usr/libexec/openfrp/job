@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# Detached worker for long-running LuCI actions.
+#
+# Invoked as:  job <kind> <log-path> <status-path>
+# with the job's arguments arriving on stdin as JSON.
+#
+# Arguments come in on stdin rather than argv on purpose: /proc/*/cmdline is
+# readable by every local process, and a deploy job carries an SSH password.
+#
+# POSIX sh only — the shell here is busybox ash.
+#
+set -u
+
+KIND="${1:-}"
+LOG="${2:-}"
+STATUS="${3:-}"
+
+[ -n "$KIND" ] && [ -n "$LOG" ] && [ -n "$STATUS" ] || {
+	echo "usage: job <kind> <log-path> <status-path>" >&2
+	exit 2
+}
+
+umask 077
+: > "$LOG"
+
+write_status() {
+	# state, then pid so the UI can cancel us.
+	printf '{"state":"%s","pid":%s,"kind":"%s"}\n' "$1" "$$" "$KIND" > "$STATUS.tmp"
+	mv "$STATUS.tmp" "$STATUS"
+}
+
+log() {
+	echo "$*" >> "$LOG"
+}
+
+finish() {
+	local state="$1"
+	write_status "$state"
+	exit "$([ "$state" = "succeeded" ] && echo 0 || echo 1)"
+}
+
+# Read the arguments before doing anything else: the caller's pipe closes as
+# soon as it has written, and leaving it unread would block them.
+ARGS="$(cat)"
+
+write_status running
+
+case "$KIND" in
+	deploy)
+		# Server provisioning over SSH. The engine lives in the Go binary so
+		# progress arrives as structured events rather than scraped stderr;
+		# this wrapper only detaches it and captures the stream. Lands in P3.
+		if ! command -v openfrpc >/dev/null 2>&1; then
+			log "openfrpc is not installed"
+			finish failed
+		fi
+		log "==> starting server deployment"
+		if printf '%s' "$ARGS" | openfrpc deploy --json >> "$LOG" 2>&1; then
+			log "==> deployment finished"
+			finish succeeded
+		fi
+		log "==> deployment failed"
+		finish failed
+		;;
+
+	restart)
+		log "==> restarting openfrp"
+		if /etc/init.d/openfrp restart >> "$LOG" 2>&1; then
+			log "==> restarted"
+			finish succeeded
+		fi
+		log "==> restart failed"
+		finish failed
+		;;
+
+	*)
+		log "unknown job kind: $KIND"
+		finish failed
+		;;
+esac

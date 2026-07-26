@@ -1,0 +1,146 @@
+'use strict';
+'require view';
+'require form';
+'require uci';
+'require ui';
+
+/*
+ * Tunnel configuration.
+ *
+ * Domain patterns are validated here as well as in the daemon. The daemon is
+ * the authority, but a rejected pattern there surfaces as a log line the user
+ * has to go looking for, whereas catching it in the form points at the field.
+ */
+
+// A "*" label matches exactly one level and may appear only leftmost.
+function validateDomainPattern(section_id, value) {
+	if (!value || value === '')
+		return true;
+
+	if (value === '*')
+		return true; // the catch-all
+
+	var labels = value.split('.');
+
+	if (labels.length < 2)
+		return _('A domain needs at least two labels, for example aaa.com');
+
+	for (var i = 0; i < labels.length; i++) {
+		var label = labels[i];
+
+		if (label === '')
+			return _('Empty label in %s').format(value);
+
+		if (label === '*') {
+			if (i !== 0)
+				return _('"*" is only allowed as the leftmost label');
+			continue;
+		}
+
+		if (label.indexOf('*') !== -1)
+			return _('"*" must be a whole label, not part of one');
+	}
+
+	if (labels[0] === '*' && labels.length < 3)
+		return _('%s is too broad; a wildcard needs a domain beneath it').format(value);
+
+	return true;
+}
+
+return view.extend({
+	load: function () {
+		return uci.load('openfrp');
+	},
+
+	render: function () {
+		var m, s, o;
+
+		m = new form.Map('openfrp', _('Tunnels'),
+			_('Each tunnel exposes one local service through the server.') + ' ' +
+			_('A "*" label matches exactly one level and may appear at any depth: ' +
+			  '*.aaa.com matches www.aaa.com but not x.bb.aaa.com. ' +
+			  'Exact names win over wildcards, and deeper wildcards win over shallower ones.'));
+
+		s = m.section(form.GridSection, 'tunnel', null);
+		s.addremove = true;
+		s.anonymous = true;
+		s.sortable = true;
+		s.nodescriptions = true;
+
+		s.modaltitle = function (section_id) {
+			return _('Tunnel') + ' » ' + (uci.get('openfrp', section_id, 'name') || _('unnamed'));
+		};
+
+		o = s.option(form.Flag, 'enabled', _('Enabled'));
+		o.editable = true;
+		o.default = '0';
+
+		o = s.option(form.Value, 'name', _('Name'));
+		o.rmempty = false;
+		o.placeholder = 'nas-web';
+		o.validate = function (section_id, value) {
+			if (!value)
+				return _('A name is required');
+			if (!/^[A-Za-z0-9._-]+$/.test(value))
+				return _('Use letters, digits, dot, dash or underscore only');
+
+			// Names identify a tunnel to the server, so they have to be unique.
+			var clash = null;
+			uci.sections('openfrp', 'tunnel', function (section) {
+				if (section['.name'] !== section_id && section.name === value)
+					clash = section['.name'];
+			});
+			if (clash)
+				return _('Another tunnel already uses the name %s').format(value);
+
+			return true;
+		};
+
+		o = s.option(form.ListValue, 'type', _('Type'));
+		o.value('tcp', 'TCP');
+		o.value('udp', 'UDP');
+		o.value('http', 'HTTP');
+		o.value('https', 'HTTPS');
+		o.value('stcp', _('Secret TCP'));
+		o.default = 'tcp';
+
+		o = s.option(form.Value, 'local_ip', _('Local address'),
+			_('The LAN host running the service.'));
+		o.datatype = 'or(host,ipaddr)';
+		o.default = '127.0.0.1';
+		o.placeholder = '192.168.1.100';
+
+		o = s.option(form.Value, 'local_port', _('Local port'));
+		o.datatype = 'port';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'remote_port', _('Remote port'),
+			_('Leave empty to let the server allocate one.'));
+		o.datatype = 'port';
+		o.depends('type', 'tcp');
+		o.depends('type', 'udp');
+
+		o = s.option(form.DynamicList, 'domains', _('Domains'),
+			_('Patterns routed to this tunnel over the shared HTTP and HTTPS ports.'));
+		o.depends('type', 'http');
+		o.depends('type', 'https');
+		o.placeholder = '*.aaa.com';
+		o.validate = validateDomainPattern;
+
+		o = s.option(form.ListValue, 'tls_mode', _('TLS handling'));
+		o.depends('type', 'https');
+		o.value('passthrough', _('Passthrough — the server does not decrypt'));
+		o.value('terminate', _('Terminate at the server (needs a pushed certificate)'));
+		o.default = 'passthrough';
+		o.description = _('Passthrough forwards the encrypted stream untouched, so the ' +
+			'local service owns the certificate. Termination requires a certificate ' +
+			'issued here and pushed to the server.');
+
+		o = s.option(form.Value, 'secret_key', _('Secret key'),
+			_('Visitors must present this to reach the tunnel.'));
+		o.depends('type', 'stcp');
+		o.password = true;
+
+		return m.render();
+	}
+});

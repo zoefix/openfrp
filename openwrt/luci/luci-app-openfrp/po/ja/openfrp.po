@@ -1,0 +1,323 @@
+# Japanese translation for luci-app-openfrp.
+#
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "\"*\" is only allowed as the leftmost label"
+msgstr "\"*\" は最も左のラベルにのみ指定できます"
+
+msgid "\"*\" must be a whole label, not part of one"
+msgstr "\"*\" はラベル全体である必要があり、一部にはできません"
+
+msgid "%s is not in the expected format"
+msgstr "%s の形式が正しくありません"
+
+msgid "%s is required"
+msgstr "%s は必須です"
+
+msgid "%s is too broad; a wildcard needs a domain beneath it"
+msgstr "%s は範囲が広すぎます。ワイルドカードの下にはドメインが必要です"
+
+msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
+msgstr "\"*\" ラベルはちょうど 1 階層だけに一致し、どの深さにも置けます。*.aaa.com は www.aaa.com に一致しますが、x.bb.aaa.com には一致しません。完全一致がワイルドカードより優先され、深いワイルドカードが浅いものより優先されます。"
+
+msgid "A domain needs at least two labels, for example aaa.com"
+msgstr "ドメインには最低 2 つのラベルが必要です (例: aaa.com)"
+
+msgid "A name is required"
+msgstr "名前は必須です"
+
+msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
+msgstr "パスワードはデプロイ時に入力し、このルーターには保存されません。鍵の方が安全で、デプロイ時に自動でインストールできます。"
+
+msgid "Another tunnel already uses the name %s"
+msgstr "名前 %s は既に別のトンネルが使用しています"
+
+msgid "Authentication"
+msgstr "認証方式"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Close"
+msgstr "閉じる"
+
+msgid "Connection"
+msgstr "接続"
+
+msgid "Connection pool — independent congestion windows, kernel zero-copy"
+msgstr "コネクションプール — 独立した輻輳ウィンドウ、カーネルゼロコピー"
+
+msgid "Connections kept open so an arriving request does not wait for a dial."
+msgstr "リクエスト到着時に接続待ちが起きないよう、あらかじめ張っておく接続数です。"
+
+msgid "Control port"
+msgstr "制御ポート"
+
+msgid "Could not reach the OpenFrp backend."
+msgstr "OpenFrp バックエンドに接続できません。"
+
+msgid "Could not start the deployment: %s"
+msgstr "デプロイを開始できませんでした: %s"
+
+msgid "Deploy"
+msgstr "デプロイ"
+
+msgid "Deploy now"
+msgstr "今すぐデプロイ"
+
+msgid "Deploy server"
+msgstr "サーバーをデプロイ"
+
+msgid "Deploying server"
+msgstr "サーバーをデプロイしています"
+
+msgid "Deploying to %s. This can take a few minutes."
+msgstr "%s にデプロイしています。数分かかることがあります。"
+
+msgid "Detects the distribution and init system, installs the server, writes its configuration, opens the firewall and verifies the result. Safe to run again to upgrade in place."
+msgstr "ディストリビューションと init システムを判別し、サーバーのインストール、設定の書き込み、ファイアウォールの開放、結果の検証を行います。再実行すればそのまま更新できます。"
+
+msgid "Disabled"
+msgstr "無効"
+
+msgid "Domains"
+msgstr "ドメイン"
+
+msgid "Download URL"
+msgstr "ダウンロード URL"
+
+msgid "Each tunnel exposes one local service through the server."
+msgstr "各トンネルはローカルのサービスを 1 つ、サーバー経由で公開します。"
+
+msgid "Empty label in %s"
+msgstr "%s に空のラベルがあります"
+
+msgid "Enable OpenFrp"
+msgstr "OpenFrp を有効にする"
+
+msgid "Enabled"
+msgstr "有効"
+
+msgid "Enabled but not running"
+msgstr "有効ですが実行されていません"
+
+msgid "Enter the SSH password."
+msgstr "SSH パスワードを入力してください。"
+
+msgid "Exposed as"
+msgstr "公開先"
+
+msgid "Failed — see the output above."
+msgstr "失敗しました — 上の出力を確認してください。"
+
+msgid "Finished successfully."
+msgstr "正常に完了しました。"
+
+msgid "Host key fingerprint"
+msgstr "ホスト鍵フィンガープリント"
+
+msgid "If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd restart"
+msgstr "ACL ファイルを入れたばかりの場合は rpcd の再起動が必要です: /etc/init.d/rpcd restart"
+
+msgid "Install and configure the server over SSH. The server needs nothing installed beforehand."
+msgstr "SSH 経由でサーバーをインストールし設定します。サーバー側に事前準備は不要です。"
+
+msgid "Job ended in state: %s"
+msgstr "ジョブの終了状態: %s"
+
+msgid "Leave empty to let the server allocate one."
+msgstr "空欄にするとサーバーが自動的に割り当てます。"
+
+msgid "Local address"
+msgstr "ローカルアドレス"
+
+msgid "Local port"
+msgstr "ローカルポート"
+
+msgid "Local target"
+msgstr "ローカル転送先"
+
+msgid "Log level"
+msgstr "ログレベル"
+
+msgid "Lost track of the job: %s"
+msgstr "ジョブの状態を取得できません: %s"
+
+msgid "Multiplex connections"
+msgstr "接続の多重化"
+
+msgid "Multiplexed — shared congestion window, no kernel zero-copy"
+msgstr "多重化 — 輻輳ウィンドウを共有し、カーネルゼロコピーは使えません"
+
+msgid "Name"
+msgstr "名前"
+
+msgid "No log output yet."
+msgstr "まだログ出力はありません。"
+
+msgid "No tunnels are configured yet."
+msgstr "トンネルがまだ設定されていません。"
+
+msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
+msgstr "frp とは異なり既定では無効です。多重化するとすべてのトンネルが 1 つの輻輳ウィンドウを共有するため、1 つのパケット損失で全体が停滞し、カーネルゼロコピーも使えなくなります。スループットよりソケット数が重要な場合にのみ有効にしてください。"
+
+msgid "Overview"
+msgstr "概要"
+
+msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Termination requires a certificate issued here and pushed to the server."
+msgstr "パススルーは暗号化されたままの通信をそのまま転送するため、証明書はローカルのサービスが持ちます。終端する場合は、ここで発行した証明書をサーバーへ配布する必要があります。"
+
+msgid "Passthrough — the server does not decrypt"
+msgstr "パススルー — サーバーは復号しません"
+
+msgid "Password"
+msgstr "パスワード"
+
+msgid "Path to a key on this router."
+msgstr "このルーター上の鍵ファイルのパスです。"
+
+msgid "Patterns routed to this tunnel over the shared HTTP and HTTPS ports."
+msgstr "共有 HTTP / HTTPS ポート経由でこのトンネルに振り分けるパターンです。"
+
+msgid "Private key"
+msgstr "秘密鍵"
+
+msgid "Provision the server"
+msgstr "サーバーの構築"
+
+msgid "Recent log"
+msgstr "最近のログ"
+
+msgid "Recorded on first connection and checked afterwards."
+msgstr "初回接続時に記録し、以降は毎回照合します。"
+
+msgid "Remote port"
+msgstr "リモートポート"
+
+msgid "Running"
+msgstr "実行中"
+
+msgid "Running…"
+msgstr "実行中…"
+
+msgid "SSH host"
+msgstr "SSH ホスト"
+
+msgid "SSH password"
+msgstr "SSH パスワード"
+
+msgid "SSH password for %s@%s"
+msgstr "%s@%s の SSH パスワード"
+
+msgid "SSH port"
+msgstr "SSH ポート"
+
+msgid "SSH user"
+msgstr "SSH ユーザー"
+
+msgid "Secret TCP"
+msgstr "シークレット TCP"
+
+msgid "Secret key"
+msgstr "シークレットキー"
+
+msgid "Server"
+msgstr "サーバー"
+
+msgid "Server address"
+msgstr "サーバーアドレス"
+
+msgid "Server binary"
+msgstr "サーバー実行ファイル"
+
+msgid "Service"
+msgstr "サービス"
+
+msgid "Set the SSH host first."
+msgstr "先に SSH ホストを指定してください。"
+
+msgid "Shared secret. Stored in plaintext on this router."
+msgstr "共有シークレットです。このルーターに平文で保存されます。"
+
+msgid "Start"
+msgstr "開始"
+
+msgid "Starting…"
+msgstr "開始しています…"
+
+msgid "State"
+msgstr "状態"
+
+msgid "Stored credentials are never displayed. Leave blank to keep the current value."
+msgstr "保存済みの認証情報は表示されません。空欄のままにすると現在の値を維持します。"
+
+msgid "TLS handling"
+msgstr "TLS の扱い"
+
+msgid "TLS on the control connection"
+msgstr "制御接続で TLS を使用"
+
+msgid "Terminate at the server (needs a pushed certificate)"
+msgstr "サーバーで終端する (証明書の配布が必要)"
+
+msgid "The LAN host running the service."
+msgstr "そのサービスが動いている LAN 上のホストです。"
+
+msgid "The daemon writes to syslog through procd."
+msgstr "デーモンは procd 経由で syslog に出力します。"
+
+msgid "Token"
+msgstr "トークン"
+
+msgid "Transport"
+msgstr "トランスポート"
+
+msgid "Tunnel"
+msgstr "トンネル"
+
+msgid "Tunnels"
+msgstr "トンネル"
+
+msgid "Type"
+msgstr "種類"
+
+msgid "Uploaded to the server. Works without outbound internet there, and installs the exact bytes this router checksummed."
+msgstr "サーバーへアップロードします。サーバー側に外向きの接続がなくても動作し、このルーターが検証したバイト列がそのまま入ります。"
+
+msgid "Use letters, digits, dot, dash or underscore only"
+msgstr "英数字、ドット、ハイフン、アンダースコアのみ使用できます"
+
+msgid "Used for this deployment only. It is not saved."
+msgstr "今回のデプロイにのみ使用し、保存はされません。"
+
+msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
+msgstr "上のファイルが無い場合に使用します。{arch} と {os} は判別したサーバーの値に置き換えられます。"
+
+msgid "Visitors must present this to reach the tunnel."
+msgstr "このトンネルに接続するには、利用者がこれを提示する必要があります。"
+
+msgid "Warm connections"
+msgstr "ウォーム接続数"
+
+msgid "Where this router connects, and how to provision that server."
+msgstr "このルーターの接続先と、そのサーバーを構築する方法です。"
+
+msgid "no response"
+msgstr "応答なし"
+
+msgid "not configured"
+msgstr "未設定"
+
+msgid "port %s"
+msgstr "ポート %s"
+
+msgid "server-allocated"
+msgstr "サーバー割り当て"
+
+msgid "unnamed"
+msgstr "名称未設定"

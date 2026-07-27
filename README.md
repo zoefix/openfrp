@@ -28,10 +28,22 @@ user; uploads and checksums the binary; writes the configuration; installs a
 systemd, OpenRC or sysvinit service; opens the firewall; enables BBR; and
 verifies the result. Re-running upgrades in place — every step is idempotent.
 
-A password is never accepted as a flag, because `/proc/*/cmdline` is readable
-by every local process on the router. Pass credentials as JSON on stdin with
-`-stdin`, or use key authentication. `-dry-run` prints the plan without
+From LuCI it is the **Deploy now** button, which asks for the SSH password at
+that moment and never stores it. Key authentication is offered alongside.
+
+A password is never accepted as a flag, and never reaches a command line at
+all, because `/proc/*/cmdline` is readable by every local process on the
+router — a password in an argument is a password published to anyone with a
+shell. It travels from the browser to the job worker through a mode-0600 file
+on tmpfs that the worker unlinks the moment it has read it. From a shell, pass
+credentials as JSON on stdin with `-stdin`. `-dry-run` prints the plan without
 touching anything.
+
+The router bundles a server binary built for its own architecture and uploads
+it, so the server needs no outbound internet and gets bytes the router
+checksummed. When the server turns out to be a different architecture, the
+deployer notices from the ELF header and downloads the right one instead of
+installing something that cannot execute.
 
 ## Domain routing
 
@@ -114,6 +126,32 @@ runs frp and OpenFrp side by side under identical `tc netem` conditions, and
 scenarios where OpenFrp ties or loses, and one where the original theory was
 simply wrong**.
 
+## Languages
+
+The LuCI app ships English, 简体中文, 繁體中文 (台灣) and 日本語. English is the
+source language and needs no catalogue; the other three live in
+[`openwrt/luci/luci-app-openfrp/po/`](openwrt/luci/luci-app-openfrp/po/) and
+build into `luci-i18n-openfrp-{zh-cn,zh-tw,ja}`.
+
+`tools/luci-i18n` replaces the parts of LuCI's toolchain that only exist inside
+a buildroot, so catalogues can be extracted, compiled and checked from a normal
+checkout:
+
+```bash
+go run ./tools/luci-i18n extract openwrt/luci/luci-app-openfrp/po/templates/openfrp.pot openwrt/luci/luci-app-openfrp/htdocs
+```
+
+`go test ./tools/...` fails when a string reachable from the UI has no
+translation, when a translation loses or reorders a `%s`, and when the hash
+drifts from LuCI's. That last one matters more than it looks: the hash is how
+LuCI keys every entry, and one wrong bit yields a catalogue that loads without
+error and translates nothing. It is pinned against keys read out of a stock
+`base.zh-cn.lmo` taken off a running router.
+
+Selecting 繁體中文 or 日本語 translates this app, but the rest of the LuCI
+interface stays English unless the matching `luci-i18n-base-*` package is
+installed — that is a separate package, not something this one can supply.
+
 ## Build
 
 ```bash
@@ -188,6 +226,7 @@ pkg/
   cloudapi/              cloud API request signing
   schema/                declarative provider forms
 openwrt/                 OpenWrt feed and LuCI app
+tools/                   build-time helpers, one command per directory
 ```
 
 Rules that hold throughout: one DNS provider per package; registries populated

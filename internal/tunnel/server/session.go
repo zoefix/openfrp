@@ -45,6 +45,7 @@ type Session struct {
 	reusePort   bool
 
 	routes         proxy.RouteRegistrar
+	challenges     *ChallengeStore
 	recorder       proxy.Recorder
 	vhostHTTPPort  int
 	vhostHTTPSPort int
@@ -69,7 +70,10 @@ type SessionOptions struct {
 	AcceptLoops int
 	ReusePort   bool
 
-	Routes         proxy.RouteRegistrar
+	Routes proxy.RouteRegistrar
+	// Challenges is where this client's ACME validations are held, so they can
+	// be withdrawn when it disconnects.
+	Challenges     *ChallengeStore
 	Recorder       proxy.Recorder
 	VhostHTTPPort  int
 	VhostHTTPSPort int
@@ -96,6 +100,7 @@ func newSession(opts SessionOptions) *Session {
 		reusePort:   opts.ReusePort,
 
 		routes:         opts.Routes,
+		challenges:     opts.Challenges,
 		recorder:       opts.Recorder,
 		vhostHTTPPort:  opts.VhostHTTPPort,
 		vhostHTTPSPort: opts.VhostHTTPSPort,
@@ -306,6 +311,13 @@ func (s *Session) Close() error {
 		// route behind, and a stale route would black-hole its hostname.
 		if s.routes != nil {
 			s.routes.RemoveClient(s.runID)
+		}
+
+		// Any ACME challenge this client published goes with it. Nothing is
+		// going to withdraw them now, and the server would otherwise keep
+		// answering a validation for a client that has gone.
+		if s.challenges != nil {
+			s.challenges.WithdrawClient(s.runID)
 		}
 
 		s.proxiesMu.Lock()

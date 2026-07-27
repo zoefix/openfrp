@@ -29,13 +29,14 @@ const handshakeTimeout = 15 * time.Second
 
 // Server accepts client connections and publishes their tunnels.
 type Server struct {
-	cfg      *config.Server
-	logger   *slog.Logger
-	registry *Registry
-	router   *vhost.Router
-	certs    *CertStore
-	stats    *stats.Registry
-	version  string
+	cfg        *config.Server
+	logger     *slog.Logger
+	registry   *Registry
+	router     *vhost.Router
+	certs      *CertStore
+	challenges *ChallengeStore
+	stats      *stats.Registry
+	version    string
 
 	listenerMu sync.Mutex
 	listener   net.Listener
@@ -57,13 +58,14 @@ func New(cfg *config.Server, logger *slog.Logger, version string) (*Server, erro
 	}
 
 	return &Server{
-		cfg:      cfg,
-		logger:   logger,
-		registry: NewRegistry(),
-		router:   vhost.NewRouter(),
-		certs:    NewCertStore(),
-		stats:    stats.NewRegistry(),
-		version:  version,
+		cfg:        cfg,
+		logger:     logger,
+		registry:   NewRegistry(),
+		router:     vhost.NewRouter(),
+		certs:      NewCertStore(),
+		challenges: NewChallengeStore(),
+		stats:      stats.NewRegistry(),
+		version:    version,
 	}, nil
 }
 
@@ -75,6 +77,9 @@ func (s *Server) Router() *vhost.Router { return s.router }
 
 // Certs exposes the certificate store used for edge TLS termination.
 func (s *Server) Certs() *CertStore { return s.certs }
+
+// Challenges exposes the ACME HTTP-01 challenges clients have published.
+func (s *Server) Challenges() *ChallengeStore { return s.challenges }
 
 // Stats exposes the traffic counters.
 func (s *Server) Stats() *stats.Registry { return s.stats }
@@ -154,7 +159,8 @@ func (s *Server) Listen(ctx context.Context) error {
 			continue
 		}
 		v := newVhostListener(want.scheme, want.port, s.cfg.BindAddr,
-			s.router, s.registry, s.certs, s.stats, s.logger, s.cfg.AcceptLoops)
+			s.router, s.registry, s.certs, s.challenges, s.stats,
+			s.logger, s.cfg.AcceptLoops)
 		if err := v.listen(ctx); err != nil {
 			for _, started := range s.vhosts {
 				started.close()

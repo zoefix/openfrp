@@ -8,8 +8,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/zoefix/openfrp/internal/config"
 	"github.com/zoefix/openfrp/internal/manage"
 	"github.com/zoefix/openfrp/internal/storage"
+	"github.com/zoefix/openfrp/internal/version"
 )
 
 // The management subcommands are the API the LuCI pages talk to.
@@ -78,8 +80,29 @@ func withService(fn func(*manage.Service) (any, error)) error {
 	}
 	defer service.Close()
 
+	attachServers(service)
+
 	return emit(fn(service))
 }
+
+// attachServers tells the service which tunnel servers can answer an ACME
+// HTTP-01 validation.
+//
+// Read from the rendered daemon configuration rather than passed in, because
+// this process is the job worker's and has no other view of them. Its absence
+// is not an error: a setup with no server configured simply has no way to
+// validate over HTTP, and issuance says so when it comes to it.
+func attachServers(service *manage.Service) {
+	cfg, err := config.LoadClient(clientConfigPath)
+	if err != nil {
+		return
+	}
+	service.SetHTTPChallengeServers(cfg.Upstreams(), version.Short())
+}
+
+// clientConfigPath is where the OpenWrt init script renders the daemon's
+// configuration. Overridable for a deployment that puts it elsewhere.
+var clientConfigPath = "/var/etc/openfrp.json"
 
 // readStdinJSON decodes a JSON document from stdin into target.
 //

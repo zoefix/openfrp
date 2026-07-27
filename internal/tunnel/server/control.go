@@ -72,6 +72,7 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		ReusePort:   s.cfg.AcceptLoops != 1,
 
 		Routes:         s.routeRegistrar(),
+		Challenges:     s.challenges,
 		Recorder:       s.stats,
 		VhostHTTPPort:  s.cfg.VhostHTTPPort,
 		VhostHTTPSPort: s.cfg.VhostHTTPSPort,
@@ -163,6 +164,9 @@ func (s *Server) controlLoop(ctx context.Context, session *Session, codec *proto
 		case *protocol.CertPush:
 			s.handleCertPush(session, codec, m)
 
+		case *protocol.HTTPChallenge:
+			s.handleHTTPChallenge(session, codec, m)
+
 		default:
 			logger.Debug("unexpected control message", "type", msg.Type())
 		}
@@ -187,6 +191,34 @@ func (s *Server) handleNewProxy(ctx context.Context, session *Session, codec *pr
 
 	if err := codec.Write(resp); err != nil {
 		session.logger.Debug("send proxy response", "error", err)
+	}
+}
+
+// handleHTTPChallenge publishes or withdraws one ACME validation.
+//
+// The server answers these on its own HTTP port rather than forwarding them,
+// so a name can be validated before it has a tunnel — which is the normal
+// case, since the certificate is being obtained in order to serve it.
+func (s *Server) handleHTTPChallenge(session *Session, codec *protocol.Codec,
+	msg *protocol.HTTPChallenge) {
+
+	resp := &protocol.HTTPChallengeResp{}
+
+	if msg.Remove {
+		s.challenges.Withdraw(session.runID, msg.Token)
+		session.logger.Debug("withdrew an ACME challenge", "domain", msg.Domain)
+	} else if err := s.challenges.Publish(
+		session.runID, msg.Domain, msg.Token, msg.KeyAuth); err != nil {
+		session.logger.Warn("ACME challenge rejected",
+			"domain", msg.Domain, "error", err)
+		resp.Error = err.Error()
+	} else {
+		session.logger.Info("answering an ACME challenge on behalf of a client",
+			"domain", msg.Domain, "outstanding", s.challenges.Len())
+	}
+
+	if err := codec.Write(resp); err != nil {
+		session.logger.Debug("send challenge response", "error", err)
 	}
 }
 

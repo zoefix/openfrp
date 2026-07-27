@@ -31,11 +31,12 @@ type vhostListener struct {
 	port     int
 	bindAddr string
 
-	router   *vhost.Router
-	registry *Registry
-	certs    *CertStore
-	stats    *stats.Registry
-	logger   *slog.Logger
+	router     *vhost.Router
+	registry   *Registry
+	certs      *CertStore
+	stats      *stats.Registry
+	challenges *ChallengeStore
+	logger     *slog.Logger
 
 	acceptLoops int
 	reusePort   bool
@@ -113,12 +114,25 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 
 	source := userConn.RemoteAddr().String()
 
-	host, consumed, err := v.sniff(userConn)
+	host, path, consumed, err := v.sniff(userConn)
 	if err != nil {
 		v.logger.Debug("could not identify connection",
 			"scheme", string(v.scheme), "source", source, "error", err)
 		v.reject(userConn, statusBadRequest)
 		return
+	}
+
+	// An ACME validation is answered here, before routing. The name being
+	// validated need not have a tunnel yet — and usually does not, since the
+	// certificate is being obtained in order to serve it — so looking up a
+	// route first would reject exactly the request this exists to serve.
+	if v.scheme == vhost.SchemeHTTP && v.challenges != nil {
+		if keyAuth, ok := v.challenges.Answer(path); ok {
+			v.logger.Info("answered an ACME challenge",
+				"host", host, "path", path, "source", source)
+			answerChallenge(userConn, keyAuth)
+			return
+		}
 	}
 
 	route, found := v.router.Lookup(host)
@@ -196,26 +210,26 @@ func (v *vhostListener) record(proxyName string, transferred netutil.RelayStats)
 }
 
 // sniff recovers the target host and the bytes consumed doing so.
-func (v *vhostListener) sniff(conn net.Conn) (host string, consumed []byte, err error) {
+func (v *vhostListener) sniff(conn net.Conn) (host, path string, consumed []byte, err error) {
 	switch v.scheme {
 	case vhost.SchemeHTTP:
 		info, err := vhost.SniffHTTP(conn)
-		return info.Host, info.Consumed, err
+		return info.Host, info.Path, info.Consumed, err
 
 	case vhost.SchemeHTTPS:
 		info, err := vhost.SniffTLS(conn)
 		if err != nil {
-			return "", info.Consumed, err
+			return "", "", info.Consumed, err
 		}
 		if info.ServerName == "" {
 			// No SNI. Only a catch-all route can serve this, and Lookup will
 			// find it if one exists.
-			return "", info.Consumed, nil
+			return "", "", info.Consumed, nil
 		}
-		return info.ServerName, info.Consumed, nil
+		return info.ServerName, "", info.Consumed, nil
 
 	default:
-		return "", nil, fmt.Errorf("server: unknown vhost scheme %q", v.scheme)
+		return "", "", nil, fmt.Errorf("server: unknown vhost scheme %q", v.scheme)
 	}
 }
 
@@ -263,7 +277,8 @@ func (v *vhostListener) addr() net.Addr {
 // newVhostListener builds a listener for one scheme.
 func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 	router *vhost.Router, registry *Registry, certs *CertStore,
-	traffic *stats.Registry, logger *slog.Logger, acceptLoops int) *vhostListener {
+	challenges *ChallengeStore, traffic *stats.Registry,
+	logger *slog.Logger, acceptLoops int) *vhostListener {
 
 	return &vhostListener{
 		scheme:      scheme,
@@ -272,6 +287,7 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 		router:      router,
 		registry:    registry,
 		certs:       certs,
+		challenges:  challenges,
 		stats:       traffic,
 		logger:      logger,
 		acceptLoops: acceptLoops,

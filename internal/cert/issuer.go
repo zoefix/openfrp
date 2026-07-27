@@ -132,8 +132,15 @@ type IssueRequest struct {
 	KeyType KeyType
 	// Account carries the ACME account. Its key is created if absent.
 	Account *Account
-	// Solver answers the challenge. Required for DNS-01.
+	// Solver answers a DNS-01 challenge. Required for a wildcard, which no
+	// other challenge type can prove.
 	Solver ChallengeSolver
+
+	// HTTPSolver answers an HTTP-01 challenge, used when no DNS solver is
+	// supplied. It needs no credentials for the zone — only that the name
+	// already resolves to the tunnel server, which it does, because that is
+	// what the certificate is for.
+	HTTPSolver HTTPSolver
 	// PreferredChain selects an issuer chain by root common name, for clients
 	// that still distrust a newer root.
 	PreferredChain string
@@ -159,6 +166,9 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 		return nil, fmt.Errorf("cert: no domains requested")
 	}
 
+	// The wildcard case first: it is the more specific diagnosis, and telling
+	// someone to "supply a solver" when the real constraint is that only DNS
+	// can prove a wildcard sends them down the wrong path.
 	if NeedsDNSChallenge(domains) && req.Solver == nil {
 		wildcards := make([]string, 0, 1)
 		for _, domain := range domains {
@@ -170,6 +180,12 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 			"cert: %s requires a DNS-01 challenge, so a DNS provider must be "+
 				"configured; HTTP validation cannot prove control of names that "+
 				"do not exist yet", strings.Join(wildcards, ", "))
+	}
+
+	if req.Solver == nil && req.HTTPSolver == nil {
+		return nil, fmt.Errorf(
+			"cert: no way to answer the authority's challenge; supply a DNS " +
+				"solver or an HTTP one")
 	}
 
 	ca, err := resolveCA(req.CA)
@@ -202,13 +218,23 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 		return nil, fmt.Errorf("cert: create ACME client: %w", err)
 	}
 
-	if req.Solver != nil {
+	// DNS-01 takes precedence where both are available: it is the only one
+	// that can prove a wildcard, and it does not depend on the name already
+	// resolving anywhere.
+	switch {
+	case req.Solver != nil:
 		// The context is bound here rather than stored on the request, so a
 		// cancelled issuance stops the solver mid-propagation instead of
 		// leaving challenge records behind.
 		solver := legoSolver{ctx: ctx, inner: req.Solver}
 		if err := client.Challenge.SetDNS01Provider(solver); err != nil {
 			return nil, fmt.Errorf("cert: configure DNS challenge: %w", err)
+		}
+
+	case req.HTTPSolver != nil:
+		solver := legoHTTPSolver{ctx: ctx, inner: req.HTTPSolver}
+		if err := client.Challenge.SetHTTP01Provider(solver); err != nil {
+			return nil, fmt.Errorf("cert: configure HTTP challenge: %w", err)
 		}
 	}
 

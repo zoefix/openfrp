@@ -61,6 +61,9 @@ msgstr "一个你能认出来的名称，例如 aliyun-main"
 msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
 msgstr "隧道无法通过代理工作：代理只承载它自己那几个端口上的 HTTP 和 HTTPS，而且会终止 TLS。指向穿透服务端的域名请用\"仅 DNS\"。"
 
+msgid "A wildcard can only be proved through DNS. Select an account."
+msgstr "泛域名只能通过 DNS 验证，请选择一个账号。"
+
 msgid "Accounts"
 msgstr "账号"
 
@@ -295,6 +298,9 @@ msgstr "历史"
 msgid "Host key fingerprint"
 msgstr "主机密钥指纹"
 
+msgid "How ownership is proved. Without an account the authority fetches a file over HTTP, which the tunnel server answers for you — the name must already point at it. A wildcard can only be proved through DNS."
+msgstr "如何证明域名归属。不选账号时，证书颁发机构会通过 HTTP 抓取一个文件，由穿透服务端代为应答 —— 前提是该域名已经解析到它。泛域名只能通过 DNS 验证。"
+
 msgid "If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd restart"
 msgstr "如果 ACL 文件是刚安装的，需要重启 rpcd：/etc/init.d/rpcd restart"
 
@@ -397,6 +403,9 @@ msgstr "尚未配置任何隧道。"
 msgid "None — TLS will not work until one is bound"
 msgstr "无 — 未绑定证书前 TLS 无法工作"
 
+msgid "None — validate over HTTP"
+msgstr "无 — 使用 HTTP 文件验证"
+
 msgid "Not announced"
 msgstr "不告知"
 
@@ -441,9 +450,6 @@ msgstr "通过共享的 HTTP / HTTPS 端口路由到本隧道的域名模式。"
 
 msgid "Private key"
 msgstr "私钥"
-
-msgid "Proves the domain is yours. DNS is the only way available here, because HTTP validation would need port 80 on this router reachable from the internet."
-msgstr "用于证明域名归你所有。这里只能用 DNS 验证，因为 HTTP 验证需要本路由器的 80 端口能从公网访问。"
 
 msgid "Provider"
 msgstr "服务商"
@@ -531,9 +537,6 @@ msgstr "私密 TCP"
 
 msgid "Secret key"
 msgstr "访问密钥"
-
-msgid "Select a DNS account."
-msgstr "请选择一个 DNS 账号。"
 
 msgid "Server"
 msgstr "服务端"

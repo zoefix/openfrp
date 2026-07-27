@@ -30,21 +30,25 @@ const (
 	TypePong
 	TypeCertPush
 	TypeCertPushResp
+	TypeHTTPChallenge
+	TypeHTTPChallengeResp
 )
 
 var typeNames = map[Type]string{
-	TypeLogin:         "Login",
-	TypeLoginResp:     "LoginResp",
-	TypeNewProxy:      "NewProxy",
-	TypeNewProxyResp:  "NewProxyResp",
-	TypeCloseProxy:    "CloseProxy",
-	TypeReqWorkConn:   "ReqWorkConn",
-	TypeNewWorkConn:   "NewWorkConn",
-	TypeStartWorkConn: "StartWorkConn",
-	TypePing:          "Ping",
-	TypePong:          "Pong",
-	TypeCertPush:      "CertPush",
-	TypeCertPushResp:  "CertPushResp",
+	TypeLogin:             "Login",
+	TypeLoginResp:         "LoginResp",
+	TypeNewProxy:          "NewProxy",
+	TypeNewProxyResp:      "NewProxyResp",
+	TypeCloseProxy:        "CloseProxy",
+	TypeReqWorkConn:       "ReqWorkConn",
+	TypeNewWorkConn:       "NewWorkConn",
+	TypeStartWorkConn:     "StartWorkConn",
+	TypePing:              "Ping",
+	TypePong:              "Pong",
+	TypeCertPush:          "CertPush",
+	TypeCertPushResp:      "CertPushResp",
+	TypeHTTPChallenge:     "HTTPChallenge",
+	TypeHTTPChallengeResp: "HTTPChallengeResp",
 }
 
 // String implements fmt.Stringer.
@@ -204,6 +208,36 @@ type CertPush struct {
 
 func (*CertPush) Type() Type { return TypeCertPush }
 
+// HTTPChallenge asks the server to answer one ACME HTTP-01 challenge.
+//
+// The certificate authority fetches http://<domain>/.well-known/acme-challenge/
+// <token> and expects the key authorisation back. That request arrives at the
+// server's shared HTTP port, which is exactly where this project already
+// terminates port 80 — so the server can answer it directly, without the
+// challenge ever reaching the LAN service or needing one to exist.
+//
+// This is what makes HTTP validation usable here at all: the router has no
+// public address of its own, and the name already points at the server.
+type HTTPChallenge struct {
+	// Domain is the name being validated, for logging and scoping.
+	Domain string `json:"domain"`
+	// Token is the last path element the authority will request.
+	Token string `json:"token"`
+	// KeyAuth is the exact body to return.
+	KeyAuth string `json:"key_auth"`
+	// Remove withdraws a previously published challenge instead of adding one.
+	Remove bool `json:"remove,omitempty"`
+}
+
+func (*HTTPChallenge) Type() Type { return TypeHTTPChallenge }
+
+// HTTPChallengeResp acknowledges an HTTPChallenge.
+type HTTPChallengeResp struct {
+	Error string `json:"error,omitempty"`
+}
+
+func (*HTTPChallengeResp) Type() Type { return TypeHTTPChallengeResp }
+
 // CertPushResp acknowledges a CertPush.
 type CertPushResp struct {
 	Error string `json:"error,omitempty"`
@@ -215,16 +249,18 @@ func (*CertPushResp) Type() Type { return TypeCertPushResp }
 // table driven so adding a message means adding one entry, not editing a
 // switch that lives somewhere else.
 var factories = map[Type]func() Message{
-	TypeLogin:         func() Message { return new(Login) },
-	TypeLoginResp:     func() Message { return new(LoginResp) },
-	TypeNewProxy:      func() Message { return new(NewProxy) },
-	TypeNewProxyResp:  func() Message { return new(NewProxyResp) },
-	TypeCloseProxy:    func() Message { return new(CloseProxy) },
-	TypeReqWorkConn:   func() Message { return new(ReqWorkConn) },
-	TypeNewWorkConn:   func() Message { return new(NewWorkConn) },
-	TypeStartWorkConn: func() Message { return new(StartWorkConn) },
-	TypePing:          func() Message { return new(Ping) },
-	TypePong:          func() Message { return new(Pong) },
-	TypeCertPush:      func() Message { return new(CertPush) },
-	TypeCertPushResp:  func() Message { return new(CertPushResp) },
+	TypeLogin:             func() Message { return new(Login) },
+	TypeLoginResp:         func() Message { return new(LoginResp) },
+	TypeNewProxy:          func() Message { return new(NewProxy) },
+	TypeNewProxyResp:      func() Message { return new(NewProxyResp) },
+	TypeCloseProxy:        func() Message { return new(CloseProxy) },
+	TypeReqWorkConn:       func() Message { return new(ReqWorkConn) },
+	TypeNewWorkConn:       func() Message { return new(NewWorkConn) },
+	TypeStartWorkConn:     func() Message { return new(StartWorkConn) },
+	TypePing:              func() Message { return new(Ping) },
+	TypePong:              func() Message { return new(Pong) },
+	TypeCertPush:          func() Message { return new(CertPush) },
+	TypeCertPushResp:      func() Message { return new(CertPushResp) },
+	TypeHTTPChallenge:     func() Message { return new(HTTPChallenge) },
+	TypeHTTPChallengeResp: func() Message { return new(HTTPChallengeResp) },
 }

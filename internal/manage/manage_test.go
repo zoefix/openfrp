@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zoefix/openfrp/internal/config"
 	"github.com/zoefix/openfrp/internal/manage"
 	"github.com/zoefix/openfrp/internal/storage"
 	"github.com/zoefix/openfrp/internal/storage/repo"
@@ -313,35 +314,48 @@ func storedCredentials(t *testing.T, path string, id int64) map[string]string {
 	return account.Credentials
 }
 
-// TestEveryOrderNeedsADNSAccount covers the order that looked fine and could
-// never issue.
+// TestOrderWithoutDNSUsesHTTPValidation covers the case that needs no zone
+// credentials.
 //
-// DNS-01 is the only challenge implemented, so an order without an account is
-// dead on arrival whether or not it names a wildcard. It used to be accepted,
-// and then failed at issuance with a message claiming the account had been
-// deleted — which was a guess, and in the case that prompted this, wrong: none
-// had ever been selected.
-func TestEveryOrderNeedsADNSAccount(t *testing.T) {
+// A single name can be proved by serving a file, which the tunnel server does
+// on this router's behalf. Demanding an API key for the whole zone in order to
+// certify one host is a real cost, and the only thing that genuinely requires
+// it is a wildcard.
+func TestOrderWithoutDNSUsesHTTPValidation(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
 
+	// With no server configured there is nothing to answer an HTTP validation,
+	// and the order says so rather than failing later.
 	_, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"openwrt.arm.moe"}, // not a wildcard
+		Domains: []string{"openwrt.arm.moe"},
 		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
 	})
 	if err == nil {
-		t.Fatal("an order with no DNS account was accepted")
-	}
-	if !strings.Contains(err.Error(), "DNS account") {
-		t.Errorf("the error does not say what is missing: %v", err)
+		t.Fatal("an order was accepted with no way to prove ownership")
 	}
 
-	// And it still works when one is given.
-	account := cloudflareAccount(t, s)
+	s.SetHTTPChallengeServers([]config.Upstream{
+		{Name: "main", Addr: "203.0.113.1", Port: 7000},
+	}, "test")
+
 	if _, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"openwrt.arm.moe"}, KeyType: "ec256",
-		CA: "letsencrypt", Email: "ops@example.com", AccountID: account.ID,
+		Domains: []string{"openwrt.arm.moe"},
+		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
 	}); err != nil {
-		t.Errorf("an order with an account was rejected: %v", err)
+		t.Errorf("an order that can be validated over HTTP was rejected: %v", err)
+	}
+
+	// A wildcard still cannot: no file on any host proves a name that does not
+	// exist yet.
+	_, err = s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"*.arm.moe"},
+		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
+	})
+	if err == nil {
+		t.Fatal("a wildcard was accepted without a DNS account")
+	}
+	if !strings.Contains(err.Error(), "wildcard") {
+		t.Errorf("the error does not explain why: %v", err)
 	}
 }

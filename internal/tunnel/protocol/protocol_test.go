@@ -35,6 +35,8 @@ func TestCodecRoundTripsEveryMessageType(t *testing.T) {
 			PrivateKeyPEM: []byte("-----BEGIN PRIVATE KEY-----"),
 			NotAfter:      1700000000},
 		&CertPushResp{},
+		&HTTPChallenge{Domain: "openwrt.arm.moe", Token: "tok", KeyAuth: "tok.thumb"},
+		&HTTPChallengeResp{},
 	}
 
 	if len(cases) != len(factories) {

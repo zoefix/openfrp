@@ -61,6 +61,9 @@ msgstr "自分でわかる名前（例: aliyun-main）"
 msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
 msgstr "トンネルはプロキシ経由では動作しません。プロキシは自前のポートで HTTP と HTTPS だけを扱い、TLS を終端します。トンネルサーバーを指す名前には「DNS のみ」を使ってください。"
 
+msgid "A wildcard can only be proved through DNS. Select an account."
+msgstr "ワイルドカードは DNS でしか証明できません。アカウントを選択してください。"
+
 msgid "Accounts"
 msgstr "アカウント"
 
@@ -295,6 +298,9 @@ msgstr "履歴"
 msgid "Host key fingerprint"
 msgstr "ホスト鍵フィンガープリント"
 
+msgid "How ownership is proved. Without an account the authority fetches a file over HTTP, which the tunnel server answers for you — the name must already point at it. A wildcard can only be proved through DNS."
+msgstr "所有をどう証明するか。アカウントを選ばない場合、認証局が HTTP でファイルを取得し、トンネルサーバーが代わりに応答します（その名前が既にサーバーを指している必要があります）。ワイルドカードは DNS でしか証明できません。"
+
 msgid "If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd restart"
 msgstr "ACL ファイルを入れたばかりの場合は rpcd の再起動が必要です: /etc/init.d/rpcd restart"
 
@@ -397,6 +403,9 @@ msgstr "トンネルがまだ設定されていません。"
 msgid "None — TLS will not work until one is bound"
 msgstr "なし — 紐付けるまで TLS は機能しません"
 
+msgid "None — validate over HTTP"
+msgstr "なし — HTTP で検証"
+
 msgid "Not announced"
 msgstr "通知しない"
 
@@ -441,9 +450,6 @@ msgstr "共有 HTTP / HTTPS ポート経由でこのトンネルに振り分け�
 
 msgid "Private key"
 msgstr "秘密鍵"
-
-msgid "Proves the domain is yours. DNS is the only way available here, because HTTP validation would need port 80 on this router reachable from the internet."
-msgstr "ドメインの所有を証明します。ここでは DNS しか使えません。HTTP 検証にはこのルーターの 80 番ポートがインターネットから到達できる必要があるためです。"
 
 msgid "Provider"
 msgstr "プロバイダ"
@@ -531,9 +537,6 @@ msgstr "シークレット TCP"
 
 msgid "Secret key"
 msgstr "シークレットキー"
-
-msgid "Select a DNS account."
-msgstr "DNS アカウントを選択してください。"
 
 msgid "Server"
 msgstr "サーバー"

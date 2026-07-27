@@ -24,6 +24,11 @@ type Service struct {
 	db       *storage.DB
 	accounts *repo.Accounts
 	orders   *repo.Orders
+
+	// httpSolver answers ACME validations through the tunnel servers, for
+	// certificates issued without DNS credentials. Nil when no server is
+	// configured, which leaves DNS-01 as the only option.
+	httpSolver *httpSolver
 }
 
 // New opens the database at path and returns a service over it.

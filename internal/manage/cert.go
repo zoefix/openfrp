@@ -148,26 +148,22 @@ func (s *Service) CreateOrder(ctx context.Context, in OrderInput) (OrderView, er
 		return OrderView{}, fmt.Errorf("manage: unknown certificate authority %q", ca)
 	}
 
-	// Every order needs a DNS account, not just a wildcard one.
-	//
-	// A wildcard can only be proved over DNS-01, and DNS-01 is the only
-	// challenge implemented here — HTTP-01 would need port 80 on this router
-	// reachable from the internet, which is the thing the tunnel exists to
-	// avoid relying on. Accepting an order without one produced an order that
-	// looked fine and could never issue.
-	if in.AccountID == 0 {
-		if cert.NeedsDNSChallenge(domains) {
-			return OrderView{}, fmt.Errorf(
-				"manage: a wildcard certificate needs a DNS account, because only " +
-					"the DNS-01 challenge can prove a wildcard")
-		}
+	// Only a wildcard needs a DNS account. Everything else can be validated
+	// over HTTP, which the tunnel server answers on the router's behalf.
+	if cert.NeedsDNSChallenge(domains) && in.AccountID == 0 {
 		return OrderView{}, fmt.Errorf(
-			"manage: this certificate needs a DNS account: DNS-01 is the only " +
-				"challenge available here, because HTTP validation would need " +
-				"port 80 on this router reachable from the internet")
+			"manage: a wildcard certificate needs a DNS account, because only " +
+				"the DNS-01 challenge can prove a wildcard")
 	}
-	if _, err := s.accounts.Get(ctx, in.AccountID); err != nil {
-		return OrderView{}, err
+	if in.AccountID == 0 && s.httpSolver == nil {
+		return OrderView{}, fmt.Errorf(
+			"manage: without a DNS account this certificate is validated over " +
+				"HTTP through a tunnel server, and none is configured")
+	}
+	if in.AccountID != 0 {
+		if _, err := s.accounts.Get(ctx, in.AccountID); err != nil {
+			return OrderView{}, err
+		}
 	}
 
 	created, err := s.orders.Create(ctx, repo.Order{
@@ -285,31 +281,40 @@ func (s *Service) issue(ctx context.Context, order repo.Order,
 		Account: account,
 	}
 
-	// DNS-01 is required for a wildcard and is the only challenge configured
-	// here; HTTP-01 would need port 80 on this router to be reachable from the
-	// internet, which is the thing the tunnel exists to avoid relying on.
-	if order.AccountID == 0 {
-		// Says what to do rather than why. The account may have been deleted,
-		// or the order may predate this being required; neither is
-		// distinguishable here, and claiming one of them would be a guess
-		// dressed up as a diagnosis.
+	// A wildcard can only be proved over DNS. Anything else falls back to
+	// HTTP, which the tunnel server answers on this router's behalf and which
+	// needs no credentials for the zone.
+	switch {
+	case order.AccountID != 0:
+		provider, err := s.provider(ctx, order.AccountID)
+		if err != nil {
+			return nil, err
+		}
+
+		zone, err := dns.RegistrableZone(ctx, provider, order.Domains[0])
+		if err != nil {
+			return nil, fmt.Errorf("manage: find the zone hosting %s: %w",
+				order.Domains[0], err)
+		}
+		progress(fmt.Sprintf("proving ownership through DNS zone %s", zone))
+
+		request.Solver = dns.NewSolver(provider, zone)
+
+	case cert.NeedsDNSChallenge(order.Domains):
 		return nil, fmt.Errorf(
-			"manage: order %d has no DNS account. Delete it and request the "+
-				"certificate again with one selected", order.ID)
-	}
+			"manage: order %d covers a wildcard, which only DNS can prove. "+
+				"Point it at a DNS account", order.ID)
 
-	provider, err := s.provider(ctx, order.AccountID)
-	if err != nil {
-		return nil, err
-	}
+	case s.httpSolver != nil:
+		progress("proving ownership over HTTP, answered by the tunnel server")
+		progress("the names must already resolve to it, and its port 80 must be reachable")
+		request.HTTPSolver = s.httpSolver
 
-	zone, err := dns.RegistrableZone(ctx, provider, order.Domains[0])
-	if err != nil {
-		return nil, fmt.Errorf("manage: find the zone hosting %s: %w", order.Domains[0], err)
+	default:
+		return nil, fmt.Errorf(
+			"manage: order %d has no DNS account and no server to answer an "+
+				"HTTP validation", order.ID)
 	}
-	progress(fmt.Sprintf("using DNS zone %s", zone))
-
-	request.Solver = dns.NewSolver(provider, zone)
 
 	progress(fmt.Sprintf("requesting %v from %s", order.Domains, ca.Label))
 	issuer := cert.NewIssuer(slog.Default())

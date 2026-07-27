@@ -165,13 +165,15 @@ function orderDialog() {
 		state.keyTypes.map(function (k) {
 			return E('option', { 'value': k.value }, k.label);
 		}));
-	// No "none" option: DNS-01 is the only challenge available, so an order
-	// without an account is one that can never issue.
+	// "None" means validate over HTTP, which the tunnel server answers on this
+	// router's behalf and which needs no credentials for the zone. A wildcard
+	// is the one case that cannot use it.
 	var accountSelect = E('select', { 'class': 'cbi-input-select' },
-		state.accounts.map(function (a) {
-			return E('option', { 'value': String(a.id) },
-				a.name + ' (' + a.provider_label + ')');
-		}));
+		[E('option', { 'value': '' }, _('None — validate over HTTP'))].concat(
+			state.accounts.map(function (a) {
+				return E('option', { 'value': String(a.id) },
+					a.name + ' (' + a.provider_label + ')');
+			})));
 	var autoRenew = E('input', {
 		'type': 'checkbox', 'class': 'cbi-input-checkbox', 'checked': ''
 	});
@@ -244,8 +246,11 @@ function orderDialog() {
 			notifyError(new Error(_('List at least one domain.')));
 			return;
 		}
-		if (!accountSelect.value) {
-			notifyError(new Error(_('Select a DNS account.')));
+		if (!accountSelect.value && domains.some(function (d) {
+			return d.indexOf('*') === 0;
+		})) {
+			notifyError(new Error(
+				_('A wildcard can only be proved through DNS. Select an account.')));
 			return;
 		}
 
@@ -308,9 +313,10 @@ function orderDialog() {
 		field(_('Authority'), caSelect),
 		field(_('Key type'), keySelect),
 		field(_('DNS account'), accountSelect,
-			_('Proves the domain is yours. DNS is the only way available here, ' +
-			  'because HTTP validation would need port 80 on this router ' +
-			  'reachable from the internet.')),
+			_('How ownership is proved. Without an account the authority ' +
+			  'fetches a file over HTTP, which the tunnel server answers for ' +
+			  'you — the name must already point at it. A wildcard can only be ' +
+			  'proved through DNS.')),
 		eabRows[0],
 		eabRows[1],
 		field(_('Renew automatically'), autoRenew,

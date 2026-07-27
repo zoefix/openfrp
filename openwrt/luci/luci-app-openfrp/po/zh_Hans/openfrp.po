@@ -61,6 +61,9 @@ msgstr "一个你能认出来的名称，例如 aliyun-main"
 msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
 msgstr "隧道无法通过代理工作：代理只承载它自己那几个端口上的 HTTP 和 HTTPS，而且会终止 TLS。指向穿透服务端的域名请用\"仅 DNS\"。"
 
+msgid "A wildcard can only be proved through DNS."
+msgstr "泛域名只能通过 DNS 验证。"
+
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr "泛域名只能通过 DNS 验证，请选择一个账号。"
 
@@ -76,6 +79,9 @@ msgstr "添加"
 msgid "Add DNS account"
 msgstr "添加 DNS 账号"
 
+msgid "Add a domain to this tunnel first."
+msgstr "请先给这条隧道添加域名。"
+
 msgid "Add a server"
 msgstr "添加服务器"
 
@@ -87,6 +93,9 @@ msgstr "添加记录"
 
 msgid "Address"
 msgstr "地址"
+
+msgid "Adds HTTPS on port 443. The name stays reachable over plain HTTP as well."
+msgstr "在 443 端口提供 HTTPS。该域名同时仍可通过普通 HTTP 访问。"
 
 msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
 msgstr "已为 %s 保存并会自动复用。只有要替换时才需要填写。"
@@ -162,6 +171,9 @@ msgstr "无法启动部署：%s"
 
 msgid "Could not start: %s"
 msgstr "无法启动：%s"
+
+msgid "Covers: %s"
+msgstr "覆盖：%s"
 
 msgid "Create"
 msgstr "创建"
@@ -316,6 +328,9 @@ msgstr "签发失败 — 请查看上面的输出。"
 msgid "Issue"
 msgstr "签发"
 
+msgid "Issued and bound to this tunnel. Save and apply to use it."
+msgstr "已签发并绑定到本隧道。保存并应用后生效。"
+
 msgid "Issuing certificate"
 msgstr "正在签发证书"
 
@@ -333,6 +348,9 @@ msgstr "密钥类型"
 
 msgid "Leave empty to let the server allocate one."
 msgstr "留空则由服务端自动分配。"
+
+msgid "Leave unset to prove the name by serving a file, which the tunnel server answers for you."
+msgstr "留空则通过提供一个文件来证明域名归属，由穿透服务端代为应答。"
 
 msgid "Line"
 msgstr "线路"
@@ -499,8 +517,14 @@ msgstr "续期"
 msgid "Renews once fewer than 30 days remain."
 msgstr "剩余不足 30 天时自动续期。"
 
+msgid "Request"
+msgstr "申请"
+
 msgid "Request a certificate"
 msgstr "申请证书"
+
+msgid "Requesting…"
+msgstr "正在申请…"
 
 msgid "Resolution"
 msgstr "解析方式"
@@ -537,6 +561,9 @@ msgstr "私密 TCP"
 
 msgid "Secret key"
 msgstr "访问密钥"
+
+msgid "Serve HTTPS"
+msgstr "启用 HTTPS"
 
 msgid "Server"
 msgstr "服务端"

@@ -61,6 +61,9 @@ msgstr "自分でわかる名前（例: aliyun-main）"
 msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
 msgstr "トンネルはプロキシ経由では動作しません。プロキシは自前のポートで HTTP と HTTPS だけを扱い、TLS を終端します。トンネルサーバーを指す名前には「DNS のみ」を使ってください。"
 
+msgid "A wildcard can only be proved through DNS."
+msgstr "ワイルドカードは DNS でしか証明できません。"
+
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr "ワイルドカードは DNS でしか証明できません。アカウントを選択してください。"
 
@@ -76,6 +79,9 @@ msgstr "追加"
 msgid "Add DNS account"
 msgstr "DNS アカウントを追加"
 
+msgid "Add a domain to this tunnel first."
+msgstr "先にこのトンネルへドメインを追加してください。"
+
 msgid "Add a server"
 msgstr "サーバーを追加"
 
@@ -87,6 +93,9 @@ msgstr "レコードを追加"
 
 msgid "Address"
 msgstr "アドレス"
+
+msgid "Adds HTTPS on port 443. The name stays reachable over plain HTTP as well."
+msgstr "443 番ポートで HTTPS を提供します。その名前は通常の HTTP でも引き続き利用できます。"
 
 msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
 msgstr "%s 用に保存済みで、自動的に再利用されます。差し替えるときだけ入力してください。"
@@ -162,6 +171,9 @@ msgstr "デプロイを開始できませんでした: %s"
 
 msgid "Could not start: %s"
 msgstr "開始できませんでした: %s"
+
+msgid "Covers: %s"
+msgstr "対象: %s"
 
 msgid "Create"
 msgstr "作成"
@@ -316,6 +328,9 @@ msgstr "発行に失敗しました — 上の出力を確認してください�
 msgid "Issue"
 msgstr "発行"
 
+msgid "Issued and bound to this tunnel. Save and apply to use it."
+msgstr "発行してこのトンネルに紐付けました。保存して適用すると有効になります。"
+
 msgid "Issuing certificate"
 msgstr "証明書を発行しています"
 
@@ -333,6 +348,9 @@ msgstr "鍵の種類"
 
 msgid "Leave empty to let the server allocate one."
 msgstr "空欄にするとサーバーが自動的に割り当てます。"
+
+msgid "Leave unset to prove the name by serving a file, which the tunnel server answers for you."
+msgstr "未設定なら、ファイルを配信して所有を証明します。トンネルサーバーが代わりに応答します。"
 
 msgid "Line"
 msgstr "回線"
@@ -499,8 +517,14 @@ msgstr "更新"
 msgid "Renews once fewer than 30 days remain."
 msgstr "残り 30 日を切ると自動的に更新します。"
 
+msgid "Request"
+msgstr "申請"
+
 msgid "Request a certificate"
 msgstr "証明書を申請"
+
+msgid "Requesting…"
+msgstr "申請しています…"
 
 msgid "Resolution"
 msgstr "解決方式"
@@ -537,6 +561,9 @@ msgstr "シークレット TCP"
 
 msgid "Secret key"
 msgstr "シークレットキー"
+
+msgid "Serve HTTPS"
+msgstr "HTTPS を提供"
 
 msgid "Server"
 msgstr "サーバー"

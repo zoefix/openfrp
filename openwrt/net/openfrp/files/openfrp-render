@@ -46,7 +46,7 @@ append_domain() {
 
 add_tunnel() {
 	local section="$1"
-	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol server
+	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol server https
 
 	config_get name "$section" name
 	config_get_bool enabled "$section" enabled 0
@@ -58,6 +58,19 @@ add_tunnel() {
 	config_get cert_id "$section" cert_id
 	config_get proxy_protocol "$section" proxy_protocol
 	config_get server "$section" server
+	config_get_bool https "$section" https 0
+
+	# HTTP and HTTPS are one kind in the interface: a tunnel is HTTP, and
+	# enabling HTTPS turns on TLS handling for it. The daemon still has two
+	# types, so the choice is resolved here rather than asking an operator to
+	# know the difference.
+	#
+	# The name stays reachable on port 80 either way — the server routes both
+	# listeners from one table — so this adds HTTPS rather than moving to it.
+	if [ "$type" = "http" ] && [ "$https" = "1" ]; then
+		type="https"
+		[ -n "$tls_mode" ] || tls_mode="terminate"
+	fi
 	config_get secret_key "$section" secret_key
 
 	# A tunnel without a name or a local port cannot be published, and the

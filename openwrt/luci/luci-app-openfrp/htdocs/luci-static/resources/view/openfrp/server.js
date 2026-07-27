@@ -539,17 +539,38 @@ return view.extend({
 		o = s.option(form.DummyValue, '_deploy', _('Provisioning'));
 		o.modalonly = false;
 		o.cfgvalue = function (section_id) {
+			// A server with SSH details but no token is a deployment that
+			// started and never finished: the section is created up front so
+			// the worker has somewhere to write the token, and a failure
+			// leaves the address behind without one. It looks configured and
+			// can never log in, so it is named here rather than left to
+			// surface as an authentication failure somewhere else entirely.
+			if (!uci.get('openfrp', section_id, 'token')) {
+				return uci.get('openfrp', section_id, 'ssh_host')
+					? _('Deployment did not finish — no token yet')
+					: _('No token — this server cannot be reached');
+			}
 			return uci.get('openfrp', section_id, 'host_fingerprint')
 				? _('Deployed from here') : _('Not deployed from here');
 		};
 
 		o = s.option(form.Button, '_redeploy', _('Deploy'));
 		o.modalonly = false;
+		// A grid cell is plain text unless the option declares itself editable.
+		// Without this the column rendered the button's value instead of the
+		// button, so the one control that repairs a half-finished deployment
+		// was not reachable from the page that reports it.
+		o.editable = true;
 		o.inputtitle = _('Deploy over SSH');
 		o.inputstyle = 'apply';
 		o.onclick = function (ev, section_id) {
 			deployDialog(self, section_id);
 			return false;
+		};
+		// A control, not a setting: being editable would otherwise put it in
+		// front of the parser, which would write it out as a server option.
+		o.parse = function () {
+			return Promise.resolve();
 		};
 
 		o = s.option(form.Value, 'token', _('Token'),

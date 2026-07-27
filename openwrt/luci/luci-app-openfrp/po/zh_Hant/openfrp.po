@@ -732,3 +732,9 @@ msgstr "要求失敗"
 
 msgid "unnamed"
 msgstr "未命名"
+
+msgid "Deployment did not finish — no token yet"
+msgstr "部署未完成 — 還沒有權杖"
+
+msgid "No token — this server cannot be reached"
+msgstr "沒有權杖 — 無法連線此伺服器"

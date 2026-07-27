@@ -147,13 +147,24 @@ func (s *Supervisor) Run(ctx context.Context) error {
 // threading it through the session, work pool and forwarder is what makes this
 // change small.
 func (s *Supervisor) scopedConfig(server config.Upstream) (*config.Client, error) {
+	// One server per client, carried in the single-server fields because that
+	// is what a Client reads. Inside that configuration the server answers to
+	// the default name, not the one it has out here — so a tunnel that named
+	// its server explicitly would no longer match it and would validate as an
+	// orphan, taking the whole server down with it. The name is dropped: there
+	// is exactly one server here, and it is the one these tunnels belong to.
+	tunnels := s.cfg.TunnelsFor(server.Name)
+	for i := range tunnels {
+		tunnels[i].Server = ""
+	}
+
 	scoped := &config.Client{
 		ServerAddr: server.Addr,
 		ServerPort: server.Port,
 		Token:      server.Token,
 		Name:       server.ClientName,
 		Transport:  server.Transport,
-		Tunnels:    s.cfg.TunnelsFor(server.Name),
+		Tunnels:    tunnels,
 		Log:        s.cfg.Log,
 	}
 	scoped.ApplyDefaults()

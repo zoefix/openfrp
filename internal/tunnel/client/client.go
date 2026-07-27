@@ -224,6 +224,17 @@ func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
 	}
 	resp := msg.(*protocol.LoginResp)
 	if resp.Error != "" {
+		// A rejection with nothing to authenticate with is not a wrong token,
+		// it is a server that was never finished being set up — most often a
+		// deployment that failed after its address was saved but before its
+		// token was written back. Reporting "authentication failed" sends the
+		// operator hunting for a mismatch between two values when there is
+		// only one, and it is empty.
+		if c.cfg.Token == "" {
+			return nil, fmt.Errorf("client: server rejected login and no token "+
+				"is configured for it — finish the deployment or enter the "+
+				"server's token: %s", resp.Error)
+		}
 		return nil, fmt.Errorf("client: server rejected login: %s", resp.Error)
 	}
 

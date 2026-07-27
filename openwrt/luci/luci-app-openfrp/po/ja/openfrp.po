@@ -732,3 +732,9 @@ msgstr "リクエストが失敗しました"
 
 msgid "unnamed"
 msgstr "名称未設定"
+
+msgid "Deployment did not finish — no token yet"
+msgstr "デプロイが完了していません — トークンがまだありません"
+
+msgid "No token — this server cannot be reached"
+msgstr "トークンがありません — このサーバーには接続できません"

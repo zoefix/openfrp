@@ -199,8 +199,12 @@ msgstr ""
 msgid "Connection"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:63
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:144
 msgid "Connection pool — independent congestion windows, kernel zero-copy"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:178
+msgid "Connections"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:159
@@ -215,7 +219,7 @@ msgstr ""
 msgid "Control port"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:130
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:240
 msgid "Could not reach the OpenFrp backend."
 msgstr ""
 
@@ -307,8 +311,8 @@ msgid ""
 "run again to upgrade in place."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:105
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:53
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:134
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:215
 msgid "Disabled"
 msgstr ""
 
@@ -316,6 +320,10 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:298
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:153
 msgid "Domains"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:179
+msgid "Download"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:212
@@ -357,12 +365,12 @@ msgstr ""
 msgid "Enable OpenFrp"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:105
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:215
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:104
 msgid "Enabled"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:55
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:136
 msgid "Enabled but not running"
 msgstr ""
 
@@ -378,7 +386,7 @@ msgstr ""
 msgid "Expired"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:87
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:177
 msgid "Exposed as"
 msgstr ""
 
@@ -402,7 +410,7 @@ msgstr ""
 msgid "Host key fingerprint"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:131
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:241
 msgid ""
 "If the ACL file was just installed, rpcd needs a restart: "
 "/etc/init.d/rpcd restart"
@@ -470,7 +478,7 @@ msgstr ""
 msgid "Local port"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:86
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:176
 msgid "Local target"
 msgstr ""
 
@@ -490,7 +498,7 @@ msgstr ""
 msgid "Multiplex connections"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:62
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:143
 msgid "Multiplexed — shared congestion window, no kernel zero-copy"
 msgstr ""
 
@@ -498,7 +506,7 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:188
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:289
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:368
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:84
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:174
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:108
 msgid "Name"
 msgstr ""
@@ -529,12 +537,12 @@ msgstr ""
 msgid "No certificates yet."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:141
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:153
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:255
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:272
 msgid "No log output yet."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:80
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:170
 msgid "No tunnels are configured yet."
 msgstr ""
 
@@ -568,7 +576,7 @@ msgid ""
 "acgshop.aiqno.com but not a.b.aiqno.com."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:66
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:161
 msgid "Overview"
 msgstr ""
 
@@ -615,7 +623,7 @@ msgid ""
 "Only a bound tunnel has its certificate pushed."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:162
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:281
 msgid "Recent log"
 msgstr ""
 
@@ -662,7 +670,7 @@ msgid ""
 "that do not exist yet."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:55
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:136
 msgid "Running"
 msgstr ""
 
@@ -713,7 +721,7 @@ msgid "Secret key"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:117
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:69
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:156
 msgid "Server"
 msgstr ""
 
@@ -726,7 +734,7 @@ msgid "Server binary"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:122
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:68
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:155
 msgid "Service"
 msgstr ""
 
@@ -748,7 +756,7 @@ msgid "Starting…"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:107
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:88
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:181
 msgid "State"
 msgstr ""
 
@@ -799,7 +807,7 @@ msgstr ""
 msgid "The certificate was issued."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:164
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:283
 msgid "The daemon writes to syslog through procd."
 msgstr ""
 
@@ -821,8 +829,12 @@ msgstr ""
 msgid "Token"
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:158
+msgid "Total traffic"
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:151
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:70
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:157
 msgid "Transport"
 msgstr ""
 
@@ -830,17 +842,21 @@ msgstr ""
 msgid "Tunnel"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:110
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:79
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:169
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:220
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:88
 msgid "Tunnels"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:290
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:369
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:85
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:175
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:129
 msgid "Type"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:180
+msgid "Upload"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:208
@@ -905,15 +921,15 @@ msgstr ""
 msgid "none stored"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:59
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:140
 msgid "not configured"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:96
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:189
 msgid "port %s"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:98
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:191
 msgid "server-allocated"
 msgstr ""
 

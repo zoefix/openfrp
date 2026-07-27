@@ -27,9 +27,18 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 		return
 	}
 
-	// UDP is framed rather than streamed, so it takes a different path.
+	// Count the connection from here, where the tunnel is known, and release
+	// it on every exit path below. Opening later would leave a failed dial
+	// uncounted; releasing anywhere but a defer would leak the active count on
+	// the error returns.
+	s.client.traffic.Open(start.ProxyName)
+	defer s.client.traffic.Close(start.ProxyName)
+
+	// UDP is framed rather than streamed, so it takes a different path. It
+	// accounts per packet rather than returning a total: it has several exit
+	// paths and a reply goroutine that outlives the call.
 	if tunnel.Type == config.TunnelUDP {
-		s.forwardUDP(ctx, workConn, tunnel, logger)
+		s.forwardUDP(ctx, workConn, tunnel, start.ProxyName, logger)
 		return
 	}
 
@@ -47,11 +56,17 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 		logger.Debug("tune local connection", "error", err)
 	}
 
-	stats := netutil.Relay(workConn, localConn)
+	// AToB is work connection to local service: traffic arriving from the
+	// internet. BToA is the reply. Naming them from the tunnel's point of view
+	// keeps "in" meaning the same thing on both ends.
+	transferred := netutil.Relay(workConn, localConn)
+
+	s.client.traffic.RecordTransfer(start.ProxyName,
+		transferred.AToB, transferred.BToA, transferred.Spliced)
 
 	logger.Debug("transfer complete",
 		"target", target,
-		"to_local", stats.AToB,
-		"to_remote", stats.BToA,
-		"spliced", stats.Spliced)
+		"to_local", transferred.AToB,
+		"to_remote", transferred.BToA,
+		"spliced", transferred.Spliced)
 }

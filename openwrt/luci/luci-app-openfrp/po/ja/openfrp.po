@@ -124,6 +124,9 @@ msgstr "接続"
 msgid "Connection pool — independent congestion windows, kernel zero-copy"
 msgstr "コネクションプール — 独立した輻輳ウィンドウ、カーネルゼロコピー"
 
+msgid "Connections"
+msgstr "接続数"
+
 msgid "Connections kept open so an arriving request does not wait for a dial."
 msgstr "リクエスト到着時に接続待ちが起きないよう、あらかじめ張っておく接続数です。"
 
@@ -201,6 +204,9 @@ msgstr "無効"
 
 msgid "Domains"
 msgstr "ドメイン"
+
+msgid "Download"
+msgstr "下り"
 
 msgid "Download URL"
 msgstr "ダウンロード URL"
@@ -544,6 +550,9 @@ msgstr "このゾーンにレコードはありません。"
 msgid "Token"
 msgstr "トークン"
 
+msgid "Total traffic"
+msgstr "合計トラフィック"
+
 msgid "Transport"
 msgstr "トランスポート"
 
@@ -555,6 +564,9 @@ msgstr "トンネル"
 
 msgid "Type"
 msgstr "種類"
+
+msgid "Upload"
+msgstr "上り"
 
 msgid "Uploaded to the server. Works without outbound internet there, and installs the exact bytes this router checksummed."
 msgstr "サーバーへアップロードします。サーバー側に外向きの接続がなくても動作し、このルーターが検証したバイト列がそのまま入ります。"

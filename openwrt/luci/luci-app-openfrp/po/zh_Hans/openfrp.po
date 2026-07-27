@@ -124,6 +124,9 @@ msgstr "连接"
 msgid "Connection pool — independent congestion windows, kernel zero-copy"
 msgstr "连接池 — 各自独立的拥塞窗口，内核零拷贝"
 
+msgid "Connections"
+msgstr "连接数"
+
 msgid "Connections kept open so an arriving request does not wait for a dial."
 msgstr "预先保持的连接数，使新请求无需等待建立连接。"
 
@@ -201,6 +204,9 @@ msgstr "已禁用"
 
 msgid "Domains"
 msgstr "域名"
+
+msgid "Download"
+msgstr "下行"
 
 msgid "Download URL"
 msgstr "下载地址"
@@ -544,6 +550,9 @@ msgstr "该域名下没有解析记录。"
 msgid "Token"
 msgstr "令牌"
 
+msgid "Total traffic"
+msgstr "总流量"
+
 msgid "Transport"
 msgstr "传输方式"
 
@@ -555,6 +564,9 @@ msgstr "隧道"
 
 msgid "Type"
 msgstr "类型"
+
+msgid "Upload"
+msgstr "上行"
 
 msgid "Uploaded to the server. Works without outbound internet there, and installs the exact bytes this router checksummed."
 msgstr "上传到服务器。服务器无需能访问外网，且安装的就是本路由器校验过的那份文件。"

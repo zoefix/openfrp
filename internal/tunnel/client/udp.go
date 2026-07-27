@@ -20,10 +20,11 @@ const localUDPTimeout = 60 * time.Second
 // One socket per remote source, so replies from the local service can be
 // attributed back to whoever sent the request. A single shared socket would
 // work only for services that never reply, which is almost none of them.
-func (s *session) forwardUDP(ctx context.Context, workConn net.Conn, tunnel config.Tunnel, logger interface {
-	Warn(string, ...any)
-	Debug(string, ...any)
-}) {
+func (s *session) forwardUDP(ctx context.Context, workConn net.Conn,
+	tunnel config.Tunnel, proxyName string, logger interface {
+		Warn(string, ...any)
+		Debug(string, ...any)
+	}) {
 	target := net.JoinHostPort(tunnel.LocalIP, strconv.Itoa(tunnel.LocalPort))
 
 	addr, err := net.ResolveUDPAddr("udp", target)
@@ -32,11 +33,15 @@ func (s *session) forwardUDP(ctx context.Context, workConn net.Conn, tunnel conf
 		return
 	}
 
+	traffic := s.client.traffic
 	sockets := &udpSockets{
 		conns:    map[string]*net.UDPConn{},
 		workConn: workConn,
 		target:   addr,
 		logger:   logger,
+		record: func(bytesOut int64) {
+			traffic.RecordTransfer(proxyName, 0, bytesOut, false)
+		},
 	}
 	defer sockets.closeAll()
 
@@ -59,9 +64,20 @@ func (s *session) forwardUDP(ctx context.Context, workConn net.Conn, tunnel conf
 		if _, err := conn.Write(packet.Payload); err != nil {
 			logger.Debug("write to local service", "error", err)
 			sockets.drop(packet.Addr)
+			continue
 		}
+
+		// UDP never reaches the kernel fast path, so it is recorded as
+		// buffered — which is honest, and keeps the spliced fraction on the
+		// status page meaning what it claims to.
+		s.client.traffic.RecordTransfer(proxyName, int64(len(packet.Payload)), 0, false)
 	}
 }
+
+// trafficSink records bytes travelling back from the local service. The pump
+// goroutine outlives the call that started it, so it holds this rather than a
+// session it might outlast.
+type trafficSink func(bytesOut int64)
 
 // udpSockets keeps one local socket per remote source.
 type udpSockets struct {
@@ -70,6 +86,7 @@ type udpSockets struct {
 
 	workConn net.Conn
 	target   *net.UDPAddr
+	record   trafficSink
 	logger   interface {
 		Warn(string, ...any)
 		Debug(string, ...any)
@@ -116,6 +133,10 @@ func (s *udpSockets) pump(source string, conn *net.UDPConn) {
 		}); err != nil {
 			s.drop(source)
 			return
+		}
+
+		if s.record != nil {
+			s.record(int64(n))
 		}
 	}
 }

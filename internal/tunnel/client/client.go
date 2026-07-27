@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/zoefix/openfrp/internal/config"
+	"github.com/zoefix/openfrp/internal/stats"
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 	"github.com/zoefix/openfrp/internal/tunnel/transport"
 	"github.com/zoefix/openfrp/pkg/netutil"
@@ -48,6 +49,14 @@ type Client struct {
 	// pushedCerts records what the current session has already sent, so the
 	// renewal watcher only speaks when something actually changed.
 	pushedCerts pushed
+
+	// traffic accumulates per-tunnel byte counts. The client sees every byte
+	// on its way to and from the local service, so it can account for them
+	// without asking the server.
+	traffic *stats.Registry
+
+	// statsPath is where the snapshot is published for the status page.
+	statsPath string
 }
 
 // New builds a client from cfg.
@@ -68,9 +77,11 @@ func New(cfg *config.Client, logger *slog.Logger, version string) (*Client, erro
 	}
 
 	return &Client{
-		cfg:     cfg,
-		logger:  logger,
-		version: version,
+		cfg:       cfg,
+		logger:    logger,
+		version:   version,
+		traffic:   stats.NewRegistry(),
+		statsPath: DefaultStatsPath,
 		dialer: &transport.Dialer{
 			Addr:       net.JoinHostPort(cfg.ServerAddr, strconv.Itoa(cfg.ServerPort)),
 			TLSConfig:  tlsCfg,
@@ -86,6 +97,11 @@ func (c *Client) Run(ctx context.Context) error {
 		c.logger.Warn("multiplexing is enabled: every tunnel will share one " +
 			"congestion window and none can use the kernel zero-copy path")
 	}
+
+	// Published for as long as the daemon runs, so the status page keeps
+	// showing totals across a reconnect rather than blanking out.
+	go c.publishTraffic(ctx)
+	defer c.removeTraffic()
 
 	delay := minReconnectDelay
 

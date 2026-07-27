@@ -131,6 +131,12 @@ Additional wins: `SO_REUSEPORT` multi-accept removes accept-queue lock
 contention, and the SSH provisioner enables BBR on the server as part of
 deployment.
 
+The status page reports per-tunnel bytes and live rates, and the counters
+include how many relays reached `splice(2)` against how many fell back. That
+ratio is the health signal for the property everything above rests on: a
+deployment where it drops is one where something started wrapping work
+connections, and the advantage went with it.
+
 None of this is a claim until it is measured. The [`bench/`](bench/) harness
 runs frp and OpenFrp side by side under identical `tc netem` conditions, and
 [`docs/benchmark.md`](docs/benchmark.md) publishes the numbers **including the

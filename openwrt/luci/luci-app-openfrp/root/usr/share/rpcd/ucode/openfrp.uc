@@ -19,6 +19,7 @@ const RUNDIR = '/var/run/openfrp';
 const WORKER = '/usr/libexec/openfrp/job';
 const INIT = '/etc/init.d/openfrp';
 const CLIENT = '/usr/bin/openfrpc';
+const STATS = '/var/run/openfrp/stats.json';
 
 // Management actions, by domain. An allowlist rather than a pass-through:
 // the action becomes a command line, and "whatever the browser sent" is not
@@ -203,9 +204,30 @@ const methods = {
 				});
 			});
 
+			// Traffic counters are published by the daemon to a file on tmpfs
+			// rather than fetched from it: this method runs per poll and must
+			// stay cheap, and the daemon may not be running at all.
+			let traffic = {};
+			const raw = readFile(STATS);
+			if (raw) {
+				const parsed = json(trim(raw));
+				if (type(parsed) == 'object')
+					traffic = parsed;
+			}
+
+			for (let tunnel in tunnels)
+				tunnel.traffic = traffic.tunnels?.[tunnel.name];
+
 			const result = {
 				enabled: uci.get('openfrp', 'global', 'enabled') == '1',
 				running: serviceRunning(),
+				traffic: {
+					// updated_at lets the page tell live counters from a file
+					// left behind by a daemon that has since stopped.
+					updated_at: traffic.updated_at ?? 0,
+					uptime_seconds: traffic.uptime_seconds ?? 0,
+					total: traffic.total ?? {}
+				},
 				server: {
 					addr: uci.get('openfrp', 'server', 'addr') ?? '',
 					port: uci.get('openfrp', 'server', 'port') ?? '',

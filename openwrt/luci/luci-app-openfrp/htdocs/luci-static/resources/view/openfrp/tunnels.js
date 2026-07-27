@@ -487,7 +487,7 @@ return view.extend({
 		o = s.option(form.ListValue, 'tls_mode', _('TLS handling'));
 		o.depends({ type: 'http', https: '1' });
 		o.value('passthrough', _('Passthrough — the server does not decrypt'));
-		o.value('terminate', _('Terminate at the server (needs a pushed certificate)'));
+		o.value('terminate', _('Decrypted by the remote server'));
 		o.default = 'passthrough';
 		o.description = _('Passthrough forwards the encrypted stream untouched, so the ' +
 			'local service owns the certificate. Termination requires a certificate ' +
@@ -525,25 +525,14 @@ return view.extend({
 		// No angle brackets in the placeholders: a description is inserted as
 		// markup, so <port> would be parsed as a tag and vanish, leaving a
 		// directive that looks complete and is not.
-		//
-		// Written to be read in the order the work has to be done, because
-		// getting that order wrong takes the site down. The tunnel is a byte
-		// relay — it never rewrites a request, which is where its speed comes
-		// from — so the address has nowhere to go except ahead of the stream,
-		// and both ends have to agree about it before any traffic arrives.
-		o.description = _('Without this the local service records every visitor ' +
-			'as this router, because that is what connects to it.\n\n' +
-			'Configure the service first, then turn this on. The header arrives ' +
-			'where the request line is expected, so a service that is not looking ' +
-			'for it answers 400 to everything — and a service configured for it ' +
-			'while this is off waits for a header that never comes. Either way ' +
-			'the site is down until both agree, so change them together.\n\n' +
-			'For nginx, on the port this tunnel points at:\n' +
+		o.description = _('The local service otherwise records every visitor as ' +
+			'this router.\n\n' +
+			'Configure the service first: until both ends agree, every request ' +
+			'fails.\n\n' +
+			'nginx, on the port this tunnel points at:\n' +
 			'    listen PORT proxy_protocol;\n' +
 			'    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n' +
-			'    real_ip_header proxy_protocol;\n\n' +
-			'Apache needs mod_remoteip and RemoteIPProxyProtocol On. Caddy, ' +
-			'Traefik and HAProxy each have their own switch for it.');
+			'    real_ip_header proxy_protocol;');
 
 		o = s.option(form.Value, 'secret_key', _('Secret key'),
 			_('Visitors must present this to reach the tunnel.'));

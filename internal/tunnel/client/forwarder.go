@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/zoefix/openfrp/internal/config"
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 	"github.com/zoefix/openfrp/pkg/netutil"
 )
@@ -23,6 +24,12 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 	tunnel, ok := s.tunnel(start.ProxyName)
 	if !ok {
 		logger.Warn("work connection assigned to an unknown tunnel")
+		return
+	}
+
+	// UDP is framed rather than streamed, so it takes a different path.
+	if tunnel.Type == config.TunnelUDP {
+		s.forwardUDP(ctx, workConn, tunnel, logger)
 		return
 	}
 

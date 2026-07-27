@@ -85,21 +85,6 @@ level — so a route can never resolve to a tunnel whose certificate does not
 cover the name. Under frp's rule that mismatch is silent and unpleasant to
 debug.
 
-## Proving a domain is yours
-
-A wildcard can only be proved through DNS, so it needs provider credentials.
-Everything else can be proved over HTTP, and here that costs nothing to set
-up: the name already resolves to the tunnel server, so **the server answers
-the authority's request itself** on its shared HTTP port. Nothing reaches the
-router, the LAN service is not involved, and a name can be certified before it
-has a tunnel at all — which is the normal case, since the certificate is being
-obtained in order to serve it.
-
-That matters because the alternative is handing this router an API key for an
-entire DNS zone in order to certify one host.
-
-## Domain routing, continued
-
 HTTPS is routed on the TLS SNI **without decrypting** by default: the server
 forwards ciphertext untouched and the backend owns the certificate. Edge
 termination — where the router issues the certificate and pushes it up — is
@@ -116,6 +101,19 @@ LAN service unchanged, so whatever is negotiated here is spoken directly at
 that service; advertising HTTP/2 promises a protocol the other end was never
 asked about. Measured against a real nginx backend, doing so returned 421
 where HTTP/1.1 returned 200.
+
+## Proving a domain is yours
+
+A wildcard can only be proved through DNS, so it needs provider credentials.
+Everything else can be proved over HTTP, and here that costs nothing to set
+up: the name already resolves to the tunnel server, so **the server answers
+the authority's request itself** on its shared HTTP port. Nothing reaches the
+router, the LAN service is not involved, and a name can be certified before it
+has a tunnel at all — which is the normal case, since the certificate is being
+obtained in order to serve it.
+
+That matters because the alternative is handing this router an API key for an
+entire DNS zone in order to certify one host.
 
 ## Why it is faster than frp
 

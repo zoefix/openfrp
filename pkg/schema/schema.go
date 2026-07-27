@@ -135,6 +135,13 @@ func (f Form) ApplyDefaults(values map[string]string) map[string]string {
 }
 
 // Redact removes secret values, for anything travelling back to a client.
+// RedactedMarker replaces a stored secret on its way to a client.
+//
+// Exported because anything that consumes a redacted value has to be able to
+// recognise it: a client that echoes this back on save must not have it stored
+// as the new secret, which would destroy a working credential and say nothing.
+const RedactedMarker = "••••••••"
+
 func (f Form) Redact(values map[string]string) map[string]string {
 	out := make(map[string]string, len(values))
 	for key, value := range values {
@@ -147,7 +154,7 @@ func (f Form) Redact(values map[string]string) map[string]string {
 		if out[field.Name] != "" {
 			// A fixed marker rather than the real length: even the length of a
 			// secret is information worth not leaking.
-			out[field.Name] = "••••••••"
+			out[field.Name] = RedactedMarker
 		}
 	}
 	return out

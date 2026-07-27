@@ -18,6 +18,42 @@ import { rand, srand } from 'math';
 const RUNDIR = '/var/run/openfrp';
 const WORKER = '/usr/libexec/openfrp/job';
 const INIT = '/etc/init.d/openfrp';
+const CLIENT = '/usr/bin/openfrpc';
+
+// Management actions, by domain. An allowlist rather than a pass-through:
+// the action becomes a command line, and "whatever the browser sent" is not
+// something to hand to a shell.
+//
+// Issuing a certificate is absent on purpose. It talks to a CA and waits for
+// DNS propagation, so it takes minutes and would be killed by rpcd's 30 second
+// timeout; it runs as a detached job instead.
+const ACTIONS = {
+	dns: [
+		'providers', 'accounts', 'account-add', 'account-update',
+		'account-delete', 'account-test', 'capabilities',
+		'domains', 'records', 'record-add', 'record-update',
+		'record-delete', 'record-status'
+	],
+	cert: [
+		'cas', 'keytypes', 'orders', 'order-add', 'order-delete',
+		'events', 'export', 'eab'
+	]
+};
+
+// Flags a management action may carry, and how to check each value.
+//
+// Everything is shell quoted as well; this is the second layer, and it is what
+// stops a plausible-looking value reaching a flag that was never meant to take
+// one.
+const FLAGS = {
+	id:      /^[0-9]+$/,
+	limit:   /^[0-9]+$/,
+	page:    /^[0-9]+$/,
+	record:  /^[A-Za-z0-9._:-]+$/,
+	zone:    /^[A-Za-z0-9._-]+$/,
+	enabled: /^(true|false)$/,
+	keyword: /^[^\n\r]{0,64}$/
+};
 
 // shellQuote wraps a value for safe interpolation into a shell command.
 //
@@ -60,7 +96,91 @@ function jobPath(id, suffix) {
 	return RUNDIR + '/' + id + suffix;
 }
 
+// stageStdin writes a request body to a private file and returns its path.
+//
+// The body carries DNS provider credentials, so it must not appear in any
+// command line: /proc/<pid>/cmdline is readable by every local process. RUNDIR
+// is tmpfs, so this never reaches flash.
+function stageStdin(payload) {
+	mkdir(RUNDIR, 0o750);
+
+	const path = sprintf('%s/req%x%04x', RUNDIR, time(), rand() % 0x10000);
+	const fd = open(path, 'w', 0o600);
+	if (!fd)
+		return null;
+
+	fd.write(payload);
+	fd.close();
+	return path;
+}
+
+// manageCall runs one openfrpc management action and returns its parsed reply.
+function manageCall(domain, action, params, payload) {
+	const allowed = ACTIONS[domain];
+	if (!allowed || index(allowed, action) < 0)
+		return { error: 'unsupported action: ' + domain + ' ' + action };
+
+	if (!stat(CLIENT))
+		return { error: 'openfrpc is not installed' };
+
+	let cmd = CLIENT + ' ' + domain + ' ' + shellQuote(action);
+
+	for (let name, value in (params ?? {})) {
+		const pattern = FLAGS[name];
+		if (!pattern)
+			return { error: 'unsupported parameter: ' + name };
+		if (!match('' + value, pattern))
+			return { error: sprintf('invalid value for %s', name) };
+
+		cmd += ' -' + name + ' ' + shellQuote(value);
+	}
+
+	let staged = null;
+	if (payload != null && payload != '') {
+		staged = stageStdin(payload);
+		if (!staged)
+			return { error: 'could not stage the request' };
+		cmd += ' < ' + shellQuote(staged);
+	}
+
+	const proc = popen(cmd + ' 2>/dev/null', 'r');
+	if (!proc) {
+		if (staged) unlink(staged);
+		return { error: 'could not run openfrpc' };
+	}
+	const out = proc.read('all');
+	proc.close();
+
+	if (staged)
+		unlink(staged);
+
+	const parsed = json(trim(out ?? ''));
+	if (type(parsed) != 'object')
+		return { error: 'openfrpc returned nothing usable' };
+
+	return parsed;
+}
+
 const methods = {
+
+	// dns and cert are thin, validated pass-throughs to openfrpc. The real
+	// logic lives in Go, where it is testable, rather than in ucode.
+	dns: {
+		args: { action: '', params: {}, payload: '' },
+		call: function(req) {
+			return manageCall('dns', req.args?.action ?? '',
+				req.args?.params, req.args?.payload);
+		}
+	},
+
+	cert: {
+		args: { action: '', params: {}, payload: '' },
+		call: function(req) {
+			return manageCall('cert', req.args?.action ?? '',
+				req.args?.params, req.args?.payload);
+		}
+	},
+
 
 	// status is the cheap poll the status page runs on a timer. It must stay
 	// fast: no shelling out to anything that talks to the network.

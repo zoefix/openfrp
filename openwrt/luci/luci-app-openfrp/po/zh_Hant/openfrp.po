@@ -13,6 +13,15 @@ msgstr "\"*\" 只能作為最左邊的標籤"
 msgid "\"*\" must be a whole label, not part of one"
 msgstr "\"*\" 必須獨佔一個標籤，不能只佔標籤的一部分"
 
+msgid "%d days left"
+msgstr "剩餘 %d 天"
+
+msgid "%d stored"
+msgstr "已存 %d 項"
+
+msgid "%s accepted the credentials."
+msgstr "%s 接受了該憑證。"
+
 msgid "%s is not in the expected format"
 msgstr "%s 格式不正確"
 
@@ -31,17 +40,59 @@ msgstr "網域至少要有兩級，例如 aaa.com"
 msgid "A name is required"
 msgstr "名稱不能為空"
 
+msgid "A name you will recognise, for example aliyun-main"
+msgstr "一個你能認出來的名稱，例如 aliyun-main"
+
 msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
 msgstr "密碼在部署時輸入，不會儲存在本路由器上。金鑰更安全，部署過程可以幫你自動安裝。"
+
+msgid "Accounts"
+msgstr "帳號"
+
+msgid "Accounts here are used to manage records and to prove domain ownership when issuing certificates. A wildcard certificate can only be issued through DNS, so it needs an account."
+msgstr "這裡的帳號用於管理解析記錄，以及在簽發憑證時證明網域歸屬。泛網域憑證只能透過 DNS 驗證簽發，因此必須設定帳號。"
+
+msgid "Add DNS account"
+msgstr "新增 DNS 帳號"
+
+msgid "Add account"
+msgstr "新增帳號"
+
+msgid "Add record"
+msgstr "新增記錄"
 
 msgid "Another tunnel already uses the name %s"
 msgstr "已有通道使用名稱 %s"
 
+msgid "Anything still serving it will keep the copy it already has until it restarts."
+msgstr "仍在使用它的服務會繼續用手上那份，直到重新啟動為止。"
+
+msgid "Asking %s to confirm the credentials…"
+msgstr "正在請 %s 驗證憑證…"
+
 msgid "Authentication"
 msgstr "驗證方式"
 
+msgid "Authority"
+msgstr "憑證頒發機構"
+
+msgid "Automatic"
+msgstr "自動"
+
 msgid "Cancel"
 msgstr "取消"
+
+msgid "Certificate management is unavailable."
+msgstr "憑證管理不可用。"
+
+msgid "Certificates"
+msgstr "憑證"
+
+msgid "Certificates are issued here and pushed to the server, which loads them without dropping a single connection. They are used by tunnels whose TLS handling is set to terminate at the server."
+msgstr "憑證在這裡簽發並推送到伺服器，伺服器會熱載入，不會斷開任何一條連線。TLS 處理方式設為「在伺服器終止」的通道會使用它們。"
+
+msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
+msgstr "透過該帳號簽發的憑證會保留，但在你把它們指向其他帳號之前無法續期。"
 
 msgid "Close"
 msgstr "關閉"
@@ -55,6 +106,9 @@ msgstr "連線池 — 各自獨立的壅塞視窗，核心零複製"
 msgid "Connections kept open so an arriving request does not wait for a dial."
 msgstr "預先保持的連線數，使新要求無需等待建立連線。"
 
+msgid "Contact email"
+msgstr "聯絡信箱"
+
 msgid "Control port"
 msgstr "控制連接埠"
 
@@ -63,6 +117,45 @@ msgstr "無法連線到 OpenFrp 後端。"
 
 msgid "Could not start the deployment: %s"
 msgstr "無法啟動部署：%s"
+
+msgid "Could not start: %s"
+msgstr "無法啟動：%s"
+
+msgid "Create"
+msgstr "建立"
+
+msgid "Credentials"
+msgstr "憑證"
+
+msgid "DNS"
+msgstr "DNS"
+
+msgid "DNS account"
+msgstr "DNS 帳號"
+
+msgid "DNS management is unavailable."
+msgstr "DNS 管理不可用。"
+
+msgid "Delete"
+msgstr "刪除"
+
+msgid "Delete %s?"
+msgstr "確定刪除 %s？"
+
+msgid "Delete DNS account"
+msgstr "刪除 DNS 帳號"
+
+msgid "Delete certificate"
+msgstr "刪除憑證"
+
+msgid "Delete record"
+msgstr "刪除記錄"
+
+msgid "Delete the %s record for %s?"
+msgstr "確定刪除 %s 的 %s 記錄？"
+
+msgid "Delete the certificate for %s?"
+msgstr "確定刪除 %s 的憑證？"
 
 msgid "Deploy"
 msgstr "部署"
@@ -94,6 +187,15 @@ msgstr "下載網址"
 msgid "Each tunnel exposes one local service through the server."
 msgstr "每條通道透過伺服器公開一個內網服務。"
 
+msgid "Edit"
+msgstr "編輯"
+
+msgid "Edit DNS account"
+msgstr "編輯 DNS 帳號"
+
+msgid "Edit record"
+msgstr "編輯記錄"
+
 msgid "Empty label in %s"
 msgstr "%s 中有空標籤"
 
@@ -109,14 +211,23 @@ msgstr "已啟用但未執行"
 msgid "Enter the SSH password."
 msgstr "請輸入 SSH 密碼。"
 
+msgid "Expired"
+msgstr "已過期"
+
 msgid "Exposed as"
 msgstr "對外位址"
+
+msgid "Failed"
+msgstr "失敗"
 
 msgid "Failed — see the output above."
 msgstr "失敗 — 請查看上面的輸出。"
 
 msgid "Finished successfully."
 msgstr "已成功完成。"
+
+msgid "History"
+msgstr "歷史"
 
 msgid "Host key fingerprint"
 msgstr "主機金鑰指紋"
@@ -127,11 +238,41 @@ msgstr "如果 ACL 檔案是剛安裝的，需要重新啟動 rpcd：/etc/init.d
 msgid "Install and configure the server over SSH. The server needs nothing installed beforehand."
 msgstr "透過 SSH 安裝並設定伺服器。伺服器無需預先安裝任何軟體。"
 
+msgid "Issuance failed — see the output above."
+msgstr "簽發失敗 — 請查看上面的輸出。"
+
+msgid "Issue"
+msgstr "簽發"
+
+msgid "Issuing certificate"
+msgstr "正在簽發憑證"
+
+msgid "Issuing…"
+msgstr "簽發中…"
+
 msgid "Job ended in state: %s"
 msgstr "工作結束狀態：%s"
 
+msgid "Key"
+msgstr "金鑰"
+
+msgid "Key type"
+msgstr "金鑰類型"
+
 msgid "Leave empty to let the server allocate one."
 msgstr "留空則由伺服器自動分配。"
+
+msgid "Line"
+msgstr "線路"
+
+msgid "List at least one domain."
+msgstr "至少填寫一個網域。"
+
+msgid "Loading records…"
+msgstr "正在載入記錄…"
+
+msgid "Loading zones…"
+msgstr "正在載入網域…"
 
 msgid "Local address"
 msgstr "內網位址"
@@ -148,6 +289,9 @@ msgstr "日誌等級"
 msgid "Lost track of the job: %s"
 msgstr "無法取得工作狀態：%s"
 
+msgid "Manual"
+msgstr "手動"
+
 msgid "Multiplex connections"
 msgstr "多工連線"
 
@@ -157,14 +301,38 @@ msgstr "多工 — 共用壅塞視窗，無法使用核心零複製"
 msgid "Name"
 msgstr "名稱"
 
+msgid "No DNS accounts are configured. Add one on the DNS page first — a wildcard certificate cannot be issued without it."
+msgstr "尚未設定 DNS 帳號。請先在 DNS 頁面新增一個 —— 沒有它無法簽發泛網域憑證。"
+
+msgid "No DNS accounts yet. Add one to manage records and to issue wildcard certificates."
+msgstr "還沒有 DNS 帳號。新增一個即可管理解析記錄並簽發泛網域憑證。"
+
+msgid "No DNS providers are available."
+msgstr "沒有可用的 DNS 服務商。"
+
+msgid "No certificates yet."
+msgstr "還沒有憑證。"
+
 msgid "No log output yet."
 msgstr "尚無日誌輸出。"
 
 msgid "No tunnels are configured yet."
 msgstr "尚未設定任何通道。"
 
+msgid "None"
+msgstr "無"
+
+msgid "Not issued yet"
+msgstr "尚未簽發"
+
+msgid "Nothing has happened to this certificate yet."
+msgstr "該憑證還沒有任何記錄。"
+
 msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
 msgstr "與 frp 不同，此項預設關閉。多工會讓所有通道共用一個壅塞視窗，一個封包遺失就會拖住全部通道，而且無法走核心零複製。只有當通訊端數量比傳輸量更重要時才啟用。"
+
+msgid "One per line. A \"*\" covers exactly one level, so *.aiqno.com covers acgshop.aiqno.com but not a.b.aiqno.com."
+msgstr "每行一個。「*」只涵蓋一層，所以 *.aiqno.com 涵蓋 acgshop.aiqno.com，但不涵蓋 a.b.aiqno.com。"
 
 msgid "Overview"
 msgstr "概觀"
@@ -187,6 +355,9 @@ msgstr "透過共用的 HTTP / HTTPS 連接埠路由到本通道的網域模式�
 msgid "Private key"
 msgstr "私密金鑰"
 
+msgid "Provider"
+msgstr "服務商"
+
 msgid "Provision the server"
 msgstr "部署伺服器"
 
@@ -196,8 +367,32 @@ msgstr "最近日誌"
 msgid "Recorded on first connection and checked afterwards."
 msgstr "首次連線時記錄，之後每次都會驗證。"
 
+msgid "Records"
+msgstr "解析記錄"
+
+msgid "Records in %s"
+msgstr "%s 的解析記錄"
+
 msgid "Remote port"
 msgstr "遠端連接埠"
+
+msgid "Renew automatically"
+msgstr "自動續期"
+
+msgid "Renew now"
+msgstr "立即續期"
+
+msgid "Renewal"
+msgstr "續期"
+
+msgid "Renews once fewer than 30 days remain."
+msgstr "剩餘不足 30 天時自動續期。"
+
+msgid "Request a certificate"
+msgstr "申請憑證"
+
+msgid "Required for a wildcard: only a DNS record can prove control of names that do not exist yet."
+msgstr "泛網域必填：只有 DNS 記錄才能證明你對尚不存在的名字有控制權。"
 
 msgid "Running"
 msgstr "執行中"
@@ -219,6 +414,9 @@ msgstr "SSH 連接埠"
 
 msgid "SSH user"
 msgstr "SSH 使用者"
+
+msgid "Save"
+msgstr "儲存"
 
 msgid "Secret TCP"
 msgstr "私密 TCP"
@@ -262,14 +460,41 @@ msgstr "TLS 處理方式"
 msgid "TLS on the control connection"
 msgstr "控制連線啟用 TLS"
 
+msgid "TTL"
+msgstr "TTL"
+
 msgid "Terminate at the server (needs a pushed certificate)"
 msgstr "在伺服器終止（需要推送憑證）"
+
+msgid "Test"
+msgstr "測試"
+
+msgid "Testing credentials"
+msgstr "正在測試憑證"
 
 msgid "The LAN host running the service."
 msgstr "執行該服務的內網主機。"
 
+msgid "The account needs a name."
+msgstr "帳號必須有名稱。"
+
+msgid "The authority requires one, and uses it for expiry warnings."
+msgstr "憑證頒發機構要求填寫，並用於到期提醒。"
+
+msgid "The certificate was issued."
+msgstr "憑證已簽發。"
+
 msgid "The daemon writes to syslog through procd."
 msgstr "守護行程透過 procd 寫入 syslog。"
+
+msgid "This account manages no zones."
+msgstr "該帳號下沒有網域。"
+
+msgid "This takes a few minutes: the authority has to see the DNS record propagate before it will issue."
+msgstr "這需要幾分鐘：憑證頒發機構必須先看到 DNS 記錄生效才會簽發。"
+
+msgid "This zone has no records."
+msgstr "該網域下沒有解析記錄。"
 
 msgid "Token"
 msgstr "權杖"
@@ -298,6 +523,9 @@ msgstr "僅用於本次部署，不會儲存。"
 msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
 msgstr "當上面的檔案不存在時使用。{arch} 與 {os} 會替換為實際偵測到的伺服器架構與系統。"
 
+msgid "Value"
+msgstr "記錄值"
+
 msgid "Visitors must present this to reach the tunnel."
 msgstr "訪問者必須提供此金鑰才能連線到該通道。"
 
@@ -307,8 +535,17 @@ msgstr "預熱連線數"
 msgid "Where this router connects, and how to provision that server."
 msgstr "本路由器連線到哪裡，以及如何部署那台伺服器。"
 
+msgid "Zone"
+msgstr "網域"
+
+msgid "Zones"
+msgstr "網域列表"
+
 msgid "no response"
 msgstr "無回應"
+
+msgid "none stored"
+msgstr "未儲存"
 
 msgid "not configured"
 msgstr "未設定"
@@ -318,6 +555,9 @@ msgstr "連接埠 %s"
 
 msgid "server-allocated"
 msgstr "由伺服器分配"
+
+msgid "the request failed"
+msgstr "要求失敗"
 
 msgid "unnamed"
 msgstr "未命名"

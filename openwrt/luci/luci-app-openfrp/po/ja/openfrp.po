@@ -13,6 +13,15 @@ msgstr "\"*\" は最も左のラベルにのみ指定できます"
 msgid "\"*\" must be a whole label, not part of one"
 msgstr "\"*\" はラベル全体である必要があり、一部にはできません"
 
+msgid "%d days left"
+msgstr "残り %d 日"
+
+msgid "%d stored"
+msgstr "%d 件保存済み"
+
+msgid "%s accepted the credentials."
+msgstr "%s が認証情報を受け付けました。"
+
 msgid "%s is not in the expected format"
 msgstr "%s の形式が正しくありません"
 
@@ -31,17 +40,59 @@ msgstr "ドメインには最低 2 つのラベルが必要です (例: aaa.com)
 msgid "A name is required"
 msgstr "名前は必須です"
 
+msgid "A name you will recognise, for example aliyun-main"
+msgstr "自分でわかる名前（例: aliyun-main）"
+
 msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
 msgstr "パスワードはデプロイ時に入力し、このルーターには保存されません。鍵の方が安全で、デプロイ時に自動でインストールできます。"
+
+msgid "Accounts"
+msgstr "アカウント"
+
+msgid "Accounts here are used to manage records and to prove domain ownership when issuing certificates. A wildcard certificate can only be issued through DNS, so it needs an account."
+msgstr "ここのアカウントはレコード管理と、証明書発行時のドメイン所有証明に使います。ワイルドカード証明書は DNS でしか証明できないため、アカウントが必要です。"
+
+msgid "Add DNS account"
+msgstr "DNS アカウントを追加"
+
+msgid "Add account"
+msgstr "アカウントを追加"
+
+msgid "Add record"
+msgstr "レコードを追加"
 
 msgid "Another tunnel already uses the name %s"
 msgstr "名前 %s は既に別のトンネルが使用しています"
 
+msgid "Anything still serving it will keep the copy it already has until it restarts."
+msgstr "まだ使用中のサービスは、再起動するまで手元の複製を使い続けます。"
+
+msgid "Asking %s to confirm the credentials…"
+msgstr "%s に認証情報を確認しています…"
+
 msgid "Authentication"
 msgstr "認証方式"
 
+msgid "Authority"
+msgstr "認証局"
+
+msgid "Automatic"
+msgstr "自動"
+
 msgid "Cancel"
 msgstr "キャンセル"
+
+msgid "Certificate management is unavailable."
+msgstr "証明書管理は利用できません。"
+
+msgid "Certificates"
+msgstr "証明書"
+
+msgid "Certificates are issued here and pushed to the server, which loads them without dropping a single connection. They are used by tunnels whose TLS handling is set to terminate at the server."
+msgstr "証明書はここで発行してサーバーへ配布します。サーバーは接続を 1 本も切らずに読み込みます。TLS の扱いを「サーバーで終端」にしたトンネルが使用します。"
+
+msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
+msgstr "このアカウントで発行した証明書は残りますが、別のアカウントに紐付け直すまで更新できません。"
 
 msgid "Close"
 msgstr "閉じる"
@@ -55,6 +106,9 @@ msgstr "コネクションプール — 独立した輻輳ウィンドウ、カ�
 msgid "Connections kept open so an arriving request does not wait for a dial."
 msgstr "リクエスト到着時に接続待ちが起きないよう、あらかじめ張っておく接続数です。"
 
+msgid "Contact email"
+msgstr "連絡先メールアドレス"
+
 msgid "Control port"
 msgstr "制御ポート"
 
@@ -63,6 +117,45 @@ msgstr "OpenFrp バックエンドに接続できません。"
 
 msgid "Could not start the deployment: %s"
 msgstr "デプロイを開始できませんでした: %s"
+
+msgid "Could not start: %s"
+msgstr "開始できませんでした: %s"
+
+msgid "Create"
+msgstr "作成"
+
+msgid "Credentials"
+msgstr "認証情報"
+
+msgid "DNS"
+msgstr "DNS"
+
+msgid "DNS account"
+msgstr "DNS アカウント"
+
+msgid "DNS management is unavailable."
+msgstr "DNS 管理は利用できません。"
+
+msgid "Delete"
+msgstr "削除"
+
+msgid "Delete %s?"
+msgstr "%s を削除しますか?"
+
+msgid "Delete DNS account"
+msgstr "DNS アカウントを削除"
+
+msgid "Delete certificate"
+msgstr "証明書を削除"
+
+msgid "Delete record"
+msgstr "レコードを削除"
+
+msgid "Delete the %s record for %s?"
+msgstr "%s の %s レコードを削除しますか?"
+
+msgid "Delete the certificate for %s?"
+msgstr "%s の証明書を削除しますか?"
 
 msgid "Deploy"
 msgstr "デプロイ"
@@ -94,6 +187,15 @@ msgstr "ダウンロード URL"
 msgid "Each tunnel exposes one local service through the server."
 msgstr "各トンネルはローカルのサービスを 1 つ、サーバー経由で公開します。"
 
+msgid "Edit"
+msgstr "編集"
+
+msgid "Edit DNS account"
+msgstr "DNS アカウントを編集"
+
+msgid "Edit record"
+msgstr "レコードを編集"
+
 msgid "Empty label in %s"
 msgstr "%s に空のラベルがあります"
 
@@ -109,14 +211,23 @@ msgstr "有効ですが実行されていません"
 msgid "Enter the SSH password."
 msgstr "SSH パスワードを入力してください。"
 
+msgid "Expired"
+msgstr "期限切れ"
+
 msgid "Exposed as"
 msgstr "公開先"
+
+msgid "Failed"
+msgstr "失敗"
 
 msgid "Failed — see the output above."
 msgstr "失敗しました — 上の出力を確認してください。"
 
 msgid "Finished successfully."
 msgstr "正常に完了しました。"
+
+msgid "History"
+msgstr "履歴"
 
 msgid "Host key fingerprint"
 msgstr "ホスト鍵フィンガープリント"
@@ -127,11 +238,41 @@ msgstr "ACL ファイルを入れたばかりの場合は rpcd の再起動が�
 msgid "Install and configure the server over SSH. The server needs nothing installed beforehand."
 msgstr "SSH 経由でサーバーをインストールし設定します。サーバー側に事前準備は不要です。"
 
+msgid "Issuance failed — see the output above."
+msgstr "発行に失敗しました — 上の出力を確認してください。"
+
+msgid "Issue"
+msgstr "発行"
+
+msgid "Issuing certificate"
+msgstr "証明書を発行しています"
+
+msgid "Issuing…"
+msgstr "発行中…"
+
 msgid "Job ended in state: %s"
 msgstr "ジョブの終了状態: %s"
 
+msgid "Key"
+msgstr "鍵"
+
+msgid "Key type"
+msgstr "鍵の種類"
+
 msgid "Leave empty to let the server allocate one."
 msgstr "空欄にするとサーバーが自動的に割り当てます。"
+
+msgid "Line"
+msgstr "回線"
+
+msgid "List at least one domain."
+msgstr "ドメインを 1 つ以上入力してください。"
+
+msgid "Loading records…"
+msgstr "レコードを読み込んでいます…"
+
+msgid "Loading zones…"
+msgstr "ゾーンを読み込んでいます…"
 
 msgid "Local address"
 msgstr "ローカルアドレス"
@@ -148,6 +289,9 @@ msgstr "ログレベル"
 msgid "Lost track of the job: %s"
 msgstr "ジョブの状態を取得できません: %s"
 
+msgid "Manual"
+msgstr "手動"
+
 msgid "Multiplex connections"
 msgstr "接続の多重化"
 
@@ -157,14 +301,38 @@ msgstr "多重化 — 輻輳ウィンドウを共有し、カーネルゼロコ�
 msgid "Name"
 msgstr "名前"
 
+msgid "No DNS accounts are configured. Add one on the DNS page first — a wildcard certificate cannot be issued without it."
+msgstr "DNS アカウントが未設定です。先に DNS ページで追加してください — これがないとワイルドカード証明書は発行できません。"
+
+msgid "No DNS accounts yet. Add one to manage records and to issue wildcard certificates."
+msgstr "DNS アカウントがまだありません。追加するとレコード管理とワイルドカード証明書の発行ができます。"
+
+msgid "No DNS providers are available."
+msgstr "利用できる DNS プロバイダがありません。"
+
+msgid "No certificates yet."
+msgstr "証明書はまだありません。"
+
 msgid "No log output yet."
 msgstr "まだログ出力はありません。"
 
 msgid "No tunnels are configured yet."
 msgstr "トンネルがまだ設定されていません。"
 
+msgid "None"
+msgstr "なし"
+
+msgid "Not issued yet"
+msgstr "未発行"
+
+msgid "Nothing has happened to this certificate yet."
+msgstr "この証明書にはまだ履歴がありません。"
+
 msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
 msgstr "frp とは異なり既定では無効です。多重化するとすべてのトンネルが 1 つの輻輳ウィンドウを共有するため、1 つのパケット損失で全体が停滞し、カーネルゼロコピーも使えなくなります。スループットよりソケット数が重要な場合にのみ有効にしてください。"
+
+msgid "One per line. A \"*\" covers exactly one level, so *.aiqno.com covers acgshop.aiqno.com but not a.b.aiqno.com."
+msgstr "1 行に 1 つ。\"*\" はちょうど 1 階層だけを対象とするため、*.aiqno.com は acgshop.aiqno.com を含みますが a.b.aiqno.com は含みません。"
 
 msgid "Overview"
 msgstr "概要"
@@ -187,6 +355,9 @@ msgstr "共有 HTTP / HTTPS ポート経由でこのトンネルに振り分け�
 msgid "Private key"
 msgstr "秘密鍵"
 
+msgid "Provider"
+msgstr "プロバイダ"
+
 msgid "Provision the server"
 msgstr "サーバーの構築"
 
@@ -196,8 +367,32 @@ msgstr "最近のログ"
 msgid "Recorded on first connection and checked afterwards."
 msgstr "初回接続時に記録し、以降は毎回照合します。"
 
+msgid "Records"
+msgstr "レコード"
+
+msgid "Records in %s"
+msgstr "%s のレコード"
+
 msgid "Remote port"
 msgstr "リモートポート"
+
+msgid "Renew automatically"
+msgstr "自動更新"
+
+msgid "Renew now"
+msgstr "今すぐ更新"
+
+msgid "Renewal"
+msgstr "更新"
+
+msgid "Renews once fewer than 30 days remain."
+msgstr "残り 30 日を切ると自動的に更新します。"
+
+msgid "Request a certificate"
+msgstr "証明書を申請"
+
+msgid "Required for a wildcard: only a DNS record can prove control of names that do not exist yet."
+msgstr "ワイルドカードには必須です。まだ存在しない名前の管理権は DNS レコードでしか証明できません。"
 
 msgid "Running"
 msgstr "実行中"
@@ -219,6 +414,9 @@ msgstr "SSH ポート"
 
 msgid "SSH user"
 msgstr "SSH ユーザー"
+
+msgid "Save"
+msgstr "保存"
 
 msgid "Secret TCP"
 msgstr "シークレット TCP"
@@ -262,14 +460,41 @@ msgstr "TLS の扱い"
 msgid "TLS on the control connection"
 msgstr "制御接続で TLS を使用"
 
+msgid "TTL"
+msgstr "TTL"
+
 msgid "Terminate at the server (needs a pushed certificate)"
 msgstr "サーバーで終端する (証明書の配布が必要)"
+
+msgid "Test"
+msgstr "テスト"
+
+msgid "Testing credentials"
+msgstr "認証情報をテストしています"
 
 msgid "The LAN host running the service."
 msgstr "そのサービスが動いている LAN 上のホストです。"
 
+msgid "The account needs a name."
+msgstr "アカウント名は必須です。"
+
+msgid "The authority requires one, and uses it for expiry warnings."
+msgstr "認証局が要求し、有効期限の通知にも使われます。"
+
+msgid "The certificate was issued."
+msgstr "証明書を発行しました。"
+
 msgid "The daemon writes to syslog through procd."
 msgstr "デーモンは procd 経由で syslog に出力します。"
+
+msgid "This account manages no zones."
+msgstr "このアカウントが管理するゾーンはありません。"
+
+msgid "This takes a few minutes: the authority has to see the DNS record propagate before it will issue."
+msgstr "数分かかります。認証局が DNS レコードの伝播を確認してから発行します。"
+
+msgid "This zone has no records."
+msgstr "このゾーンにレコードはありません。"
 
 msgid "Token"
 msgstr "トークン"
@@ -298,6 +523,9 @@ msgstr "今回のデプロイにのみ使用し、保存はされません。"
 msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
 msgstr "上のファイルが無い場合に使用します。{arch} と {os} は判別したサーバーの値に置き換えられます。"
 
+msgid "Value"
+msgstr "値"
+
 msgid "Visitors must present this to reach the tunnel."
 msgstr "このトンネルに接続するには、利用者がこれを提示する必要があります。"
 
@@ -307,8 +535,17 @@ msgstr "ウォーム接続数"
 msgid "Where this router connects, and how to provision that server."
 msgstr "このルーターの接続先と、そのサーバーを構築する方法です。"
 
+msgid "Zone"
+msgstr "ゾーン"
+
+msgid "Zones"
+msgstr "ゾーン"
+
 msgid "no response"
 msgstr "応答なし"
+
+msgid "none stored"
+msgstr "未保存"
 
 msgid "not configured"
 msgstr "未設定"
@@ -318,6 +555,9 @@ msgstr "ポート %s"
 
 msgid "server-allocated"
 msgstr "サーバー割り当て"
+
+msgid "the request failed"
+msgstr "リクエストが失敗しました"
 
 msgid "unnamed"
 msgstr "名称未設定"

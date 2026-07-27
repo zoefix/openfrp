@@ -1,6 +1,6 @@
 {
 	"luci-app-openfrp": {
-		"description": "Grant access to OpenFrp configuration, status and server provisioning",
+		"description": "Grant access to OpenFrp configuration, status, DNS, certificates and server provisioning",
 
 		"read": {
 			"ubus": {
@@ -21,7 +21,9 @@
 			"ubus": {
 				"luci.openfrp": [
 					"job_start",
-					"job_cancel"
+					"job_cancel",
+					"dns",
+					"cert"
 				]
 			},
 			"uci": [ "openfrp" ]

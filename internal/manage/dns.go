@@ -7,6 +7,7 @@ import (
 	"github.com/zoefix/openfrp/internal/dns"
 	_ "github.com/zoefix/openfrp/internal/dns/providers" // populate the registry
 	"github.com/zoefix/openfrp/internal/storage/repo"
+	"github.com/zoefix/openfrp/pkg/schema"
 )
 
 // AccountView is an account as the UI sees it: credentials redacted.
@@ -16,10 +17,17 @@ type AccountView struct {
 	Provider string `json:"provider"`
 	// ProviderLabel saves the UI a lookup when rendering a list.
 	ProviderLabel string `json:"provider_label"`
-	// Credentials has every secret replaced with a placeholder.
+	// Credentials carries only the non-secret fields. Secrets are omitted
+	// entirely rather than replaced with a marker: a form pre-filled with a
+	// placeholder submits that placeholder back, and storing it would destroy
+	// the credential silently.
 	Credentials map[string]string `json:"credentials"`
-	CreatedAt   int64             `json:"created_at"`
-	UpdatedAt   int64             `json:"updated_at"`
+
+	// SecretsSet names the secret fields that do have a stored value, so the
+	// form can say "configured, leave blank to keep" instead of looking empty.
+	SecretsSet []string `json:"secrets_set"`
+	CreatedAt  int64    `json:"created_at"`
+	UpdatedAt  int64    `json:"updated_at"`
 }
 
 // Providers returns every registered DNS provider with its credential form,
@@ -44,9 +52,12 @@ func (s *Service) ListAccounts(ctx context.Context) ([]AccountView, error) {
 
 // redact converts a stored account into something safe to send to a browser.
 //
-// Secrets are replaced rather than removed: the form needs to know the field
-// exists and is set, so it can show a placeholder instead of an empty box that
-// looks like nothing was ever configured.
+// Secrets are omitted rather than masked. Sending a mask as the field's value
+// looks harmless and is not: the form renders it into the input, and saving
+// without touching that field submits the mask back as the new secret,
+// replacing a working credential with a row of bullets and reporting success.
+// SecretsSet carries the "this is configured" signal instead, which is all the
+// form actually needs.
 func (s *Service) redact(account repo.Account) AccountView {
 	view := AccountView{
 		ID:            account.ID,
@@ -54,6 +65,7 @@ func (s *Service) redact(account repo.Account) AccountView {
 		Provider:      account.Provider,
 		ProviderLabel: account.Provider,
 		Credentials:   map[string]string{},
+		SecretsSet:    []string{},
 		CreatedAt:     account.CreatedAt,
 		UpdatedAt:     account.UpdatedAt,
 	}
@@ -69,7 +81,19 @@ func (s *Service) redact(account repo.Account) AccountView {
 	}
 
 	view.ProviderLabel = descriptor.Label
-	view.Credentials = descriptor.Form.Redact(account.Credentials)
+
+	secret := map[string]bool{}
+	for _, name := range descriptor.Form.SecretNames() {
+		secret[name] = true
+		if account.Credentials[name] != "" {
+			view.SecretsSet = append(view.SecretsSet, name)
+		}
+	}
+	for name, value := range account.Credentials {
+		if !secret[name] {
+			view.Credentials[name] = value
+		}
+	}
 	return view
 }
 
@@ -135,7 +159,11 @@ func (s *Service) UpdateAccount(ctx context.Context, in AccountInput) (AccountVi
 	// carry secrets forward when the provider is unchanged.
 	if provider == existing.Provider {
 		for _, name := range descriptor.Form.SecretNames() {
-			if values[name] == "" {
+			// Blank means "unchanged" because the form never received the real
+			// value. The marker is accepted too: a client that echoes back what
+			// it was shown must not overwrite a working credential with a row
+			// of bullets.
+			if values[name] == "" || values[name] == schema.RedactedMarker {
 				values[name] = existing.Credentials[name]
 			}
 		}

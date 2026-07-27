@@ -9,6 +9,7 @@ import (
 	"github.com/zoefix/openfrp/internal/manage"
 	"github.com/zoefix/openfrp/internal/storage"
 	"github.com/zoefix/openfrp/internal/storage/repo"
+	"github.com/zoefix/openfrp/pkg/schema"
 )
 
 const realToken = "SUPERSECRET-TOKEN"
@@ -86,6 +87,59 @@ func TestBlankSecretKeepsStoredValue(t *testing.T) {
 	stored := storedCredentials(t, path, created.ID)
 	if stored["api_token"] != realToken {
 		t.Errorf("api_token is now %q; a rename destroyed the credential", stored["api_token"])
+	}
+}
+
+// TestSecretsAreOmittedNotMasked checks the shape, not just the absence of the
+// value.
+//
+// A masked secret sent as the field's value is worse than no protection: the
+// form renders the mask into the input, and saving any other field submits the
+// mask back as the new secret. The credential is destroyed and the UI reports
+// success. Omitting the field is what makes the form's blank-means-unchanged
+// path work.
+func TestSecretsAreOmittedNotMasked(t *testing.T) {
+	s, _ := service(t)
+	created := cloudflareAccount(t, s)
+
+	if _, present := created.Credentials["api_token"]; present {
+		t.Errorf("api_token was sent to the UI as %q; it must be omitted",
+			created.Credentials["api_token"])
+	}
+
+	var flagged bool
+	for _, name := range created.SecretsSet {
+		if name == "api_token" {
+			flagged = true
+		}
+	}
+	if !flagged {
+		t.Error("api_token is stored but not listed in secrets_set, so the form " +
+			"cannot tell it apart from one that was never configured")
+	}
+}
+
+// TestMaskEchoedBackDoesNotOverwrite is defence in depth. Nothing should send
+// the mask back now that it is never sent out, but if some client ever does,
+// storing it would silently destroy the credential.
+func TestMaskEchoedBackDoesNotOverwrite(t *testing.T) {
+	ctx := context.Background()
+	s, path := service(t)
+
+	created := cloudflareAccount(t, s)
+
+	if _, err := s.UpdateAccount(ctx, manage.AccountInput{
+		ID: created.ID, Name: "cf-main", Provider: "cloudflare",
+		Credentials: map[string]string{
+			"auth": "token", "api_token": schema.RedactedMarker,
+		},
+	}); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+
+	if stored := storedCredentials(t, path, created.ID); stored["api_token"] != realToken {
+		t.Errorf("api_token is now %q; the mask was stored as the credential",
+			stored["api_token"])
 	}
 }
 

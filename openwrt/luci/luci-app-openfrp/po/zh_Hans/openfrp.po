@@ -13,6 +13,15 @@ msgstr "\"*\" 只能作为最左边的标签"
 msgid "\"*\" must be a whole label, not part of one"
 msgstr "\"*\" 必须独占一个标签，不能只占标签的一部分"
 
+msgid "%d days left"
+msgstr "剩余 %d 天"
+
+msgid "%d stored"
+msgstr "已存 %d 项"
+
+msgid "%s accepted the credentials."
+msgstr "%s 接受了该凭据。"
+
 msgid "%s is not in the expected format"
 msgstr "%s 格式不正确"
 
@@ -31,17 +40,59 @@ msgstr "域名至少要有两级，例如 aaa.com"
 msgid "A name is required"
 msgstr "名称不能为空"
 
+msgid "A name you will recognise, for example aliyun-main"
+msgstr "一个你能认出来的名称，例如 aliyun-main"
+
 msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
 msgstr "密码在部署时输入，不会保存在本路由器上。密钥更安全，部署过程可以帮你自动安装。"
+
+msgid "Accounts"
+msgstr "账号"
+
+msgid "Accounts here are used to manage records and to prove domain ownership when issuing certificates. A wildcard certificate can only be issued through DNS, so it needs an account."
+msgstr "这里的账号用于管理解析记录，以及在签发证书时证明域名归属。泛域名证书只能通过 DNS 验证签发，因此必须配置账号。"
+
+msgid "Add DNS account"
+msgstr "添加 DNS 账号"
+
+msgid "Add account"
+msgstr "添加账号"
+
+msgid "Add record"
+msgstr "添加记录"
 
 msgid "Another tunnel already uses the name %s"
 msgstr "已有隧道使用名称 %s"
 
+msgid "Anything still serving it will keep the copy it already has until it restarts."
+msgstr "仍在使用它的服务会继续用手上那份，直到重启为止。"
+
+msgid "Asking %s to confirm the credentials…"
+msgstr "正在请 %s 校验凭据…"
+
 msgid "Authentication"
 msgstr "认证方式"
 
+msgid "Authority"
+msgstr "证书颁发机构"
+
+msgid "Automatic"
+msgstr "自动"
+
 msgid "Cancel"
 msgstr "取消"
+
+msgid "Certificate management is unavailable."
+msgstr "证书管理不可用。"
+
+msgid "Certificates"
+msgstr "证书"
+
+msgid "Certificates are issued here and pushed to the server, which loads them without dropping a single connection. They are used by tunnels whose TLS handling is set to terminate at the server."
+msgstr "证书在这里签发并推送到服务端，服务端会热加载，不会断开任何一条连接。TLS 处理方式设为\"在服务端终止\"的隧道会使用它们。"
+
+msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
+msgstr "通过该账号签发的证书会保留，但在你把它们指向其他账号之前无法续期。"
 
 msgid "Close"
 msgstr "关闭"
@@ -55,6 +106,9 @@ msgstr "连接池 — 各自独立的拥塞窗口，内核零拷贝"
 msgid "Connections kept open so an arriving request does not wait for a dial."
 msgstr "预先保持的连接数，使新请求无需等待建立连接。"
 
+msgid "Contact email"
+msgstr "联系邮箱"
+
 msgid "Control port"
 msgstr "控制端口"
 
@@ -63,6 +117,45 @@ msgstr "无法连接到 OpenFrp 后端。"
 
 msgid "Could not start the deployment: %s"
 msgstr "无法启动部署：%s"
+
+msgid "Could not start: %s"
+msgstr "无法启动：%s"
+
+msgid "Create"
+msgstr "创建"
+
+msgid "Credentials"
+msgstr "凭据"
+
+msgid "DNS"
+msgstr "DNS"
+
+msgid "DNS account"
+msgstr "DNS 账号"
+
+msgid "DNS management is unavailable."
+msgstr "DNS 管理不可用。"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Delete %s?"
+msgstr "确定删除 %s？"
+
+msgid "Delete DNS account"
+msgstr "删除 DNS 账号"
+
+msgid "Delete certificate"
+msgstr "删除证书"
+
+msgid "Delete record"
+msgstr "删除记录"
+
+msgid "Delete the %s record for %s?"
+msgstr "确定删除 %s 的 %s 记录？"
+
+msgid "Delete the certificate for %s?"
+msgstr "确定删除 %s 的证书？"
 
 msgid "Deploy"
 msgstr "部署"
@@ -94,6 +187,15 @@ msgstr "下载地址"
 msgid "Each tunnel exposes one local service through the server."
 msgstr "每条隧道通过服务端暴露一个内网服务。"
 
+msgid "Edit"
+msgstr "编辑"
+
+msgid "Edit DNS account"
+msgstr "编辑 DNS 账号"
+
+msgid "Edit record"
+msgstr "编辑记录"
+
 msgid "Empty label in %s"
 msgstr "%s 中有空标签"
 
@@ -109,14 +211,23 @@ msgstr "已启用但未运行"
 msgid "Enter the SSH password."
 msgstr "请输入 SSH 密码。"
 
+msgid "Expired"
+msgstr "已过期"
+
 msgid "Exposed as"
 msgstr "对外地址"
+
+msgid "Failed"
+msgstr "失败"
 
 msgid "Failed — see the output above."
 msgstr "失败 — 请查看上面的输出。"
 
 msgid "Finished successfully."
 msgstr "已成功完成。"
+
+msgid "History"
+msgstr "历史"
 
 msgid "Host key fingerprint"
 msgstr "主机密钥指纹"
@@ -127,11 +238,41 @@ msgstr "如果 ACL 文件是刚安装的，需要重启 rpcd：/etc/init.d/rpcd 
 msgid "Install and configure the server over SSH. The server needs nothing installed beforehand."
 msgstr "通过 SSH 安装并配置服务端。服务器无需预装任何软件。"
 
+msgid "Issuance failed — see the output above."
+msgstr "签发失败 — 请查看上面的输出。"
+
+msgid "Issue"
+msgstr "签发"
+
+msgid "Issuing certificate"
+msgstr "正在签发证书"
+
+msgid "Issuing…"
+msgstr "签发中…"
+
 msgid "Job ended in state: %s"
 msgstr "任务结束状态：%s"
 
+msgid "Key"
+msgstr "密钥"
+
+msgid "Key type"
+msgstr "密钥类型"
+
 msgid "Leave empty to let the server allocate one."
 msgstr "留空则由服务端自动分配。"
+
+msgid "Line"
+msgstr "线路"
+
+msgid "List at least one domain."
+msgstr "至少填写一个域名。"
+
+msgid "Loading records…"
+msgstr "正在加载记录…"
+
+msgid "Loading zones…"
+msgstr "正在加载域名…"
 
 msgid "Local address"
 msgstr "内网地址"
@@ -148,6 +289,9 @@ msgstr "日志级别"
 msgid "Lost track of the job: %s"
 msgstr "无法获取任务状态：%s"
 
+msgid "Manual"
+msgstr "手动"
+
 msgid "Multiplex connections"
 msgstr "多路复用连接"
 
@@ -157,14 +301,38 @@ msgstr "多路复用 — 共享拥塞窗口，无法使用内核零拷贝"
 msgid "Name"
 msgstr "名称"
 
+msgid "No DNS accounts are configured. Add one on the DNS page first — a wildcard certificate cannot be issued without it."
+msgstr "尚未配置 DNS 账号。请先在 DNS 页面添加一个 —— 没有它无法签发泛域名证书。"
+
+msgid "No DNS accounts yet. Add one to manage records and to issue wildcard certificates."
+msgstr "还没有 DNS 账号。添加一个即可管理解析记录并签发泛域名证书。"
+
+msgid "No DNS providers are available."
+msgstr "没有可用的 DNS 服务商。"
+
+msgid "No certificates yet."
+msgstr "还没有证书。"
+
 msgid "No log output yet."
 msgstr "暂无日志输出。"
 
 msgid "No tunnels are configured yet."
 msgstr "尚未配置任何隧道。"
 
+msgid "None"
+msgstr "无"
+
+msgid "Not issued yet"
+msgstr "尚未签发"
+
+msgid "Nothing has happened to this certificate yet."
+msgstr "该证书还没有任何记录。"
+
 msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
 msgstr "与 frp 不同，此项默认关闭。多路复用会让所有隧道共用一个拥塞窗口，一个丢包就会拖住全部隧道，而且无法走内核零拷贝。只有当套接字数量比吞吐更重要时才启用。"
+
+msgid "One per line. A \"*\" covers exactly one level, so *.aiqno.com covers acgshop.aiqno.com but not a.b.aiqno.com."
+msgstr "每行一个。\"*\" 只覆盖一层，所以 *.aiqno.com 覆盖 acgshop.aiqno.com，但不覆盖 a.b.aiqno.com。"
 
 msgid "Overview"
 msgstr "概览"
@@ -187,6 +355,9 @@ msgstr "通过共享的 HTTP / HTTPS 端口路由到本隧道的域名模式。"
 msgid "Private key"
 msgstr "私钥"
 
+msgid "Provider"
+msgstr "服务商"
+
 msgid "Provision the server"
 msgstr "部署服务端"
 
@@ -196,8 +367,32 @@ msgstr "最近日志"
 msgid "Recorded on first connection and checked afterwards."
 msgstr "首次连接时记录，之后每次都会校验。"
 
+msgid "Records"
+msgstr "解析记录"
+
+msgid "Records in %s"
+msgstr "%s 的解析记录"
+
 msgid "Remote port"
 msgstr "远程端口"
+
+msgid "Renew automatically"
+msgstr "自动续期"
+
+msgid "Renew now"
+msgstr "立即续期"
+
+msgid "Renewal"
+msgstr "续期"
+
+msgid "Renews once fewer than 30 days remain."
+msgstr "剩余不足 30 天时自动续期。"
+
+msgid "Request a certificate"
+msgstr "申请证书"
+
+msgid "Required for a wildcard: only a DNS record can prove control of names that do not exist yet."
+msgstr "泛域名必填：只有 DNS 记录才能证明你对尚不存在的名字有控制权。"
 
 msgid "Running"
 msgstr "运行中"
@@ -219,6 +414,9 @@ msgstr "SSH 端口"
 
 msgid "SSH user"
 msgstr "SSH 用户"
+
+msgid "Save"
+msgstr "保存"
 
 msgid "Secret TCP"
 msgstr "私密 TCP"
@@ -262,14 +460,41 @@ msgstr "TLS 处理方式"
 msgid "TLS on the control connection"
 msgstr "控制连接启用 TLS"
 
+msgid "TTL"
+msgstr "TTL"
+
 msgid "Terminate at the server (needs a pushed certificate)"
 msgstr "在服务端终止（需要推送证书）"
+
+msgid "Test"
+msgstr "测试"
+
+msgid "Testing credentials"
+msgstr "正在测试凭据"
 
 msgid "The LAN host running the service."
 msgstr "运行该服务的内网主机。"
 
+msgid "The account needs a name."
+msgstr "账号必须有名称。"
+
+msgid "The authority requires one, and uses it for expiry warnings."
+msgstr "证书颁发机构要求填写，并用于到期提醒。"
+
+msgid "The certificate was issued."
+msgstr "证书已签发。"
+
 msgid "The daemon writes to syslog through procd."
 msgstr "守护进程通过 procd 写入 syslog。"
+
+msgid "This account manages no zones."
+msgstr "该账号下没有域名。"
+
+msgid "This takes a few minutes: the authority has to see the DNS record propagate before it will issue."
+msgstr "这需要几分钟：证书颁发机构必须先看到 DNS 记录生效才会签发。"
+
+msgid "This zone has no records."
+msgstr "该域名下没有解析记录。"
 
 msgid "Token"
 msgstr "令牌"
@@ -298,6 +523,9 @@ msgstr "仅用于本次部署，不会保存。"
 msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
 msgstr "当上面的文件不存在时使用。{arch} 与 {os} 会替换为实际探测到的服务器架构与系统。"
 
+msgid "Value"
+msgstr "记录值"
+
 msgid "Visitors must present this to reach the tunnel."
 msgstr "访问者必须提供此密钥才能连接到该隧道。"
 
@@ -307,8 +535,17 @@ msgstr "预热连接数"
 msgid "Where this router connects, and how to provision that server."
 msgstr "本路由器连接到哪里，以及如何部署那台服务器。"
 
+msgid "Zone"
+msgstr "域名"
+
+msgid "Zones"
+msgstr "域名列表"
+
 msgid "no response"
 msgstr "无响应"
+
+msgid "none stored"
+msgstr "未存储"
 
 msgid "not configured"
 msgstr "未配置"
@@ -318,6 +555,9 @@ msgstr "端口 %s"
 
 msgid "server-allocated"
 msgstr "由服务端分配"
+
+msgid "the request failed"
+msgstr "请求失败"
 
 msgid "unnamed"
 msgstr "未命名"

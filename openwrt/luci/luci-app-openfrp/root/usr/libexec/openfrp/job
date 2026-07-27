@@ -128,6 +128,31 @@ case "$KIND" in
 		finish failed
 		;;
 
+	cert_issue)
+		# Certificate issuance. This is a job rather than an rpcd call because
+		# it talks to a CA and then waits for DNS propagation, which takes
+		# minutes — far past rpcd's 30 second timeout.
+		if ! command -v openfrpc >/dev/null 2>&1; then
+			log "openfrpc is not installed"
+			finish failed
+		fi
+
+		order="$(printf '%s' "$ARGS" | jsonfilter -e '@.id' 2>/dev/null)"
+		case "$order" in
+			''|*[!0-9]*) log "no valid order id was supplied"; finish failed ;;
+		esac
+
+		log "==> issuing certificate for order $order"
+		# Progress goes to stderr and the result to stdout; both land in this
+		# log so the operator sees the steps and the outcome in one place.
+		if openfrpc cert issue -id "$order" >> "$LOG" 2>&1; then
+			log "==> certificate issued"
+			finish succeeded
+		fi
+		log "==> issuance failed"
+		finish failed
+		;;
+
 	restart)
 		log "==> restarting openfrp"
 		if /etc/init.d/openfrp restart >> "$LOG" 2>&1; then

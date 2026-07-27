@@ -9,13 +9,13 @@ Three pieces:
 |---|---|
 | **`openfrps`** | Public server. Moves tunnel traffic and nothing else — no cloud credentials live here. |
 | **`openfrpc`** | Runs on the router. Maintains tunnels, provisions the server over SSH, and manages DNS and certificates locally. |
-| **`luci-app-openfrp`** | The LuCI web UI. Every management action happens here. |
+| **`luci-app-openfrp`** | The LuCI web UI: status, tunnels, server provisioning, DNS and certificates. Every management action happens here. |
 
-Status: **P0–P6 and P8–P10 complete**; P7 partially. Tunnels (TCP, UDP and
-domain-routed HTTP/HTTPS), the OpenWrt package and LuCI app, one-command
-server provisioning, DNS management, ACME issuance with zero-downtime
-rotation, renewal scheduling and traffic accounting are all working and
-tested. See [the roadmap](#roadmap) for what is not.
+Status: tunnels (TCP, UDP and domain-routed HTTP/HTTPS), the OpenWrt package
+and LuCI app, one-command server provisioning, DNS management, ACME issuance
+with zero-downtime rotation, renewal scheduling and traffic accounting all
+work and are tested on real hardware. See
+[Known gaps](#known-gaps) for what does not.
 
 ## Provisioning a server
 
@@ -239,12 +239,28 @@ by the consumer; `pkg/` free of business logic.
 |---|---|---|
 | **P0** | protocol, transport, server, client, TCP tunnels | ✅ done |
 | **P1** | wildcard domain routing, HTTP vhost, SNI passthrough, `bench/` | ✅ done |
-| P2 | OpenWrt `.apk` and LuCI app | |
+| **P2** | OpenWrt `.apk` and LuCI app | ✅ done |
 | **P3** | SSH server provisioning | ✅ done |
-| P4 | cloud API signing, schema-driven forms | |
-| P5 | DNS management, first five providers | |
-| P6 | ACME issuance, edge TLS termination, hot cert reload | |
-| P7–P11 | remaining providers, renewal, status panel, QUIC/KCP, eBPF sockmap | |
+| **P4** | cloud API signing, schema-driven forms | ✅ done |
+| **P5** | DNS management, seven providers | ✅ done |
+| **P6** | ACME issuance, edge TLS termination, hot cert reload | ✅ done |
+| P7 | the remaining twelve DNS providers | in progress |
+| P8–P9 | renewal scheduling, traffic accounting | ✅ done |
+| P10 | QUIC and KCP transports, bandwidth limits | accepted in config, behave as TCP |
+| P11 | eBPF sockmap | not started |
+
+### Known gaps
+
+- **QUIC and KCP are accepted in configuration and behave as TCP.** The
+  transport selector exists; the transports do not.
+- **Twelve of the nineteen planned DNS providers are unwritten.** The seven
+  present are Aliyun, DNSPod, Huawei, Cloudflare, NameSilo, PowerDNS and West.
+- **DNS and certificate management need SQLite, which has no MIPS port.** On a
+  MIPS router those two pages report themselves unavailable; tunnels are
+  unaffected.
+- Certificates are pushed to the server and hot-loaded, but the tunnel-side
+  `tls_mode: terminate` wiring has not been exercised against a real
+  certificate end to end.
 
 ## If the client cannot connect
 

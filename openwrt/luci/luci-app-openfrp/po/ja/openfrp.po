@@ -247,9 +247,6 @@ msgstr "DNS アカウントを編集"
 msgid "Edit record"
 msgstr "レコードを編集"
 
-msgid "Either describe a server that already runs OpenFrp, or install one now over SSH."
-msgstr "すでに OpenFrp が動いているサーバーを登録するか、SSH で今すぐインストールします。"
-
 msgid "Empty label in %s"
 msgstr "%s に空のラベルがあります"
 

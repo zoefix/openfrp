@@ -247,9 +247,6 @@ msgstr "編輯 DNS 帳號"
 msgid "Edit record"
 msgstr "編輯記錄"
 
-msgid "Either describe a server that already runs OpenFrp, or install one now over SSH."
-msgstr "可以填寫一台已經在跑 OpenFrp 的伺服器，也可以現在透過 SSH 裝一台。"
-
 msgid "Empty label in %s"
 msgstr "%s 中有空標籤"
 

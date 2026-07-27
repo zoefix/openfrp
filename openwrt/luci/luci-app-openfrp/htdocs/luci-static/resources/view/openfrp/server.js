@@ -151,87 +151,78 @@ function uniqueSectionName(base) {
 	return name;
 }
 
-// addDialog asks which of the two ways a server is being added.
-function addDialog(view) {
-	ui.showModal(_('Add a server'), [
-		E('p', {}, _('Either describe a server that already runs OpenFrp, or ' +
-			'install one now over SSH.')),
+// radio builds one labelled choice in a group.
+function radio(group, value, checked, label, help, onchange) {
+	var control = E('input', {
+		'type': 'radio', 'name': group, 'value': value,
+		'class': 'cbi-input-radio',
+		'checked': checked ? '' : null
+	});
+	control.addEventListener('change', onchange);
 
-		E('div', { 'class': 'cbi-section' }, [
-			E('div', { 'style': 'margin-bottom:0.8em' }, [
-				button(_('An existing server'), 'cbi-button-action', function () {
-					ui.hideModal();
-					existingDialog(view);
-				}),
-				E('div', { 'class': 'cbi-value-description' },
-					_('You already have one running. Enter its address and token.'))
+	return {
+		control: control,
+		node: E('div', { 'style': 'margin-bottom:0.6em' }, [
+			E('label', { 'style': 'display:block;cursor:pointer' }, [
+				control, ' ', E('strong', {}, label)
 			]),
-			E('div', {}, [
-				button(_('Install over SSH'), 'cbi-button-positive', function () {
-					ui.hideModal();
-					deployDialog(view, null);
-				}),
-				E('div', { 'class': 'cbi-value-description' },
-					_('A blank host will do. The connection details are filled in ' +
-					  'from whatever the deployment installs.'))
-			])
-		]),
-
-		E('div', { 'class': 'right', 'style': 'margin-top:1em' },
-			button(_('Cancel'), '', ui.hideModal))
-	]);
+			E('div', {
+				'class': 'cbi-value-description',
+				'style': 'margin-left:1.6em'
+			}, help)
+		])
+	};
 }
 
-// existingDialog collects the details of a server that is already running.
-function existingDialog(view) {
+// existingFields collects the details of a server that is already running.
+function existingFields() {
 	var nameInput = input({ 'placeholder': 'main' });
 	var addrInput = input({ 'placeholder': '203.0.113.10' });
 	var portInput = input({ 'type': 'number' }, '7000');
 	var tokenInput = input({ 'type': 'password', 'class': 'cbi-input-password' });
 
-	function save() {
-		if (!addrInput.value) {
-			ui.addNotification(null, E('p', {}, _('Enter the server address.')), 'warning');
-			return;
+	return {
+		node: E('div', {}, [
+			row(_('Name'), nameInput,
+				_('Local to this router — a tunnel points at it. The server never sees it.')),
+			row(_('Server address'), addrInput),
+			row(_('Control port'), portInput),
+			row(_('Token'), tokenInput,
+				_('The shared secret the server was configured with.'))
+		]),
+
+		submit: function (view) {
+			if (!addrInput.value) {
+				ui.addNotification(null,
+					E('p', {}, _('Enter the server address.')), 'warning');
+				return;
+			}
+
+			var name = uniqueSectionName(sectionName(nameInput.value || addrInput.value));
+			uci.add('openfrp', 'server', name);
+			uci.set('openfrp', name, 'addr', addrInput.value);
+			uci.set('openfrp', name, 'port', portInput.value || '7000');
+			uci.set('openfrp', name, 'token', tokenInput.value);
+
+			ui.hideModal();
+			view.reload();
 		}
-
-		var name = uniqueSectionName(sectionName(nameInput.value || addrInput.value));
-		uci.add('openfrp', 'server', name);
-		uci.set('openfrp', name, 'addr', addrInput.value);
-		uci.set('openfrp', name, 'port', portInput.value || '7000');
-		uci.set('openfrp', name, 'token', tokenInput.value);
-
-		ui.hideModal();
-		view.reload();
-	}
-
-	ui.showModal(_('An existing server'), [
-		row(_('Name'), nameInput,
-			_('Local to this router — a tunnel points at it. The server never sees it.')),
-		row(_('Server address'), addrInput),
-		row(_('Control port'), portInput),
-		row(_('Token'), tokenInput,
-			_('The shared secret the server was configured with.')),
-		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
-			button(_('Cancel'), '', ui.hideModal), ' ',
-			button(_('Add'), 'cbi-button-positive', save)
-		])
-	]);
+	};
 }
 
-// deployDialog provisions a server over SSH.
+// deployFields provisions a server over SSH.
 //
 // section is null when adding, or the name of an existing server being
 // redeployed. Redeploying reuses the stored token, so the tunnels already
 // pointing at it keep working.
-function deployDialog(view, section) {
+function deployFields(section) {
 	var adding = !section;
 
 	function stored(option, fallback) {
 		return (section && uci.get('openfrp', section, option)) || fallback || '';
 	}
 
-	var nameInput = input({ 'placeholder': 'main' }, stored('_name'));
+	var nameInput = input({ 'placeholder': 'main' });
 	var hostInput = input({ 'placeholder': '203.0.113.10' }, stored('ssh_host'));
 	var portInput = input({ 'type': 'number' }, stored('ssh_port', '22'));
 	var userInput = input({}, stored('ssh_user', 'root'));
@@ -239,6 +230,7 @@ function deployDialog(view, section) {
 		'type': 'password', 'class': 'cbi-input-password', 'autocomplete': 'off'
 	});
 	var keyInput = input({ 'placeholder': '/etc/openfrp/id_ed25519' }, stored('ssh_key_path'));
+	var controlPort = input({ 'type': 'number' }, stored('port', '7000'));
 
 	var authSelect = E('select', { 'class': 'cbi-input-select' }, [
 		E('option', { 'value': 'password' }, _('Password')),
@@ -259,95 +251,12 @@ function deployDialog(view, section) {
 	authSelect.addEventListener('change', refreshAuth);
 	refreshAuth();
 
-	var controlPort = input({ 'type': 'number' }, stored('port', '7000'));
-
-	function start() {
-		if (!hostInput.value) {
-			ui.addNotification(null, E('p', {}, _('Enter the SSH host.')), 'warning');
-			return;
-		}
-		if (authSelect.value === 'password' && !passwordInput.value) {
-			ui.addNotification(null, E('p', {}, _('Enter the SSH password.')), 'warning');
-			return;
-		}
-
-		// The section is created before the job runs, so the worker has
-		// somewhere to write the token and fingerprint it produces.
-		var name = section;
-		if (adding) {
-			name = uniqueSectionName(sectionName(nameInput.value || hostInput.value));
-			uci.add('openfrp', 'server', name);
-		}
-
-		uci.set('openfrp', name, 'addr', hostInput.value);
-		uci.set('openfrp', name, 'port', controlPort.value || '7000');
-		uci.set('openfrp', name, 'ssh_host', hostInput.value);
-		uci.set('openfrp', name, 'ssh_port', portInput.value || '22');
-		uci.set('openfrp', name, 'ssh_user', userInput.value || 'root');
-		uci.set('openfrp', name, 'ssh_auth', authSelect.value);
-		if (authSelect.value === 'key')
-			uci.set('openfrp', name, 'ssh_key_path', keyInput.value);
-
-		// Saved before deploying: the worker writes the results straight into
-		// this section, and it has to exist on disk for that to land.
-		uci.save().then(function () {
-			var args = {
-				server: name,
-				host: hostInput.value,
-				port: parseInt(portInput.value, 10) || 22,
-				user: userInput.value || 'root',
-				bind_port: parseInt(controlPort.value, 10) || 7000
-			};
-
-			if (authSelect.value === 'password')
-				args.password = passwordInput.value;
-			else if (keyInput.value)
-				args.key_path = keyInput.value;
-
-			// Redeploying keeps the existing token, so tunnels already pointing
-			// here are not orphaned by a re-key.
-			var token = section && uci.get('openfrp', section, 'token');
-			if (token)
-				args.token = token;
-
-			var fingerprint = uci.get('openfrp', name, 'host_fingerprint');
-			if (fingerprint)
-				args.host_fingerprint = fingerprint;
-
-			args.local_binary = uci.get('openfrp', name, 'binary_path') ||
-				'/usr/lib/openfrp/openfrps';
-			var release = uci.get('openfrp', name, 'release_url');
-			if (release)
-				args.release_url = release;
-
-			ui.hideModal();
-
-			callJobStart('deploy', JSON.stringify(args)).then(function (res) {
-				passwordInput.value = '';
-
-				if (!res || res.error || !res.id) {
-					ui.addNotification(null, E('p', {},
-						_('Could not start the deployment: %s')
-							.format((res && res.error) || _('no response'))), 'error');
-					return;
-				}
-
-				showJobModal(_('Deploying server'), res.id, function (ok) {
-					// The worker wrote the token and fingerprint into UCI, so
-					// the page has to re-read rather than trust what it holds.
-					if (ok)
-						view.reload();
-				});
-			});
-		});
-	}
-
-	var body = [];
+	var rows = [];
 	if (adding)
-		body.push(row(_('Name'), nameInput,
+		rows.push(row(_('Name'), nameInput,
 			_('Local to this router — a tunnel points at it.')));
 
-	body = body.concat([
+	rows = rows.concat([
 		row(_('SSH host'), hostInput),
 		row(_('SSH port'), portInput),
 		row(_('SSH user'), userInput),
@@ -358,17 +267,170 @@ function deployDialog(view, section) {
 			_('The port the server will listen on for this router.')),
 		E('p', {}, _('Detects the distribution and init system, removes any ' +
 			'previous installation, installs the server, opens the firewall and ' +
-			'verifies the result.')),
+			'verifies the result.'))
+	]);
+
+	return {
+		node: E('div', {}, rows),
+		focus: function () {
+			if (authSelect.value === 'password')
+				passwordInput.focus();
+		},
+
+		submit: function (view) {
+			if (!hostInput.value) {
+				ui.addNotification(null, E('p', {}, _('Enter the SSH host.')), 'warning');
+				return;
+			}
+			if (authSelect.value === 'password' && !passwordInput.value) {
+				ui.addNotification(null, E('p', {}, _('Enter the SSH password.')), 'warning');
+				return;
+			}
+
+			// The section is created before the job runs, so the worker has
+			// somewhere to write the token and fingerprint it produces.
+			var name = section;
+			if (adding) {
+				name = uniqueSectionName(sectionName(nameInput.value || hostInput.value));
+				uci.add('openfrp', 'server', name);
+			}
+
+			uci.set('openfrp', name, 'addr', hostInput.value);
+			uci.set('openfrp', name, 'port', controlPort.value || '7000');
+			uci.set('openfrp', name, 'ssh_host', hostInput.value);
+			uci.set('openfrp', name, 'ssh_port', portInput.value || '22');
+			uci.set('openfrp', name, 'ssh_user', userInput.value || 'root');
+			uci.set('openfrp', name, 'ssh_auth', authSelect.value);
+			if (authSelect.value === 'key')
+				uci.set('openfrp', name, 'ssh_key_path', keyInput.value);
+
+			// Saved before deploying: the worker writes the results straight
+			// into this section, and it has to exist on disk for that to land.
+			uci.save().then(function () {
+				var args = {
+					server: name,
+					host: hostInput.value,
+					port: parseInt(portInput.value, 10) || 22,
+					user: userInput.value || 'root',
+					bind_port: parseInt(controlPort.value, 10) || 7000
+				};
+
+				if (authSelect.value === 'password')
+					args.password = passwordInput.value;
+				else if (keyInput.value)
+					args.key_path = keyInput.value;
+
+				// Redeploying keeps the existing token, so tunnels already
+				// pointing here are not orphaned by a re-key.
+				var token = section && uci.get('openfrp', section, 'token');
+				if (token)
+					args.token = token;
+
+				var fingerprint = uci.get('openfrp', name, 'host_fingerprint');
+				if (fingerprint)
+					args.host_fingerprint = fingerprint;
+
+				args.local_binary = uci.get('openfrp', name, 'binary_path') ||
+					'/usr/lib/openfrp/openfrps';
+				var release = uci.get('openfrp', name, 'release_url');
+				if (release)
+					args.release_url = release;
+
+				ui.hideModal();
+
+				callJobStart('deploy', JSON.stringify(args)).then(function (res) {
+					passwordInput.value = '';
+
+					if (!res || res.error || !res.id) {
+						ui.addNotification(null, E('p', {},
+							_('Could not start the deployment: %s')
+								.format((res && res.error) || _('no response'))), 'error');
+						return;
+					}
+
+					showJobModal(_('Deploying server'), res.id, function (ok) {
+						// The worker wrote the token and fingerprint into UCI,
+						// so the page has to re-read rather than trust what it
+						// holds.
+						if (ok)
+							view.reload();
+					});
+				});
+			});
+		}
+	};
+}
+
+// addDialog offers both ways of adding a server in one place.
+//
+// Installing is the default because it is the one that needs a decision made
+// in advance — the other path is for a server that already exists, which the
+// operator would have to go and find the token for.
+function addDialog(view) {
+	var mode = 'deploy';
+
+	var existing = existingFields();
+	var deploy = deployFields(null);
+
+	var confirm = button('', 'cbi-button-positive', function () {
+		(mode === 'deploy' ? deploy : existing).submit(view);
+	});
+
+	function refresh() {
+		var deploying = mode === 'deploy';
+
+		deploy.node.style.display = deploying ? '' : 'none';
+		existing.node.style.display = deploying ? 'none' : '';
+		dom.content(confirm, deploying ? _('Install') : _('Add'));
+
+		if (deploying)
+			deploy.focus();
+	}
+
+	var choices = [
+		radio('openfrp-add-mode', 'deploy', true,
+			_('Install over SSH'),
+			_('A blank host will do. The connection details are filled in from ' +
+			  'whatever the deployment installs.'),
+			function () { mode = 'deploy'; refresh(); }),
+
+		radio('openfrp-add-mode', 'existing', false,
+			_('An existing server'),
+			_('You already have one running. Enter its address and token.'),
+			function () { mode = 'existing'; refresh(); })
+	];
+
+	ui.showModal(_('Add a server'), [
+		E('div', { 'class': 'cbi-section' },
+			choices.map(function (choice) { return choice.node; })),
+
+		E('hr'),
+		deploy.node,
+		existing.node,
+
 		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
-			button(_('Cancel'), '', ui.hideModal), ' ',
-			button(adding ? _('Install') : _('Redeploy'), 'cbi-button-positive', start)
+			button(_('Cancel'), '', ui.hideModal), ' ', confirm
 		])
 	]);
 
-	ui.showModal(adding ? _('Install over SSH') : _('Redeploy %s').format(section), body);
+	refresh();
+}
 
-	if (authSelect.value === 'password')
-		passwordInput.focus();
+// deployDialog redeploys an existing server, where there is no choice to make.
+function deployDialog(view, section) {
+	var deploy = deployFields(section);
+
+	ui.showModal(_('Redeploy %s').format(section), [
+		deploy.node,
+		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
+			button(_('Cancel'), '', ui.hideModal), ' ',
+			button(_('Redeploy'), 'cbi-button-positive', function () {
+				deploy.submit(view);
+			})
+		])
+	]);
+
+	deploy.focus();
 }
 
 /* ------------------------------------------------------------------ */

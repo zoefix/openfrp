@@ -190,23 +190,48 @@ function orderDialog() {
 		return state.cas.filter(function (ca) { return ca.key === caSelect.value; })[0];
 	}
 
+	// eabStored is set once the backend confirms credentials are already on
+	// file for the chosen authority. They are entered once and reused for
+	// every certificate from it, so asking again is both noise and misleading.
+	var eabStored = false;
+
 	function refreshEAB() {
 		var ca = selectedCA();
 		var needed = !!(ca && ca.requires_eab);
 
 		eabRows.forEach(function (row) { row.style.display = needed ? '' : 'none'; });
+		if (!needed)
+			return;
 
-		if (needed)
-			dom.content(eabHint, [
-				_('%s issues only to accounts it already knows. Create a pair in your %s account and paste it here.')
-					.format(ca.label, ca.label), ' ',
-				E('a', {
-					'href': ca.key === 'zerossl'
-						? 'https://app.zerossl.com/developer'
-						: 'https://console.cloud.google.com/security/publicca',
-					'target': '_blank', 'rel': 'noreferrer'
-				}, _('Where to find it'))
-			]);
+		var help = ca.key === 'zerossl'
+			? 'https://app.zerossl.com/developer'
+			: 'https://console.cloud.google.com/security/publicca';
+
+		// Ask before rendering: the answer decides whether these are fields
+		// the operator must fill in or ones they can ignore.
+		call('eab-status', { ca: ca.key })
+			.then(function (status) {
+				eabStored = !!(status && status.present);
+
+				eabKeyInput.placeholder = eabStored ? _('Saved — leave blank to keep') : '';
+				eabHmacInput.placeholder = eabStored ? _('Saved — leave blank to keep') : '';
+
+				dom.content(eabHint, eabStored
+					? [E('em', {}, _('Already saved for %s and reused automatically. ' +
+						'Fill these in only to replace them.').format(ca.label))]
+					: [
+						_('%s issues only to accounts it already knows. Create a pair in your %s account and paste it here.')
+							.format(ca.label, ca.label), ' ',
+						E('a', {
+							'href': help, 'target': '_blank', 'rel': 'noreferrer'
+						}, _('Where to find it'))
+					]);
+			})
+			.catch(function () {
+				eabStored = false;
+				dom.content(eabHint, _('%s needs external account binding credentials.')
+					.format(ca.label));
+			});
 	}
 
 	function save() {
@@ -220,9 +245,16 @@ function orderDialog() {
 		}
 
 		var ca = selectedCA();
-		if (ca && ca.requires_eab && (!eabKeyInput.value || !eabHmacInput.value)) {
+		var wantsEAB = !!(ca && ca.requires_eab);
+		var givingEAB = wantsEAB && (eabKeyInput.value || eabHmacInput.value);
+
+		if (wantsEAB && !eabStored && !givingEAB) {
 			notifyError(new Error(
 				_('%s needs external account binding credentials.').format(ca.label)));
+			return;
+		}
+		if (givingEAB && (!eabKeyInput.value || !eabHmacInput.value)) {
+			notifyError(new Error(_('Both fields are required.')));
 			return;
 		}
 		if (!emailInput.value) {
@@ -230,9 +262,11 @@ function orderDialog() {
 			return;
 		}
 
-		// Store the binding first. Doing it after would leave an order that
-		// exists and cannot issue if this call failed.
-		var prepared = (ca && ca.requires_eab)
+		// Store the binding first, and only when new values were typed in.
+		// Doing it after would leave an order that exists and cannot issue if
+		// this call failed; doing it always would overwrite a stored pair with
+		// the empty boxes the operator never touched.
+		var prepared = givingEAB
 			? call('eab', {}, {
 				ca: caSelect.value, email: emailInput.value,
 				key_id: eabKeyInput.value, hmac: eabHmacInput.value

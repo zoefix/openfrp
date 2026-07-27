@@ -83,3 +83,61 @@ func TestSavingEABKeepsTheAccountKey(t *testing.T) {
 		t.Errorf("the binding was not updated: %q", found.EABKeyID)
 	}
 }
+
+// TestEABIsReusedAcrossContactAddresses is the behaviour an operator expects:
+// the binding pair belongs to their account at the CA, so entering it once is
+// enough however many certificates or contact addresses they later use.
+//
+// Keying the lookup strictly on (ca, email) made changing the contact address
+// look like the credentials had been lost.
+func TestEABIsReusedAcrossContactAddresses(t *testing.T) {
+	ctx := context.Background()
+	accounts := repo.NewACMEAccounts(open(t).DB)
+
+	if _, err := accounts.Save(ctx, repo.ACMEAccount{
+		CA: "zerossl", Email: "first@example.com",
+		EABKeyID: "M1sM5Znr2agZjX", EABHMAC: "hmac-secret",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	keyID, hmac, err := accounts.FindEAB(ctx, "zerossl")
+	if err != nil {
+		t.Fatalf("a stored binding was not found for the authority: %v", err)
+	}
+	if keyID != "M1sM5Znr2agZjX" || hmac != "hmac-secret" {
+		t.Errorf("got %q/%q", keyID, hmac)
+	}
+
+	// A different authority must not borrow it.
+	if _, _, err := accounts.FindEAB(ctx, "google"); err == nil {
+		t.Error("a binding leaked across authorities")
+	}
+}
+
+// TestNewestEABWins covers replacing a pair: the operator minted a new one at
+// the CA and the old one no longer works.
+func TestNewestEABWins(t *testing.T) {
+	ctx := context.Background()
+	accounts := repo.NewACMEAccounts(open(t).DB)
+
+	for _, pair := range []struct{ email, key string }{
+		{"old@example.com", "old-key"},
+		{"new@example.com", "new-key"},
+	} {
+		if _, err := accounts.Save(ctx, repo.ACMEAccount{
+			CA: "zerossl", Email: pair.email,
+			EABKeyID: pair.key, EABHMAC: pair.key + "-hmac",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	keyID, _, err := accounts.FindEAB(ctx, "zerossl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if keyID != "new-key" {
+		t.Errorf("FindEAB returned %q, want the most recently stored pair", keyID)
+	}
+}

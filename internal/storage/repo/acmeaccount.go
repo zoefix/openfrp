@@ -44,6 +44,30 @@ func (r *ACMEAccounts) Find(ctx context.Context, ca, email string) (ACMEAccount,
 	return account, err
 }
 
+// FindEAB returns any stored binding credentials for an authority.
+//
+// Bindings are stored per account, but they do not belong to one: an EAB pair
+// identifies the operator's account *at the CA*, and one operator has one such
+// account. Keying the lookup strictly on (ca, email) would make changing the
+// contact address look like the credentials had been lost, and send the
+// operator back to the CA's dashboard to mint a pair they already have.
+//
+// The newest is preferred, so re-entering a pair supersedes an older one.
+func (r *ACMEAccounts) FindEAB(ctx context.Context, ca string) (keyID, hmac string, err error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT eab_key_id, eab_hmac FROM acme_account
+		WHERE ca = ? AND eab_key_id != ''
+		ORDER BY id DESC LIMIT 1`, ca)
+
+	switch err := row.Scan(&keyID, &hmac); {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", "", fmt.Errorf("repo: no account binding for %s: %w", ca, ErrNotFound)
+	case err != nil:
+		return "", "", fmt.Errorf("repo: find account binding for %s: %w", ca, err)
+	}
+	return keyID, hmac, nil
+}
+
 // Save inserts or updates the account for its (ca, email) pair.
 //
 // Upsert rather than insert: registration data arrives after the key is

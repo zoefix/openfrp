@@ -29,7 +29,9 @@ Actions:
   events        -id N     show an order's history
   export        -id N     print the issued chain as PEM
   issue         -id N     obtain or renew the certificate
-  eab-status    -id N     report whether the order's authority needs EAB
+  eab-status    -id N | -ca KEY [-email ADDR]
+                          report whether that authority needs EAB, and whether
+                          credentials for it are already stored
   eab                     store external account binding credentials; JSON on stdin
 
 issue talks to the CA and waits for DNS propagation, so it takes minutes and
@@ -47,6 +49,8 @@ func runCert(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("cert "+action, flag.ExitOnError)
 	var (
 		id       = fs.Int64("id", 0, "order id")
+		caKey    = fs.String("ca", "", "certificate authority key")
+		email    = fs.String("email", "", "ACME contact address")
 		limit    = fs.Int("limit", 50, "how many events to return")
 		database = fs.String("db", dbPath, "management database")
 	)
@@ -101,6 +105,11 @@ func runCert(ctx context.Context, args []string) error {
 			return map[string]string{"result": "the certificate was issued"}, nil
 
 		case "eab-status":
+			// By authority when the caller has not created an order yet,
+			// which is the case while the request form is being filled in.
+			if *caKey != "" {
+				return service.EABStatusFor(ctx, *caKey, *email)
+			}
 			return service.EABStatus(ctx, *id)
 
 		case "eab":

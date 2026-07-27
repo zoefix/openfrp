@@ -322,8 +322,22 @@ func (s *Service) acmeAccount(ctx context.Context, ca, email string) (*cert.Acco
 
 	stored, err := accounts.Find(ctx, ca, email)
 	if err != nil {
-		// No account yet. lego registers one and fills in the key.
-		return &cert.Account{Email: email}, nil
+		// No account under this address yet. lego will register one and fill
+		// in the key, but the binding credentials are the operator's and
+		// already on file if they have used this authority before — carry
+		// them over rather than refusing to issue.
+		fresh := &cert.Account{Email: email}
+		if keyID, hmac, err := accounts.FindEAB(ctx, ca); err == nil {
+			fresh.EABKeyID, fresh.EABHMAC = keyID, hmac
+		}
+		return fresh, nil
+	}
+
+	// An account row can predate the binding, so fall back for it too.
+	if stored.EABKeyID == "" {
+		if keyID, hmac, err := accounts.FindEAB(ctx, ca); err == nil {
+			stored.EABKeyID, stored.EABHMAC = keyID, hmac
+		}
 	}
 
 	account := &cert.Account{
@@ -380,17 +394,27 @@ func (s *Service) EABStatus(ctx context.Context, orderID int64) (EABState, error
 	if err != nil {
 		return EABState{}, err
 	}
+	return s.EABStatusFor(ctx, order.CA, order.Email)
+}
 
-	ca, known := cert.LookupCA(order.CA)
+// EABStatusFor answers the same question for an authority the operator is
+// still choosing, before any order exists.
+//
+// This is what lets the request form say "already saved, leave blank" instead
+// of presenting empty boxes and implying the credentials were never entered —
+// which is how it read before, and sent people back to the CA's dashboard for
+// a pair they already had.
+func (s *Service) EABStatusFor(ctx context.Context, caKey, email string) (EABState, error) {
+	ca, known := cert.LookupCA(caKey)
 	if !known {
-		return EABState{}, fmt.Errorf("manage: unknown certificate authority %q", order.CA)
+		return EABState{}, fmt.Errorf("manage: unknown certificate authority %q", caKey)
 	}
 
 	state := EABState{
 		Required: ca.RequiresEAB,
 		CA:       ca.Key,
 		CALabel:  ca.Label,
-		Email:    order.Email,
+		Email:    email,
 	}
 	if !ca.RequiresEAB {
 		return state, nil
@@ -398,8 +422,9 @@ func (s *Service) EABStatus(ctx context.Context, orderID int64) (EABState, error
 
 	state.HowToGet = eabSource(ca.Key)
 
-	stored, err := repo.NewACMEAccounts(s.db.DB).Find(ctx, ca.Key, order.Email)
-	if err == nil && stored.EABKeyID != "" {
+	// Any binding for this authority counts, not just one filed under this
+	// email. See repo.FindEAB.
+	if keyID, _, err := repo.NewACMEAccounts(s.db.DB).FindEAB(ctx, ca.Key); err == nil && keyID != "" {
 		state.Present = true
 	}
 	return state, nil

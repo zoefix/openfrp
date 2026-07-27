@@ -52,7 +52,9 @@ const FLAGS = {
 	record:  /^[A-Za-z0-9._:-]+$/,
 	zone:    /^[A-Za-z0-9._-]+$/,
 	enabled: /^(true|false)$/,
-	keyword: /^[^\n\r]{0,64}$/
+	keyword: /^[^\n\r]{0,64}$/,
+	ca:      /^[a-z0-9-]{1,32}$/,
+	email:   /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
 };
 
 // shellQuote wraps a value for safe interpolation into a shell command.

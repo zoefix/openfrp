@@ -73,6 +73,9 @@ msgstr "アカウントを追加"
 msgid "Add record"
 msgstr "レコードを追加"
 
+msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
+msgstr "%s 用に保存済みで、自動的に再利用されます。差し替えるときだけ入力してください。"
+
 msgid "Another tunnel already uses the name %s"
 msgstr "名前 %s は既に別のトンネルが使用しています"
 
@@ -444,6 +447,9 @@ msgstr "保存"
 
 msgid "Save and issue"
 msgstr "保存して発行"
+
+msgid "Saved — leave blank to keep"
+msgstr "保存済み — 空欄なら維持"
 
 msgid "Secret TCP"
 msgstr "シークレット TCP"

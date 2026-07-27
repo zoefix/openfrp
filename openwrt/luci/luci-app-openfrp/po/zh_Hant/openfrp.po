@@ -73,6 +73,9 @@ msgstr "新增帳號"
 msgid "Add record"
 msgstr "新增記錄"
 
+msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
+msgstr "已為 %s 儲存並會自動重複使用。只有要替換時才需要填寫。"
+
 msgid "Another tunnel already uses the name %s"
 msgstr "已有通道使用名稱 %s"
 
@@ -444,6 +447,9 @@ msgstr "儲存"
 
 msgid "Save and issue"
 msgstr "儲存並簽發"
+
+msgid "Saved — leave blank to keep"
+msgstr "已儲存 — 留空則沿用"
 
 msgid "Secret TCP"
 msgstr "私密 TCP"

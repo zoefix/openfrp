@@ -126,6 +126,14 @@ return view.extend({
 			return true;
 		};
 
+		o = s.option(form.ListValue, 'server', _('Server'),
+			_('Which server publishes this tunnel. Leave unset for the first one.'));
+		o.value('', _('The first server'));
+		uci.sections('openfrp', 'server', function (server) {
+			var addr = server.addr || _('no address');
+			o.value(server['.name'], server['.name'] + ' (' + addr + ')');
+		});
+
 		o = s.option(form.ListValue, 'type', _('Type'));
 		o.value('tcp', 'TCP');
 		o.value('udp', 'UDP');

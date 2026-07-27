@@ -46,6 +46,9 @@ msgstr "%s には外部アカウントバインド (EAB) の認証情報が必�
 msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
 msgstr "\"*\" ラベルはちょうど 1 階層だけに一致し、どの深さにも置けます。*.aaa.com は www.aaa.com に一致しますが、x.bb.aaa.com には一致しません。完全一致がワイルドカードより優先され、深いワイルドカードが浅いものより優先されます。"
 
+msgid "A blank host will do. The connection details are filled in from whatever the deployment installs."
+msgstr "まっさらなホストで構いません。接続情報はデプロイ結果から自動で入ります。"
+
 msgid "A domain needs at least two labels, for example aaa.com"
 msgstr "ドメインには最低 2 つのラベルが必要です (例: aaa.com)"
 
@@ -54,9 +57,6 @@ msgstr "名前は必須です"
 
 msgid "A name you will recognise, for example aliyun-main"
 msgstr "自分でわかる名前（例: aliyun-main）"
-
-msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
-msgstr "パスワードはデプロイ時に入力し、このルーターには保存されません。鍵の方が安全で、デプロイ時に自動でインストールできます。"
 
 msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
 msgstr "トンネルはプロキシ経由では動作しません。プロキシは自前のポートで HTTP と HTTPS だけを扱い、TLS を終端します。トンネルサーバーを指す名前には「DNS のみ」を使ってください。"
@@ -67,8 +67,14 @@ msgstr "アカウント"
 msgid "Accounts here are used to manage records and to prove domain ownership when issuing certificates. A wildcard certificate can only be issued through DNS, so it needs an account."
 msgstr "ここのアカウントはレコード管理と、証明書発行時のドメイン所有証明に使います。ワイルドカード証明書は DNS でしか証明できないため、アカウントが必要です。"
 
+msgid "Add"
+msgstr "追加"
+
 msgid "Add DNS account"
 msgstr "DNS アカウントを追加"
+
+msgid "Add a server"
+msgstr "サーバーを追加"
 
 msgid "Add account"
 msgstr "アカウントを追加"
@@ -76,8 +82,14 @@ msgstr "アカウントを追加"
 msgid "Add record"
 msgstr "レコードを追加"
 
+msgid "Address"
+msgstr "アドレス"
+
 msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
 msgstr "%s 用に保存済みで、自動的に再利用されます。差し替えるときだけ入力してください。"
+
+msgid "An existing server"
+msgstr "既存のサーバー"
 
 msgid "Another tunnel already uses the name %s"
 msgstr "名前 %s は既に別のトンネルが使用しています"
@@ -123,9 +135,6 @@ msgstr "クライアント IP"
 
 msgid "Close"
 msgstr "閉じる"
-
-msgid "Connection"
-msgstr "接続"
 
 msgid "Connection pool — independent congestion windows, kernel zero-copy"
 msgstr "コネクションプール — 独立した輻輳ウィンドウ、カーネルゼロコピー"
@@ -196,20 +205,17 @@ msgstr "%s の証明書を削除しますか?"
 msgid "Deploy"
 msgstr "デプロイ"
 
-msgid "Deploy now"
-msgstr "今すぐデプロイ"
+msgid "Deploy over SSH"
+msgstr "SSH でデプロイ"
 
-msgid "Deploy server"
-msgstr "サーバーをデプロイ"
+msgid "Deployed from here"
+msgstr "ここからデプロイ済み"
 
 msgid "Deploying server"
 msgstr "サーバーをデプロイしています"
 
-msgid "Deploying to %s. This can take a few minutes."
-msgstr "%s にデプロイしています。数分かかることがあります。"
-
-msgid "Detects the distribution and init system, installs the server, writes its configuration, opens the firewall and verifies the result. Safe to run again to upgrade in place."
-msgstr "ディストリビューションと init システムを判別し、サーバーのインストール、設定の書き込み、ファイアウォールの開放、結果の検証を行います。再実行すればそのまま更新できます。"
+msgid "Detects the distribution and init system, removes any previous installation, installs the server, opens the firewall and verifies the result."
+msgstr "ディストリビューションと init システムを判別し、既存のインストールを削除してからサーバーを導入し、ファイアウォールを開けて結果を検証します。"
 
 msgid "Disabled"
 msgstr "無効"
@@ -241,6 +247,9 @@ msgstr "DNS アカウントを編集"
 msgid "Edit record"
 msgstr "レコードを編集"
 
+msgid "Either describe a server that already runs OpenFrp, or install one now over SSH."
+msgstr "すでに OpenFrp が動いているサーバーを登録するか、SSH で今すぐインストールします。"
+
 msgid "Empty label in %s"
 msgstr "%s に空のラベルがあります"
 
@@ -256,8 +265,17 @@ msgstr "有効ですが実行されていません"
 msgid "Enter a contact email address."
 msgstr "連絡先メールアドレスを入力してください。"
 
+msgid "Enter the SSH host."
+msgstr "SSH ホストを入力してください。"
+
 msgid "Enter the SSH password."
 msgstr "SSH パスワードを入力してください。"
+
+msgid "Enter the server address."
+msgstr "サーバーアドレスを入力してください。"
+
+msgid "Every server this router connects to. Each has its own control connection, and a tunnel names the one that publishes it."
+msgstr "このルーターが接続するすべてのサーバーです。それぞれ独立した制御接続を持ち、トンネルはどれが公開するかを指定します。"
 
 msgid "Expired"
 msgstr "期限切れ"
@@ -283,8 +301,11 @@ msgstr "ホスト鍵フィンガープリント"
 msgid "If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd restart"
 msgstr "ACL ファイルを入れたばかりの場合は rpcd の再起動が必要です: /etc/init.d/rpcd restart"
 
-msgid "Install and configure the server over SSH. The server needs nothing installed beforehand."
-msgstr "SSH 経由でサーバーをインストールし設定します。サーバー側に事前準備は不要です。"
+msgid "Install"
+msgstr "インストール"
+
+msgid "Install over SSH"
+msgstr "SSH でインストール"
 
 msgid "Issuance failed — see the output above."
 msgstr "発行に失敗しました — 上の出力を確認してください。"
@@ -330,6 +351,12 @@ msgstr "ローカルポート"
 
 msgid "Local target"
 msgstr "ローカル転送先"
+
+msgid "Local to this router — a tunnel points at it."
+msgstr "このルーター内だけの名前です — トンネルがこれを指します。"
+
+msgid "Local to this router — a tunnel points at it. The server never sees it."
+msgstr "このルーター内だけの名前です — トンネルがこれを指します。サーバーには見えません。"
 
 msgid "Log level"
 msgstr "ログレベル"
@@ -379,6 +406,9 @@ msgstr "なし — 紐付けるまで TLS は機能しません"
 msgid "Not announced"
 msgstr "通知しない"
 
+msgid "Not deployed from here"
+msgstr "ここからのデプロイではない"
+
 msgid "Not issued yet"
 msgstr "未発行"
 
@@ -421,8 +451,8 @@ msgstr "秘密鍵"
 msgid "Provider"
 msgstr "プロバイダ"
 
-msgid "Provision the server"
-msgstr "サーバーの構築"
+msgid "Provisioning"
+msgstr "デプロイ状態"
 
 msgid "Proxied"
 msgstr "プロキシ経由"
@@ -444,6 +474,12 @@ msgstr "レコード"
 
 msgid "Records in %s"
 msgstr "%s のレコード"
+
+msgid "Redeploy"
+msgstr "再デプロイ"
+
+msgid "Redeploy %s"
+msgstr "%s を再デプロイ"
 
 msgid "Remote port"
 msgstr "リモートポート"
@@ -481,9 +517,6 @@ msgstr "SSH ホスト"
 msgid "SSH password"
 msgstr "SSH パスワード"
 
-msgid "SSH password for %s@%s"
-msgstr "%s@%s の SSH パスワード"
-
 msgid "SSH port"
 msgstr "SSH ポート"
 
@@ -514,17 +547,14 @@ msgstr "サーバーアドレス"
 msgid "Server binary"
 msgstr "サーバー実行ファイル"
 
+msgid "Servers"
+msgstr "サーバー"
+
 msgid "Service"
 msgstr "サービス"
 
-msgid "Set the SSH host first."
-msgstr "先に SSH ホストを指定してください。"
-
 msgid "Shared secret. Stored in plaintext on this router."
 msgstr "共有シークレットです。このルーターに平文で保存されます。"
-
-msgid "Start"
-msgstr "開始"
 
 msgid "Starting…"
 msgstr "開始しています…"
@@ -570,6 +600,15 @@ msgstr "証明書を発行しました。"
 
 msgid "The daemon writes to syslog through procd."
 msgstr "デーモンは procd 経由で syslog に出力します。"
+
+msgid "The first server"
+msgstr "最初のサーバー"
+
+msgid "The port the server will listen on for this router."
+msgstr "サーバーがこのルーター向けに待ち受けるポートです。"
+
+msgid "The shared secret the server was configured with."
+msgstr "サーバーに設定されている共有シークレットです。"
 
 msgid "This account manages no zones."
 msgstr "このアカウントが管理するゾーンはありません。"
@@ -622,11 +661,11 @@ msgstr "このトンネルに接続するには、利用者がこれを提示す
 msgid "Warm connections"
 msgstr "ウォーム接続数"
 
-msgid "Where this router connects, and how to provision that server."
-msgstr "このルーターの接続先と、そのサーバーを構築する方法です。"
-
 msgid "Where to find it"
 msgstr "取得方法"
+
+msgid "Which server publishes this tunnel. Leave unset for the first one."
+msgstr "このトンネルをどのサーバーが公開するか。未設定なら最初のサーバーです。"
 
 msgid "Without this the local service records every visitor as this router, because that is what connects to it."
 msgstr "有効にしないと、ローカルのサービスはすべての訪問者をこのルーターとして記録します。実際に接続しているのがルーターだからです。"
@@ -634,11 +673,17 @@ msgstr "有効にしないと、ローカルのサービスはすべての訪問
 msgid "Without this the local service records every visitor as this router, because that is what connects to it. The service must be configured to expect the header — it arrives where a request is expected, so one that is not looking for it will refuse the connection. For nginx: listen 80 proxy_protocol; set_real_ip_from <this router>; real_ip_header proxy_protocol;"
 msgstr "有効にしないと、ローカルのサービスはすべての訪問者をこのルーターとして記録します。サービス側でこのヘッダーを受け付ける設定が必要です。リクエストが来るはずの位置に現れるため、想定していないサービスは接続を拒否します。nginx の場合: listen 80 proxy_protocol; set_real_ip_from <このルーター>; real_ip_header proxy_protocol;"
 
+msgid "You already have one running. Enter its address and token."
+msgstr "すでに稼働中のものがあります。アドレスとトークンを入力してください。"
+
 msgid "Zone"
 msgstr "ゾーン"
 
 msgid "Zones"
 msgstr "ゾーン"
+
+msgid "no address"
+msgstr "アドレスなし"
 
 msgid "no response"
 msgstr "応答なし"

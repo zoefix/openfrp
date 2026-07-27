@@ -46,6 +46,9 @@ msgstr "%s 需要外部账号绑定（EAB）凭据。"
 msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
 msgstr "\"*\" 标签只匹配一层，可以出现在任意深度：*.aaa.com 匹配 www.aaa.com，但不匹配 x.bb.aaa.com。精确域名优先于泛域名，层级更深的泛域名优先于更浅的。"
 
+msgid "A blank host will do. The connection details are filled in from whatever the deployment installs."
+msgstr "一台空白主机就行。连接信息会由部署结果自动填入。"
+
 msgid "A domain needs at least two labels, for example aaa.com"
 msgstr "域名至少要有两级，例如 aaa.com"
 
@@ -54,9 +57,6 @@ msgstr "名称不能为空"
 
 msgid "A name you will recognise, for example aliyun-main"
 msgstr "一个你能认出来的名称，例如 aliyun-main"
-
-msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
-msgstr "密码在部署时输入，不会保存在本路由器上。密钥更安全，部署过程可以帮你自动安装。"
 
 msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
 msgstr "隧道无法通过代理工作：代理只承载它自己那几个端口上的 HTTP 和 HTTPS，而且会终止 TLS。指向穿透服务端的域名请用\"仅 DNS\"。"
@@ -67,8 +67,14 @@ msgstr "账号"
 msgid "Accounts here are used to manage records and to prove domain ownership when issuing certificates. A wildcard certificate can only be issued through DNS, so it needs an account."
 msgstr "这里的账号用于管理解析记录，以及在签发证书时证明域名归属。泛域名证书只能通过 DNS 验证签发，因此必须配置账号。"
 
+msgid "Add"
+msgstr "添加"
+
 msgid "Add DNS account"
 msgstr "添加 DNS 账号"
+
+msgid "Add a server"
+msgstr "添加服务器"
 
 msgid "Add account"
 msgstr "添加账号"
@@ -76,8 +82,14 @@ msgstr "添加账号"
 msgid "Add record"
 msgstr "添加记录"
 
+msgid "Address"
+msgstr "地址"
+
 msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
 msgstr "已为 %s 保存并会自动复用。只有要替换时才需要填写。"
+
+msgid "An existing server"
+msgstr "已有服务端"
 
 msgid "Another tunnel already uses the name %s"
 msgstr "已有隧道使用名称 %s"
@@ -123,9 +135,6 @@ msgstr "客户端 IP"
 
 msgid "Close"
 msgstr "关闭"
-
-msgid "Connection"
-msgstr "连接"
 
 msgid "Connection pool — independent congestion windows, kernel zero-copy"
 msgstr "连接池 — 各自独立的拥塞窗口，内核零拷贝"
@@ -196,20 +205,17 @@ msgstr "确定删除 %s 的证书？"
 msgid "Deploy"
 msgstr "部署"
 
-msgid "Deploy now"
-msgstr "立即部署"
+msgid "Deploy over SSH"
+msgstr "通过 SSH 部署"
 
-msgid "Deploy server"
-msgstr "部署服务端"
+msgid "Deployed from here"
+msgstr "由本机部署"
 
 msgid "Deploying server"
 msgstr "正在部署服务端"
 
-msgid "Deploying to %s. This can take a few minutes."
-msgstr "正在部署到 %s，可能需要几分钟。"
-
-msgid "Detects the distribution and init system, installs the server, writes its configuration, opens the firewall and verifies the result. Safe to run again to upgrade in place."
-msgstr "自动识别发行版与 init 系统，安装服务端、写入配置、放行防火墙并验证结果。可重复执行以原地升级。"
+msgid "Detects the distribution and init system, removes any previous installation, installs the server, opens the firewall and verifies the result."
+msgstr "自动识别发行版与 init 系统，清理已有安装，安装服务端，放行防火墙并验证结果。"
 
 msgid "Disabled"
 msgstr "已禁用"
@@ -241,6 +247,9 @@ msgstr "编辑 DNS 账号"
 msgid "Edit record"
 msgstr "编辑记录"
 
+msgid "Either describe a server that already runs OpenFrp, or install one now over SSH."
+msgstr "可以填写一台已经在跑 OpenFrp 的服务器，也可以现在通过 SSH 装一台。"
+
 msgid "Empty label in %s"
 msgstr "%s 中有空标签"
 
@@ -256,8 +265,17 @@ msgstr "已启用但未运行"
 msgid "Enter a contact email address."
 msgstr "请填写联系邮箱。"
 
+msgid "Enter the SSH host."
+msgstr "请填写 SSH 主机。"
+
 msgid "Enter the SSH password."
 msgstr "请输入 SSH 密码。"
+
+msgid "Enter the server address."
+msgstr "请填写服务器地址。"
+
+msgid "Every server this router connects to. Each has its own control connection, and a tunnel names the one that publishes it."
+msgstr "本路由器连接的所有服务器。每台各有一条独立的控制连接，隧道指定由哪台发布。"
 
 msgid "Expired"
 msgstr "已过期"
@@ -283,8 +301,11 @@ msgstr "主机密钥指纹"
 msgid "If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd restart"
 msgstr "如果 ACL 文件是刚安装的，需要重启 rpcd：/etc/init.d/rpcd restart"
 
-msgid "Install and configure the server over SSH. The server needs nothing installed beforehand."
-msgstr "通过 SSH 安装并配置服务端。服务器无需预装任何软件。"
+msgid "Install"
+msgstr "部署"
+
+msgid "Install over SSH"
+msgstr "通过 SSH 部署"
 
 msgid "Issuance failed — see the output above."
 msgstr "签发失败 — 请查看上面的输出。"
@@ -330,6 +351,12 @@ msgstr "内网端口"
 
 msgid "Local target"
 msgstr "内网目标"
+
+msgid "Local to this router — a tunnel points at it."
+msgstr "仅本路由器内使用 —— 隧道靠它指向这台服务器。"
+
+msgid "Local to this router — a tunnel points at it. The server never sees it."
+msgstr "仅本路由器内使用 —— 隧道靠它指向这台服务器。服务端看不到这个名字。"
 
 msgid "Log level"
 msgstr "日志级别"
@@ -379,6 +406,9 @@ msgstr "无 — 未绑定证书前 TLS 无法工作"
 msgid "Not announced"
 msgstr "不告知"
 
+msgid "Not deployed from here"
+msgstr "非本机部署"
+
 msgid "Not issued yet"
 msgstr "尚未签发"
 
@@ -421,8 +451,8 @@ msgstr "私钥"
 msgid "Provider"
 msgstr "服务商"
 
-msgid "Provision the server"
-msgstr "部署服务端"
+msgid "Provisioning"
+msgstr "部署状态"
 
 msgid "Proxied"
 msgstr "已代理"
@@ -444,6 +474,12 @@ msgstr "解析记录"
 
 msgid "Records in %s"
 msgstr "%s 的解析记录"
+
+msgid "Redeploy"
+msgstr "重新部署"
+
+msgid "Redeploy %s"
+msgstr "重新部署 %s"
 
 msgid "Remote port"
 msgstr "远程端口"
@@ -481,9 +517,6 @@ msgstr "SSH 主机"
 msgid "SSH password"
 msgstr "SSH 密码"
 
-msgid "SSH password for %s@%s"
-msgstr "%s@%s 的 SSH 密码"
-
 msgid "SSH port"
 msgstr "SSH 端口"
 
@@ -514,17 +547,14 @@ msgstr "服务端地址"
 msgid "Server binary"
 msgstr "服务端程序"
 
+msgid "Servers"
+msgstr "服务器"
+
 msgid "Service"
 msgstr "服务"
 
-msgid "Set the SSH host first."
-msgstr "请先填写 SSH 主机。"
-
 msgid "Shared secret. Stored in plaintext on this router."
 msgstr "共享密钥。以明文保存在本路由器上。"
-
-msgid "Start"
-msgstr "开始"
 
 msgid "Starting…"
 msgstr "正在启动…"
@@ -570,6 +600,15 @@ msgstr "证书已签发。"
 
 msgid "The daemon writes to syslog through procd."
 msgstr "守护进程通过 procd 写入 syslog。"
+
+msgid "The first server"
+msgstr "第一台服务器"
+
+msgid "The port the server will listen on for this router."
+msgstr "服务端为本路由器监听的端口。"
+
+msgid "The shared secret the server was configured with."
+msgstr "服务端配置的共享密钥。"
 
 msgid "This account manages no zones."
 msgstr "该账号下没有域名。"
@@ -622,11 +661,11 @@ msgstr "访问者必须提供此密钥才能连接到该隧道。"
 msgid "Warm connections"
 msgstr "预热连接数"
 
-msgid "Where this router connects, and how to provision that server."
-msgstr "本路由器连接到哪里，以及如何部署那台服务器。"
-
 msgid "Where to find it"
 msgstr "在哪里获取"
+
+msgid "Which server publishes this tunnel. Leave unset for the first one."
+msgstr "由哪台服务器发布这条隧道。留空则用第一台。"
 
 msgid "Without this the local service records every visitor as this router, because that is what connects to it."
 msgstr "不开启的话，内网服务会把每个访客都记成本路由器，因为连上去的确实是它。"
@@ -634,11 +673,17 @@ msgstr "不开启的话，内网服务会把每个访客都记成本路由器，
 msgid "Without this the local service records every visitor as this router, because that is what connects to it. The service must be configured to expect the header — it arrives where a request is expected, so one that is not looking for it will refuse the connection. For nginx: listen 80 proxy_protocol; set_real_ip_from <this router>; real_ip_header proxy_protocol;"
 msgstr "不开启的话，内网服务会把每个访客都记成本路由器，因为连上去的确实是它。服务端必须配置成预期这个头部——它出现在本该是请求的位置，没有预期的服务会直接拒绝连接。nginx 配置：listen 80 proxy_protocol; set_real_ip_from <本路由器>; real_ip_header proxy_protocol;"
 
+msgid "You already have one running. Enter its address and token."
+msgstr "你已经有一台在运行，填写它的地址和令牌即可。"
+
 msgid "Zone"
 msgstr "域名"
 
 msgid "Zones"
 msgstr "域名列表"
+
+msgid "no address"
+msgstr "无地址"
 
 msgid "no response"
 msgstr "无响应"

@@ -78,6 +78,7 @@ define Package/openfrp/install
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DATA) ./files/openfrp.defaults $(1)/etc/uci-defaults/90-openfrp
+	$(INSTALL_DATA) ./files/openfrp.migrate $(1)/etc/uci-defaults/91-openfrp-servers
 
 	$(INSTALL_DIR) $(1)/usr/libexec/openfrp
 	$(INSTALL_BIN) ./files/openfrp-render $(1)/usr/libexec/openfrp/render

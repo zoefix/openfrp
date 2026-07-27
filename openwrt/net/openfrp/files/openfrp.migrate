@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# Move the single deployment section into the server it describes.
+#
+# Provisioning settings used to live in one "ssh" section named "deploy",
+# because there could only be one server. They now belong to the server they
+# provisioned, so a router with several keeps each one's SSH details with it.
+#
+# Runs once from uci-defaults and deletes itself. Nothing here overwrites a
+# value that already exists, so re-running is harmless.
+
+[ -n "$(uci -q get openfrp.deploy)" ] || exit 0
+
+carry() {
+	# $1 source option, $2 destination option
+	local value
+	value="$(uci -q get "openfrp.deploy.$1")"
+	[ -n "$value" ] || return 0
+	[ -z "$(uci -q get "openfrp.server.$2")" ] || return 0
+	uci -q set "openfrp.server.$2=$value"
+}
+
+carry host            ssh_host
+carry port            ssh_port
+carry user            ssh_user
+carry auth            ssh_auth
+carry key_path        ssh_key_path
+carry host_fingerprint host_fingerprint
+carry binary_path     binary_path
+carry release_url     release_url
+
+uci -q delete openfrp.deploy
+uci -q commit openfrp
+
+exit 0

@@ -36,6 +36,11 @@ type stdinArgs struct {
 	ReleaseURL     string `json:"release_url,omitempty"`
 	SHA256         string `json:"sha256,omitempty"`
 	EnableBBR      *bool  `json:"enable_bbr,omitempty"`
+
+	// Server names the UCI section this deployment belongs to. It is used by
+	// the job worker to write the results back to the right server and is
+	// accepted here only so the strict decoder does not reject it.
+	Server string `json:"server,omitempty"`
 }
 
 func runDeploy(ctx context.Context, args []string) error {

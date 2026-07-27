@@ -64,24 +64,32 @@ record_result() {
 	line="$(grep '"result"' "$LOG" | tail -n 1)"
 	[ -n "$line" ] || return 0
 
+	# Which server section this deployment belongs to. A router can have
+	# several, so writing to a fixed section would put the token of one server
+	# onto another.
+	section="$(printf '%s' "$ARGS" | jsonfilter -e '@.server' 2>/dev/null)"
+	case "$section" in
+		''|*[!A-Za-z0-9_]*) section="server" ;;
+	esac
+
 	# jsonfilter rather than sed: the token is generated and may contain any
 	# character a JSON string can carry, escapes included.
 	token="$(printf '%s' "$line" | jsonfilter -e '@.result.token' 2>/dev/null)"
 	fingerprint="$(printf '%s' "$line" | jsonfilter -e '@.result.host_fingerprint' 2>/dev/null)"
 	bind_port="$(printf '%s' "$line" | jsonfilter -e '@.result.bind_port' 2>/dev/null)"
 
-	[ -n "$token" ] && uci -q set openfrp.server.token="$token"
-	[ -n "$bind_port" ] && uci -q set openfrp.server.port="$bind_port"
+	[ -n "$token" ] && uci -q set "openfrp.$section.token=$token"
+	[ -n "$bind_port" ] && uci -q set "openfrp.$section.port=$bind_port"
 	[ -n "$fingerprint" ] && {
-		uci -q set openfrp.deploy.host_fingerprint="$fingerprint"
+		uci -q set "openfrp.$section.host_fingerprint=$fingerprint"
 		log "==> recorded host fingerprint $fingerprint"
 	}
 
-	# Point the client at the host that was just provisioned, unless the user
-	# has already aimed it somewhere else deliberately.
-	if [ -z "$(uci -q get openfrp.server.addr)" ]; then
+	# Point this server at the host that was just provisioned, unless it has
+	# already been aimed somewhere else deliberately.
+	if [ -z "$(uci -q get "openfrp.$section.addr")" ]; then
 		host="$(printf '%s' "$ARGS" | jsonfilter -e '@.host' 2>/dev/null)"
-		[ -n "$host" ] && uci -q set openfrp.server.addr="$host"
+		[ -n "$host" ] && uci -q set "openfrp.$section.addr=$host"
 	fi
 
 	uci -q commit openfrp

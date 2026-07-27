@@ -17,16 +17,36 @@ with zero-downtime rotation, renewal scheduling and traffic accounting all
 work and are tested on real hardware. See
 [Known gaps](#known-gaps) for what does not.
 
+## Servers
+
+A router can connect to several. Each has its own control connection, token
+and transport settings, and each tunnel names the one that publishes it — so
+one server being unreachable does not affect the tunnels on another, and the
+same port may be bound on two of them.
+
+Adding one is either describing a server that already runs OpenFrp, or
+provisioning a fresh one over SSH, which fills the connection details in from
+whatever it just installed.
+
+A configuration written when there could only be one server needs no
+migration: its single section is read as the first server, and its tunnels
+name nothing and belong to it.
+
 ## Provisioning a server
 
 ```bash
 openfrpc deploy -host 203.0.113.10 -binary ./dist/openfrps_linux_amd64
 ```
 
-Detects the distribution, architecture and init system; creates a service
-user; uploads and checksums the binary; writes the configuration; installs a
-systemd, OpenRC or sysvinit service; opens the firewall; enables BBR; and
-verifies the result. Re-running upgrades in place — every step is idempotent.
+Detects the distribution, architecture and init system; removes any previous
+installation; creates a service user; uploads and checksums the binary; writes
+the configuration; installs a systemd, OpenRC or sysvinit service; opens the
+firewall; enables BBR; and verifies the result. Re-running upgrades in place.
+
+Clearing the previous installation matters: installing on top of one leaves
+whichever service manager it used still holding the port, and the new binary
+then starts and immediately fails to bind — which reads like a broken build
+rather than a leftover.
 
 From LuCI it is the **Deploy now** button, which asks for the SSH password at
 that moment and never stores it. Key authentication is offered alongside.

@@ -40,9 +40,14 @@ func runValidate(_ context.Context, args []string) error {
 
 	enabled := cfg.EnabledTunnels()
 	fmt.Printf("configuration is valid: %s\n", *configPath)
-	fmt.Printf("  server    %s:%d\n", cfg.ServerAddr, cfg.ServerPort)
-	fmt.Printf("  transport %s, mux=%v, pool=%d\n",
-		cfg.Transport.Protocol, cfg.Transport.Mux, cfg.Transport.PoolCount)
+	servers := cfg.Upstreams()
+	for _, server := range servers {
+		tunnels := cfg.TunnelsFor(server.Name)
+		fmt.Printf("  server    %-12s %s:%d  %s, mux=%v, pool=%d  (%d tunnel(s))\n",
+			server.Name, server.Addr, server.Port,
+			server.Transport.Protocol, server.Transport.Mux,
+			server.Transport.PoolCount, len(tunnels))
+	}
 	fmt.Printf("  tunnels   %d enabled of %d\n", len(enabled), len(cfg.Tunnels))
 
 	for _, tunnel := range enabled {

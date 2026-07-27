@@ -40,7 +40,7 @@ func runDaemon(ctx context.Context, args []string) error {
 		return err
 	}
 
-	c, err := client.New(cfg, logger, version.Short())
+	supervisor, err := client.NewSupervisor(cfg, logger, version.Short())
 	if err != nil {
 		return err
 	}
@@ -57,17 +57,17 @@ func runDaemon(ctx context.Context, args []string) error {
 				"bound", bound, "error", err)
 		} else {
 			defer service.Close()
-			c.SetCertSource(service.NewCertSource())
+			supervisor.SetCertSource(service.NewCertSource())
 			logger.Info("certificate push enabled", "bound_tunnels", bound)
 		}
 	}
 
 	logger.Info("starting openfrpc",
 		"version", version.String(),
-		"server", cfg.ServerAddr,
+		"servers", len(cfg.Upstreams()),
 		"tunnels", len(cfg.EnabledTunnels()))
 
-	if err := c.Run(ctx); err != nil {
+	if err := supervisor.Run(ctx); err != nil {
 		return err
 	}
 

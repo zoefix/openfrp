@@ -46,7 +46,7 @@ append_domain() {
 
 add_tunnel() {
 	local section="$1"
-	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol
+	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol server
 
 	config_get name "$section" name
 	config_get_bool enabled "$section" enabled 0
@@ -57,6 +57,7 @@ add_tunnel() {
 	config_get tls_mode "$section" tls_mode
 	config_get cert_id "$section" cert_id
 	config_get proxy_protocol "$section" proxy_protocol
+	config_get server "$section" server
 	config_get secret_key "$section" secret_key
 
 	# A tunnel without a name or a local port cannot be published, and the
@@ -80,6 +81,9 @@ add_tunnel() {
 	# Announce the visitor to the local service, so its logs show whoever
 	# connected rather than this router.
 	add_string proxy_protocol "$proxy_protocol"
+	# Which server publishes this tunnel. Empty means the first one, which is
+	# what a single-server setup means and what an older config meant.
+	add_string server "$server"
 	add_string secret_key "$secret_key"
 
 	# Domain patterns for http and https tunnels. Emitted only when present,
@@ -101,32 +105,36 @@ add_tunnel() {
 	json_close_object
 }
 
-main() {
-	local addr port token protocol mux pool_count tls_enable
-	local log_level name
+# SERVER_COUNT tracks whether any server section produced output, so a
+# configuration with none fails loudly rather than starting a daemon with
+# nowhere to connect.
+SERVER_COUNT=0
 
-	config_load openfrp
+add_server() {
+	local section="$1"
+	local addr port token protocol mux pool_count tls_enable client_name
 
-	config_get addr server addr
-	config_get port server port "7000"
-	config_get token server token
-	config_get protocol server protocol "tcp"
-	config_get_bool mux server mux 0
-	config_get pool_count server pool_count "8"
-	config_get_bool tls_enable server tls_enable 0
-	config_get log_level global log_level "info"
-	config_get name global client_name
+	config_get addr "$section" addr
+	[ -n "$addr" ] || return 0
 
-	if [ -z "$addr" ]; then
-		echo "openfrp: server address is not configured" >&2
-		return 1
-	fi
+	config_get port "$section" port "7000"
+	config_get token "$section" token
+	config_get protocol "$section" protocol "tcp"
+	config_get_bool mux "$section" mux 0
+	config_get pool_count "$section" pool_count "8"
+	config_get_bool tls_enable "$section" tls_enable 0
+	config_get client_name "$section" client_name
 
-	json_init
-	json_add_string server_addr "$addr"
-	json_add_int server_port "$port"
+	SERVER_COUNT=$((SERVER_COUNT + 1))
+
+	json_add_object ""
+	# The section name is the identity a tunnel points at. It is local to this
+	# router; the server never sees it.
+	json_add_string name "$section"
+	json_add_string addr "$addr"
+	json_add_int port "$port"
 	add_string token "$token"
-	add_string name "$name"
+	add_string client_name "$client_name"
 
 	json_add_object transport
 	json_add_string protocol "$protocol"
@@ -134,6 +142,31 @@ main() {
 	json_add_int pool_count "$pool_count"
 	json_add_boolean tls_enable "$tls_enable"
 	json_close_object
+
+	json_close_object
+}
+
+main() {
+	local log_level
+
+	config_load openfrp
+
+	config_get log_level global log_level "info"
+
+	json_init
+
+	# Every section of type "server" is one endpoint. A configuration written
+	# before this router could hold more than one has a single section named
+	# "server", which is picked up here like any other — no migration, and the
+	# tunnels that name no server still belong to the first.
+	json_add_array servers
+	config_foreach add_server server
+	json_close_array
+
+	if [ "$SERVER_COUNT" -eq 0 ]; then
+		echo "openfrp: no server is configured" >&2
+		return 1
+	fi
 
 	json_add_array tunnels
 	config_foreach add_tunnel tunnel

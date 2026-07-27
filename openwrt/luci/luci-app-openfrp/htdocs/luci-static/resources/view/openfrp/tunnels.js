@@ -292,6 +292,10 @@ return view.extend({
 
 		o = s.option(form.Button, '_certificate', _('Certificate'));
 		o.modalonly = false;
+		// A grid cell is plain text unless the option says it is editable, so
+		// without this the column renders the button's value instead of the
+		// button — which is to say, nothing.
+		o.editable = true;
 		o.inputtitle = _('Request a certificate');
 		o.inputstyle = 'apply';
 		o.depends({ type: 'http', https: '1' });
@@ -304,8 +308,14 @@ return view.extend({
 			var bound = uci.get('openfrp', section_id, 'cert_id');
 
 			if (!https || mode !== 'terminate' || bound)
-				return null;
+				return false;
 			return '';
+		};
+		// The column is a control, not a setting. Being editable puts it in
+		// front of the parser, which would otherwise write the button's own
+		// value out as a tunnel option named _certificate.
+		o.parse = function () {
+			return Promise.resolve();
 		};
 		o.onclick = function (ev, section_id) {
 			var domains = L.toArray(uci.get('openfrp', section_id, 'domains'));
@@ -412,6 +422,7 @@ return view.extend({
 			_('Pushed to the server and hot-loaded, without dropping a ' +
 			  'connection. Only a bound tunnel has its certificate pushed.'));
 		o.depends({ type: 'http', https: '1', tls_mode: 'terminate' });
+		o.modalonly = true;
 		o.value('', _('None — TLS will not work until one is bound'));
 
 		certificates.forEach(function (order) {
@@ -429,6 +440,7 @@ return view.extend({
 		o = s.option(form.ListValue, 'proxy_protocol', _('Client IP'),
 			_('Without this the local service records every visitor as this ' +
 			  'router, because that is what connects to it.'));
+		o.modalonly = true;
 		o.value('', _('Not announced'));
 		o.value('v1', _('PROXY protocol v1 (text)'));
 		o.value('v2', _('PROXY protocol v2 (binary)'));
@@ -446,6 +458,7 @@ return view.extend({
 		o = s.option(form.Value, 'secret_key', _('Secret key'),
 			_('Visitors must present this to reach the tunnel.'));
 		o.depends('type', 'stcp');
+		o.modalonly = true;
 		o.password = true;
 
 		// The map renders one node; the stylesheet rides along with it.

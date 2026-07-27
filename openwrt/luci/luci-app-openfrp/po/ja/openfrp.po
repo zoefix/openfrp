@@ -475,9 +475,6 @@ msgstr "プロキシ経由"
 msgid "Proxied — route through the provider"
 msgstr "プロキシ経由 — プロバイダを通す"
 
-msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
-msgstr "サーバーへ配布して接続を切らずに読み込みます。証明書を紐付けたトンネルだけが配布対象です。"
-
 msgid "Recent log"
 msgstr "最近のログ"
 
@@ -752,3 +749,9 @@ msgstr "パススルー — リモートサーバーは復号化しない"
 
 msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
 msgstr "パススルーは暗号化されたストリームをそのまま転送するため、証明書はローカルサービスが持ちます。リモートサーバーで復号化する場合は、ここで発行した証明書をそちらへ送る必要があります。"
+
+msgid "Only certificates covering every domain of this tunnel are listed. Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
+msgstr "このトンネルの全ドメインをカバーする証明書だけを表示します。サーバーへ送ってホットロードされ、接続は一つも切れません。紐付けられたトンネルの証明書だけが送られます。"
+
+msgid "does not cover this tunnel"
+msgstr "このトンネルをカバーしません"

@@ -285,6 +285,33 @@ function validateDomainPattern(section_id, value) {
 	return true;
 }
 
+// certificateCovers reports whether one of a certificate's names serves a
+// tunnel's domain.
+//
+// A certificate wildcard stands for exactly one label and only at the front —
+// that is what an authority will issue and what a browser will accept — so
+// *.example.com serves www.example.com and nothing deeper. A tunnel serving a
+// wildcard needs a certificate for that same wildcard: one issued for a single
+// name underneath it leaves every other name unserved.
+function certificateCovers(san, domain) {
+	san = String(san || '').toLowerCase();
+	domain = String(domain || '').toLowerCase();
+
+	if (!san || !domain)
+		return false;
+	if (san === domain)
+		return true;
+	if (san.indexOf('*.') !== 0 || domain.indexOf('*') === 0)
+		return false;
+
+	var suffix = san.slice(1);
+	if (domain.length <= suffix.length ||
+	    domain.slice(domain.length - suffix.length) !== suffix)
+		return false;
+
+	return domain.slice(0, domain.length - suffix.length).indexOf('.') < 0;
+}
+
 // stylesheet returns the app's shared presentation, loaded as part of the view
 // so it applies while one of these pages is open and nowhere else. Dialogs
 // render outside this node, but the link is in the document for as long as the
@@ -494,19 +521,53 @@ return view.extend({
 			'decrypt needs a certificate issued here and pushed to it.');
 
 		o = s.option(form.ListValue, 'cert_id', _('Certificate'),
-			_('Pushed to the server and hot-loaded, without dropping a ' +
+			_('Only certificates covering every domain of this tunnel are ' +
+			  'listed. Pushed to the server and hot-loaded, without dropping a ' +
 			  'connection. Only a bound tunnel has its certificate pushed.'));
 		o.depends({ type: 'http', https: '1', tls_mode: 'terminate' });
 		o.modalonly = true;
-		o.value('', _('None — TLS will not work until one is bound'));
 
-		certificates.forEach(function (order) {
-			// The expiry is worth showing at the point of choosing: two
-			// certificates often cover the same names and only one is current.
-			o.value(String(order.id), order.domains.join(', ') +
-				' (' + order.ca_label + ', ' +
-				_('%d days left').format(order.days_remaining) + ')');
-		});
+		// The choices depend on the tunnel, so they are built per section
+		// rather than once. Offering a certificate that does not cover this
+		// tunnel's names is worse than offering nothing: it produces a tunnel
+		// that looks configured and answers with the wrong name, which a
+		// browser reports to the visitor as an impersonation attempt.
+		o.renderWidget = function (section_id, option_index, cfgvalue) {
+			var domains = L.toArray(uci.get('openfrp', section_id, 'domains'));
+			var bound = uci.get('openfrp', section_id, 'cert_id');
+
+			this.keylist = [];
+			this.vallist = [];
+			this.value('', _('None — TLS will not work until one is bound'));
+
+			certificates.forEach(function (order) {
+				var fits = domains.length && domains.every(function (domain) {
+					return (order.domains || []).some(function (san) {
+						return certificateCovers(san, domain);
+					});
+				});
+
+				// A certificate already bound stays on the list even when it
+				// does not fit, because a select whose value is not among its
+				// options shows the first one instead — and then saving the
+				// form quietly rebinds the tunnel to whatever that was.
+				if (!fits && String(order.id) !== String(bound))
+					return;
+
+				// The expiry is worth showing at the point of choosing: two
+				// certificates often cover the same names and only one is
+				// current.
+				var label = order.domains.join(', ') +
+					' (' + order.ca_label + ', ' +
+					_('%d days left').format(order.days_remaining) + ')';
+				if (!fits)
+					label += ' — ' + _('does not cover this tunnel');
+
+				this.value(String(order.id), label);
+			}, this);
+
+			return form.ListValue.prototype.renderWidget.apply(this, arguments);
+		};
 
 		if (!certificates.length)
 			o.description = _('No certificates have been issued yet. Request one ' +

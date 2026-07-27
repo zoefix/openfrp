@@ -475,9 +475,6 @@ msgstr "已代理"
 msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量经服务商中转"
 
-msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
-msgstr "推送到服务端热加载，不会断开任何连接。只有绑定了证书的隧道才会推送。"
-
 msgid "Recent log"
 msgstr "最近日志"
 
@@ -752,3 +749,9 @@ msgstr "透传 — 远端服务器不解密"
 
 msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
 msgstr "透传会原样转发加密流量，证书由内网服务自己持有。由远端服务器解密则需要在本机签发证书并推送过去。"
+
+msgid "Only certificates covering every domain of this tunnel are listed. Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
+msgstr "只列出能覆盖本隧道全部域名的证书。推送到服务端热加载，不会断开任何连接。只有绑定了证书的隧道才会推送。"
+
+msgid "does not cover this tunnel"
+msgstr "不覆盖本隧道"

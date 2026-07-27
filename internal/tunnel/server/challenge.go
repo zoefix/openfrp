@@ -13,9 +13,12 @@ const challengePrefix = "/.well-known/acme-challenge/"
 
 // challengeTTL bounds how long an unanswered challenge is remembered.
 //
-// A client that publishes one and then dies would otherwise leave the server
-// answering for it forever. The authority validates within seconds of being
-// asked, so an hour is generous by orders of magnitude and still finite.
+// This is the only backstop. A challenge is published from a connection that
+// hangs up immediately afterwards, so a disconnect cannot mean "forget this" —
+// which leaves an issuance that dies before withdrawing its own challenge with
+// nothing but time to clean up after it. The authority validates within
+// seconds of being asked, so an hour is generous by orders of magnitude and
+// still finite.
 const challengeTTL = time.Hour
 
 // ChallengeStore holds the ACME HTTP-01 challenges clients have published.
@@ -74,19 +77,6 @@ func (s *ChallengeStore) Withdraw(runID, token string) {
 
 	if existing, ok := s.tokens[token]; ok && existing.runID == runID {
 		delete(s.tokens, token)
-	}
-}
-
-// WithdrawClient removes everything one client published, which is what a
-// disconnect means: nothing is going to clean these up now.
-func (s *ChallengeStore) WithdrawClient(runID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for token, existing := range s.tokens {
-		if existing.runID == runID {
-			delete(s.tokens, token)
-		}
 	}
 }
 

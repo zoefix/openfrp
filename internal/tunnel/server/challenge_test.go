@@ -2,6 +2,7 @@ package server
 
 import (
 	"testing"
+	"time"
 
 	"github.com/zoefix/openfrp/internal/cert"
 )
@@ -78,21 +79,51 @@ func TestWithdrawIsScopedToTheClient(t *testing.T) {
 	}
 }
 
-// TestDisconnectWithdrawsEverything covers the client going away mid-issuance:
-// nothing will clean up after it, and the server must not keep answering.
-func TestDisconnectWithdrawsEverything(t *testing.T) {
+// TestChallengeOutlastsItsPublisher covers what a disconnect actually means
+// here.
+//
+// The publisher is a certificate issuance running in its own process: it opens
+// a control connection, publishes, and hangs up, all before the authority
+// fetches anything. So the run that published a challenge is expected to be
+// gone by the time the challenge is needed, and forgetting challenges when a
+// run ends means never answering one at all.
+func TestChallengeOutlastsItsPublisher(t *testing.T) {
 	store := NewChallengeStore()
 
-	store.Publish("run-1", "a.example", "tok-a", "auth")
-	store.Publish("run-1", "b.example", "tok-b", "auth")
-	store.Publish("run-2", "c.example", "tok-c", "auth")
-
-	store.WithdrawClient("run-1")
-
-	if store.Len() != 1 {
-		t.Errorf("%d challenges left, want only the other client's", store.Len())
+	if err := store.Publish("run-1", "a.example", "tok-a", "auth"); err != nil {
+		t.Fatal(err)
 	}
-	if _, ok := store.Answer(cert.HTTPChallengePath("tok-c")); !ok {
-		t.Error("the other client's challenge was withdrawn too")
+
+	// Whatever the run does next — including ending — the challenge stands
+	// until it is withdrawn or expires.
+	if _, ok := store.Answer(cert.HTTPChallengePath("tok-a")); !ok {
+		t.Error("the challenge did not outlast the run that published it")
+	}
+
+	store.Withdraw("run-1", "tok-a")
+	if _, ok := store.Answer(cert.HTTPChallengePath("tok-a")); ok {
+		t.Error("an explicit withdrawal left the challenge answering")
+	}
+}
+
+// TestExpiredChallengeStopsAnswering covers the case a disconnect used to:
+// an issuance that died without withdrawing. Time is the only thing left to
+// clean up after it, so it has to.
+func TestExpiredChallengeStopsAnswering(t *testing.T) {
+	store := NewChallengeStore()
+
+	if err := store.Publish("run-1", "a.example", "tok-a", "auth"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Reach in and age it, rather than waiting an hour.
+	store.mu.Lock()
+	aged := store.tokens["tok-a"]
+	aged.deadline = time.Now().Add(-time.Second)
+	store.tokens["tok-a"] = aged
+	store.mu.Unlock()
+
+	if _, ok := store.Answer(cert.HTTPChallengePath("tok-a")); ok {
+		t.Error("an expired challenge is still being answered")
 	}
 }

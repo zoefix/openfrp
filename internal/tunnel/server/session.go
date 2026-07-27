@@ -313,12 +313,14 @@ func (s *Session) Close() error {
 			s.routes.RemoveClient(s.runID)
 		}
 
-		// Any ACME challenge this client published goes with it. Nothing is
-		// going to withdraw them now, and the server would otherwise keep
-		// answering a validation for a client that has gone.
-		if s.challenges != nil {
-			s.challenges.WithdrawClient(s.runID)
-		}
+		// ACME challenges deliberately outlive the session that published
+		// them. Issuance runs in its own process, which opens a control
+		// connection, publishes, and hangs up long before the authority
+		// fetches anything — so a disconnect is the ordinary end of a
+		// successful publish, not a client that vanished. Withdrawing here
+		// deleted every challenge within milliseconds of it being stored, and
+		// every HTTP-01 validation got the unclaimed-host 404. Cleanup is the
+		// solver's explicit withdrawal, and the store's TTL behind it.
 
 		s.proxiesMu.Lock()
 		for _, running := range s.proxies {

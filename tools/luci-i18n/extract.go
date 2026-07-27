@@ -220,10 +220,36 @@ func readJSString(source string, pos int) (string, int, int) {
 	return b.String(), pos, newlines
 }
 
+// skipSpace advances past anything that separates the parts of an expression.
+//
+// Comments count. A note written between two halves of a wrapped message —
+// which is a natural place to explain the awkward half — otherwise stopped the
+// argument from reading as literal, and the whole message was dropped without
+// a word. Nothing downstream can catch that: a message that was never
+// extracted is not missing a translation, it simply does not exist, and the
+// page falls back to English for that one string alone.
 func skipSpace(source string, pos int) int {
-	for pos < len(source) && (source[pos] == ' ' || source[pos] == '\t' ||
-		source[pos] == '\n' || source[pos] == '\r') {
-		pos++
+	for pos < len(source) {
+		switch {
+		case source[pos] == ' ' || source[pos] == '\t' ||
+			source[pos] == '\n' || source[pos] == '\r':
+			pos++
+
+		case strings.HasPrefix(source[pos:], "//"):
+			for pos < len(source) && source[pos] != '\n' {
+				pos++
+			}
+
+		case strings.HasPrefix(source[pos:], "/*"):
+			end := strings.Index(source[pos+2:], "*/")
+			if end < 0 {
+				return len(source)
+			}
+			pos += 2 + end + 2
+
+		default:
+			return pos
+		}
 	}
 	return pos
 }

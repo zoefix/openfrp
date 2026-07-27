@@ -522,6 +522,10 @@ return view.extend({
 		o.depends('type', 'https');
 		o.depends('type', 'stcp');
 
+		// No angle brackets in the placeholders: a description is inserted as
+		// markup, so <port> would be parsed as a tag and vanish, leaving a
+		// directive that looks complete and is not.
+		//
 		// Written to be read in the order the work has to be done, because
 		// getting that order wrong takes the site down. The tunnel is a byte
 		// relay — it never rewrites a request, which is where its speed comes
@@ -535,8 +539,8 @@ return view.extend({
 			'while this is off waits for a header that never comes. Either way ' +
 			'the site is down until both agree, so change them together.\n\n' +
 			'For nginx, on the port this tunnel points at:\n' +
-			'    listen <port> proxy_protocol;\n' +
-			'    set_real_ip_from <this router\'s LAN address>;\n' +
+			'    listen PORT proxy_protocol;\n' +
+			'    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n' +
 			'    real_ip_header proxy_protocol;\n\n' +
 			'Apache needs mod_remoteip and RemoteIPProxyProtocol On. Caddy, ' +
 			'Traefik and HAProxy each have their own switch for it.');

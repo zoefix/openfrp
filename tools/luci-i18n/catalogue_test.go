@@ -184,3 +184,79 @@ func extractedMsgids(t *testing.T) []string {
 	sort.Strings(out)
 	return out
 }
+
+// TestKeyIsHashedTheWayTheBrowserAsksForIt pins the normalisation.
+//
+// LuCI's runtime collapses whitespace before hashing, so a message written
+// across several lines is asked for under its collapsed form. A catalogue keyed
+// by the literal text answers none of those questions, and does it silently:
+// the page loads, every single-line message translates, and the multi-line one
+// falls back to English with nothing logged anywhere.
+func TestKeyIsHashedTheWayTheBrowserAsksForIt(t *testing.T) {
+	multiline := "Configure the service first.\n\nFor nginx:\n" +
+		"    listen PORT proxy_protocol;\n    real_ip_header proxy_protocol;"
+	collapsed := "Configure the service first. For nginx: " +
+		"listen PORT proxy_protocol; real_ip_header proxy_protocol;"
+
+	if hashKey(multiline) != hashKey(collapsed) {
+		t.Errorf("a multi-line message hashes to %08x but is asked for as %08x",
+			hashKey(multiline), hashKey(collapsed))
+	}
+}
+
+// The trim and the collapse are different character sets, and swapping either
+// one moves every key.
+func TestWhitespaceCollapseMatchesTrimws(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"  padded  ", "padded"},
+		{"one  two", "one two"},
+		{"tab\tseparated", "tab separated"},
+		{"line\nbreak", "line break"},
+		{"mixed \t\n run", "mixed run"},
+		{"\n\nleading and trailing\n\n", "leading and trailing"},
+		// A carriage return is not in the regex's class, so it survives the
+		// collapse — it is only removed at the ends, which JS trim does too.
+		{"kept\rhere", "kept\rhere"},
+		{"already single spaced", "already single spaced"},
+	}
+
+	for _, c := range cases {
+		if got := collapseWhitespace(c.in); got != c.want {
+			t.Errorf("collapseWhitespace(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// A comment inside a wrapped message must not lose the message.
+//
+// The halves of a long label are joined with +, and the natural place to
+// explain an awkward one is between them. That used to stop the argument
+// reading as literal, and the message was dropped from the catalogue in
+// silence — not untranslated, absent, which no completeness check can see
+// because there is nothing left to check against.
+func TestCommentsInsideAMessageDoNotLoseIt(t *testing.T) {
+	cases := []struct{ name, source string }{
+		{"line comment between the halves", `
+			o.description = _('first half ' +
+				// why the second half reads oddly
+				'second half');
+		`},
+		{"block comment between the halves", `
+			o.description = _('first half ' /* aside */ + 'second half');
+		`},
+		{"comment before the first half", `
+			o.description = _(/* aside */ 'first half ' + 'second half');
+		`},
+	}
+
+	for _, c := range cases {
+		found := scanJS(c.source)
+		if len(found) != 1 {
+			t.Errorf("%s: extracted %d messages, want 1", c.name, len(found))
+			continue
+		}
+		if found[0].text != "first half second half" {
+			t.Errorf("%s: extracted %q", c.name, found[0].text)
+		}
+	}
+}

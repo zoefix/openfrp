@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
+	"unicode"
 )
 
 // The .lmo layout, from LuCI's template_lmo.h:
@@ -26,6 +28,53 @@ type entry struct {
 	valID  uint32
 	offset uint32
 	length uint32
+}
+
+// hashKey is a msgid as LuCI asks for it.
+//
+// The runtime collapses whitespace before hashing:
+//
+//	function trimws(s) { return String(s).trim().replace(/[ \t\n]+/g, ' '); }
+//	function _(s, c) { ... return (window.TR && TR[sfh(k)]) || s; }
+//
+// so a message written across several lines, or holding an indented block, is
+// looked up under its collapsed form. Keying the catalogue by the literal text
+// instead produces entries nothing ever asks for: the page loads, every other
+// string translates, and that one falls back to English with no error
+// anywhere. Every message this project had until now was a single line of
+// single-spaced text — already collapsed — which is why the difference stayed
+// invisible.
+func hashKey(msgid string) uint32 {
+	return sfhHash([]byte(collapseWhitespace(msgid)))
+}
+
+// collapseWhitespace mirrors trimws.
+//
+// The trim follows JavaScript, which strips every kind of space; the collapse
+// follows the character class in the regex above, which is only these three.
+// Widening either half would move the key away from the one the browser
+// computes, which is the whole thing being matched here.
+func collapseWhitespace(msgid string) string {
+	trimmed := strings.TrimFunc(msgid, func(r rune) bool {
+		return unicode.IsSpace(r) || r == '\ufeff'
+	})
+
+	var out strings.Builder
+	out.Grow(len(trimmed))
+
+	space := false
+	for _, r := range trimmed {
+		if r == ' ' || r == '\t' || r == '\n' {
+			space = true
+			continue
+		}
+		if space {
+			out.WriteByte(' ')
+			space = false
+		}
+		out.WriteRune(r)
+	}
+	return out.String()
 }
 
 // sfhHash is Paul Hsieh's SuperFastHash, which is what LuCI keys entries by.
@@ -100,7 +149,7 @@ func compile(input, output string) error {
 	)
 
 	for _, msg := range messages {
-		keyID := sfhHash([]byte(msg.id))
+		keyID := hashKey(msg.id)
 
 		// A collision would make one of the two strings untranslatable at
 		// random, so refuse rather than produce a subtly wrong catalogue.
@@ -200,7 +249,7 @@ func dump(path string) error {
 
 // lookupOne resolves a single msgid, reporting whether it was present.
 func lookupOne(raw, index []byte, msgid string) (string, bool) {
-	want := sfhHash([]byte(msgid))
+	want := hashKey(msgid)
 
 	for i := range len(index) / entrySize {
 		base := i * entrySize
@@ -225,9 +274,9 @@ func lookup(path string, msgids []string) error {
 
 	for _, msgid := range msgids {
 		if found, ok := lookupOne(raw, index, msgid); ok {
-			fmt.Printf("  HIT  %08x  %q -> %q\n", sfhHash([]byte(msgid)), msgid, found)
+			fmt.Printf("  HIT  %08x  %q -> %q\n", hashKey(msgid), msgid, found)
 		} else {
-			fmt.Printf("  MISS %08x  %q\n", sfhHash([]byte(msgid)), msgid)
+			fmt.Printf("  MISS %08x  %q\n", hashKey(msgid), msgid)
 		}
 	}
 	return nil

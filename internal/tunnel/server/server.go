@@ -32,6 +32,7 @@ type Server struct {
 	logger   *slog.Logger
 	registry *Registry
 	router   *vhost.Router
+	certs    *CertStore
 	version  string
 
 	listenerMu sync.Mutex
@@ -58,6 +59,7 @@ func New(cfg *config.Server, logger *slog.Logger, version string) (*Server, erro
 		logger:   logger,
 		registry: NewRegistry(),
 		router:   vhost.NewRouter(),
+		certs:    NewCertStore(),
 		version:  version,
 	}, nil
 }
@@ -67,6 +69,9 @@ func (s *Server) Registry() *Registry { return s.registry }
 
 // Router exposes the domain routing table.
 func (s *Server) Router() *vhost.Router { return s.router }
+
+// Certs exposes the certificate store used for edge TLS termination.
+func (s *Server) Certs() *CertStore { return s.certs }
 
 // VhostAddr reports the bound address of one vhost listener, or nil when that
 // scheme is not configured.
@@ -143,7 +148,7 @@ func (s *Server) Listen(ctx context.Context) error {
 			continue
 		}
 		v := newVhostListener(want.scheme, want.port, s.cfg.BindAddr,
-			s.router, s.registry, s.logger, s.cfg.AcceptLoops)
+			s.router, s.registry, s.certs, s.logger, s.cfg.AcceptLoops)
 		if err := v.listen(ctx); err != nil {
 			for _, started := range s.vhosts {
 				started.close()

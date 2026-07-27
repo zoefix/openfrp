@@ -160,12 +160,7 @@ func (s *Server) controlLoop(ctx context.Context, session *Session, codec *proto
 			}
 
 		case *protocol.CertPush:
-			// Edge TLS termination arrives in P6. Acknowledge explicitly so a
-			// client that runs ahead of the server gets a clear answer rather
-			// than silence.
-			codec.Write(&protocol.CertPushResp{
-				Error: "certificate push is not supported by this server build",
-			})
+			s.handleCertPush(session, codec, m)
 
 		default:
 			logger.Debug("unexpected control message", "type", msg.Type())
@@ -191,5 +186,30 @@ func (s *Server) handleNewProxy(ctx context.Context, session *Session, codec *pr
 
 	if err := codec.Write(resp); err != nil {
 		session.logger.Debug("send proxy response", "error", err)
+	}
+}
+
+// handleCertPush installs a certificate the client issued.
+//
+// The swap is atomic and connections in flight are untouched, which is the
+// whole point: frps can only load certificates at startup, so rotating one
+// there costs every connected client. Here it costs nothing.
+func (s *Server) handleCertPush(session *Session, codec *protocol.Codec, msg *protocol.CertPush) {
+	resp := &protocol.CertPushResp{}
+
+	installed, err := s.certs.Install(msg.FullchainPEM, msg.PrivateKeyPEM)
+	if err != nil {
+		session.logger.Warn("certificate push rejected",
+			"domains", msg.Domains, "error", err)
+		resp.Error = err.Error()
+	} else {
+		session.logger.Info("certificate installed without dropping a connection",
+			"patterns", installed,
+			"expires", time.Unix(msg.NotAfter, 0).UTC().Format(time.RFC3339),
+			"total_patterns", s.certs.Len())
+	}
+
+	if err := codec.Write(resp); err != nil {
+		session.logger.Debug("send certificate push response", "error", err)
 	}
 }

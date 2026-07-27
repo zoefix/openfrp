@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,6 +32,7 @@ type vhostListener struct {
 
 	router   *vhost.Router
 	registry *Registry
+	certs    *CertStore
 	logger   *slog.Logger
 
 	acceptLoops int
@@ -145,6 +147,15 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	}
 	defer workConn.Close()
 
+	// Edge termination is a different shape entirely: instead of forwarding
+	// ciphertext, decrypt here and send plaintext down the tunnel. It costs
+	// splice(2) for this connection — a tls.Conn is not a *net.TCPConn — which
+	// is exactly why passthrough remains the default and this is opt-in.
+	if v.scheme == vhost.SchemeHTTPS && terminationRoute(route) {
+		v.terminate(ctx, userConn, workConn, consumed, route, host, source)
+		return
+	}
+
 	// Replay what the sniffer consumed. This is the step that lets both sides
 	// stay bare sockets: the alternative — wrapping userConn in a reader that
 	// replays — would hide the *net.TCPConn and cost splice(2) for every byte
@@ -240,8 +251,8 @@ func (v *vhostListener) addr() net.Addr {
 
 // newVhostListener builds a listener for one scheme.
 func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
-	router *vhost.Router, registry *Registry, logger *slog.Logger,
-	acceptLoops int) *vhostListener {
+	router *vhost.Router, registry *Registry, certs *CertStore,
+	logger *slog.Logger, acceptLoops int) *vhostListener {
 
 	return &vhostListener{
 		scheme:      scheme,
@@ -249,8 +260,65 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 		bindAddr:    cfgBindAddr,
 		router:      router,
 		registry:    registry,
+		certs:       certs,
 		logger:      logger,
 		acceptLoops: acceptLoops,
 		reusePort:   acceptLoops != 1,
 	}
+}
+
+// terminate decrypts at the edge and forwards plaintext to the tunnel.
+//
+// The ClientHello the sniffer already consumed has to be replayed into the TLS
+// server, since the handshake cannot start without it. That is what replayConn
+// exists for — and note it deliberately does NOT implement netutil.Unwrapper,
+// because handing the raw socket to splice would bypass the decryption this
+// whole path exists to perform.
+func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Conn,
+	consumed []byte, route *vhost.Route, host, source string) {
+
+	if v.certs == nil || !v.certs.Has(host) {
+		v.logger.Warn("edge termination requested but no certificate covers the host",
+			"host", host, "proxy", route.ProxyName)
+		return
+	}
+
+	tlsConn := tls.Server(&replayConn{Conn: userConn, replay: consumed}, v.certs.TLSConfig())
+
+	if err := tlsConn.SetDeadline(time.Now().Add(vhostSniffTimeout)); err != nil {
+		return
+	}
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		v.logger.Debug("TLS handshake failed", "host", host, "error", err)
+		return
+	}
+	if err := tlsConn.SetDeadline(time.Time{}); err != nil {
+		return
+	}
+
+	stats := netutil.Relay(tlsConn, workConn)
+
+	v.logger.Debug("terminated connection closed",
+		"host", host, "proxy", route.ProxyName, "source", source,
+		"to_client", stats.AToB, "to_user", stats.BToA, "spliced", stats.Spliced)
+}
+
+// replayConn re-serves bytes already read from the connection.
+//
+// It intentionally omits netutil.Unwrapper. A transparent wrapper may expose
+// the socket underneath so the relay can splice it; this one transforms the
+// stream by replaying a prefix, and the TLS layer above it transforms it
+// further, so exposing the raw socket would skip both.
+type replayConn struct {
+	net.Conn
+	replay []byte
+}
+
+func (c *replayConn) Read(p []byte) (int, error) {
+	if len(c.replay) > 0 {
+		n := copy(p, c.replay)
+		c.replay = c.replay[n:]
+		return n, nil
+	}
+	return c.Conn.Read(p)
 }

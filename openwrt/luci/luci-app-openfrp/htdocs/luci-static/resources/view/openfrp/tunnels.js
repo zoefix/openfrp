@@ -94,6 +94,27 @@ function requestCertificate(section_id, domains, accounts, lastEmail) {
 	}, '');
 	var statusLine = E('p', {}, _('Covers: %s').format(domains.join(', ')));
 
+	var closeButton = E('button', { 'class': 'btn', 'click': function () {
+		stopFollowing();
+		ui.hideModal();
+	} }, _('Close'));
+
+	var requestButton = E('button',
+		{ 'class': 'btn cbi-button-positive', 'click': start }, _('Request'));
+
+	// The poller has to be stopped by identity, and only the run that started
+	// it knows which function that is. Calling poll.remove() with nothing is a
+	// TypeError, and it threw before hiding the modal — leaving a dialog whose
+	// close button did nothing at all.
+	var following = null;
+
+	function stopFollowing() {
+		if (following) {
+			poll.remove(following);
+			following = null;
+		}
+	}
+
 	function start() {
 		if (!emailInput.value) {
 			ui.addNotification(null,
@@ -109,6 +130,7 @@ function requestCertificate(section_id, domains, accounts, lastEmail) {
 
 		statusLine.textContent = _('Requesting…');
 		output.style.display = '';
+		requestButton.disabled = true;
 
 		certCall('order-add', {}, {
 			domains: domains,
@@ -126,6 +148,7 @@ function requestCertificate(section_id, domains, accounts, lastEmail) {
 				});
 		}).catch(function (err) {
 			statusLine.textContent = err.message;
+			requestButton.disabled = false;
 		});
 	}
 
@@ -149,12 +172,21 @@ function requestCertificate(section_id, domains, accounts, lastEmail) {
 				if (res.state === 'running')
 					return;
 
-				poll.remove(tick);
+				stopFollowing();
 
 				if (res.state !== 'succeeded') {
 					statusLine.textContent = _('Failed — see the output above.');
+					requestButton.disabled = false;
 					return;
 				}
+
+				// There is nothing left to request. Leaving the button would
+				// invite a second click that orders another certificate for
+				// the same name — which the authority rate-limits, and which
+				// would replace a binding that is already correct.
+				if (requestButton.parentNode)
+					requestButton.parentNode.removeChild(requestButton);
+				closeButton.classList.add('cbi-button-positive');
 
 				// Bind it here rather than making the operator go and pick it:
 				// this certificate was requested for this tunnel and nothing
@@ -168,6 +200,7 @@ function requestCertificate(section_id, domains, accounts, lastEmail) {
 			});
 		}
 
+		following = tick;
 		poll.add(tick, 2);
 		tick();
 	}
@@ -181,13 +214,8 @@ function requestCertificate(section_id, domains, accounts, lastEmail) {
 			: _('Leave unset to prove the name by serving a file, which the ' +
 			    'tunnel server answers for you.')),
 		output,
-		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
-			E('button', { 'class': 'btn', 'click': function () {
-				poll.remove(); ui.hideModal();
-			} }, _('Close')), ' ',
-			E('button', { 'class': 'btn cbi-button-positive', 'click': start },
-				_('Request'))
-		])
+		E('div', { 'class': 'right', 'style': 'margin-top:1em' },
+			[closeButton, ' ', requestButton])
 	]);
 }
 

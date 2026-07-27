@@ -435,6 +435,17 @@ function deployDialog(view, section) {
 
 /* ------------------------------------------------------------------ */
 
+// stylesheet returns the app's shared presentation, loaded as part of the view
+// so it applies while one of these pages is open and nowhere else. Dialogs
+// render outside this node, but the link is in the document for as long as the
+// page is, so they pick it up too.
+function stylesheet() {
+	return E('link', {
+		'rel': 'stylesheet',
+		'href': L.resource('openfrp/openfrp.css')
+	});
+}
+
 return view.extend({
 	load: function () {
 		return uci.load('openfrp');
@@ -589,6 +600,9 @@ return view.extend({
 		o.placeholder = 'https://example.com/openfrps_{os}_{arch}';
 		o.modalonly = true;
 
-		return m.render();
+		// The map renders one node; the stylesheet rides along with it.
+		return m.render().then(function (node) {
+			return E('div', {}, [stylesheet(), node]);
+		});
 	}
 });

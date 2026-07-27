@@ -1,0 +1,47 @@
+/*
+ * Presentation shared by every OpenFrp page.
+ *
+ * Loaded by the views themselves rather than installed as a theme override,
+ * so it applies while one of this app's pages is open and nowhere else. That
+ * includes dialogs: they render outside the view's node, but the stylesheet is
+ * in the document for as long as the page is.
+ */
+
+/*
+ * Left-align form labels.
+ *
+ * The theme puts them in a fixed 180px column, right-aligned against the
+ * field. That reads well on a sparse page and badly on the dense forms here,
+ * where a short label like "名称" ends up marooned in the middle of the row
+ * with the eye having to travel back left for the next one.
+ *
+ * The column also narrows, because these labels are short and the space is
+ * better spent on the inputs — several of which carry paths and URLs.
+ *
+ * Applied to LuCI's own rendering as well as the hand-built dialogs, so the
+ * two do not sit side by side looking like different applications.
+ */
+.cbi-value > label.cbi-value-title,
+.cbi-value > .cbi-value-title {
+	flex: 0 0 150px;
+	text-align: left;
+}
+
+/*
+ * Descriptions line up under the field they explain rather than under the
+ * label, which is where the reader is already looking.
+ */
+.cbi-value-field > .cbi-value-description {
+	margin-top: 0.25em;
+}
+
+@media screen and (max-width: 600px) {
+	/*
+	 * Narrow screens stack the label above the field, so a fixed column would
+	 * only add an indent.
+	 */
+	.cbi-value > label.cbi-value-title,
+	.cbi-value > .cbi-value-title {
+		flex-basis: 100%;
+	}
+}

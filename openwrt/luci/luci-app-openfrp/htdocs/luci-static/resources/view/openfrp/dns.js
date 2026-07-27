@@ -477,6 +477,17 @@ function refreshAccounts() {
 	});
 }
 
+// stylesheet returns the app's shared presentation, loaded as part of the view
+// so it applies while one of these pages is open and nowhere else. Dialogs
+// render outside this node, but the link is in the document for as long as the
+// page is, so they pick it up too.
+function stylesheet() {
+	return E('link', {
+		'rel': 'stylesheet',
+		'href': L.resource('openfrp/openfrp.css')
+	});
+}
+
 return view.extend({
 	load: function () {
 		return Promise.all([
@@ -499,6 +510,7 @@ return view.extend({
 		dom.content(accountsHolder, accountsTable());
 
 		return E('div', {}, [
+			stylesheet(),
 			E('h2', {}, _('DNS')),
 			E('p', {}, _('Accounts here are used to manage records and to prove ' +
 				'domain ownership when issuing certificates. A wildcard certificate ' +

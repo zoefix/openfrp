@@ -165,12 +165,13 @@ function orderDialog() {
 		state.keyTypes.map(function (k) {
 			return E('option', { 'value': k.value }, k.label);
 		}));
+	// No "none" option: DNS-01 is the only challenge available, so an order
+	// without an account is one that can never issue.
 	var accountSelect = E('select', { 'class': 'cbi-input-select' },
-		[E('option', { 'value': '' }, _('None'))].concat(
-			state.accounts.map(function (a) {
-				return E('option', { 'value': String(a.id) },
-					a.name + ' (' + a.provider_label + ')');
-			})));
+		state.accounts.map(function (a) {
+			return E('option', { 'value': String(a.id) },
+				a.name + ' (' + a.provider_label + ')');
+		}));
 	var autoRenew = E('input', {
 		'type': 'checkbox', 'class': 'cbi-input-checkbox', 'checked': ''
 	});
@@ -243,6 +244,10 @@ function orderDialog() {
 			notifyError(new Error(_('List at least one domain.')));
 			return;
 		}
+		if (!accountSelect.value) {
+			notifyError(new Error(_('Select a DNS account.')));
+			return;
+		}
 
 		var ca = selectedCA();
 		var wantsEAB = !!(ca && ca.requires_eab);
@@ -303,8 +308,9 @@ function orderDialog() {
 		field(_('Authority'), caSelect),
 		field(_('Key type'), keySelect),
 		field(_('DNS account'), accountSelect,
-			_('Required for a wildcard: only a DNS record can prove control of ' +
-			  'names that do not exist yet.')),
+			_('Proves the domain is yours. DNS is the only way available here, ' +
+			  'because HTTP validation would need port 80 on this router ' +
+			  'reachable from the internet.')),
 		eabRows[0],
 		eabRows[1],
 		field(_('Renew automatically'), autoRenew,
@@ -495,6 +501,17 @@ function refresh() {
 	});
 }
 
+// stylesheet returns the app's shared presentation, loaded as part of the view
+// so it applies while one of these pages is open and nowhere else. Dialogs
+// render outside this node, but the link is in the document for as long as the
+// page is, so they pick it up too.
+function stylesheet() {
+	return E('link', {
+		'rel': 'stylesheet',
+		'href': L.resource('openfrp/openfrp.css')
+	});
+}
+
 return view.extend({
 	load: function () {
 		return Promise.all([
@@ -527,6 +544,7 @@ return view.extend({
 					'page first — a wildcard certificate cannot be issued without it.')));
 
 		return E('div', {}, [
+			stylesheet(),
 			E('h2', {}, _('Certificates')),
 			E('p', {}, _('Certificates are issued here and pushed to the server, ' +
 				'which loads them without dropping a single connection. They are ' +

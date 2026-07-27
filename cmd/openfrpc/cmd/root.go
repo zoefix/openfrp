@@ -7,6 +7,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -50,7 +51,15 @@ func Execute(ctx context.Context, argv []string) error {
 		Usage(os.Stderr)
 		return fmt.Errorf("unknown command %q", name)
 	}
-	return c.Run(ctx, argv[1:])
+	err := c.Run(ctx, argv[1:])
+	if errors.Is(err, errReported) {
+		// The management subcommands describe their own failures as a JSON
+		// envelope on stdout, which is what the rpcd backend parses. Exiting
+		// non-zero is for the job worker, which branches on the status — and
+		// reported a failed certificate issuance as a success until it did.
+		os.Exit(1)
+	}
+	return err
 }
 
 // Usage writes the command list.

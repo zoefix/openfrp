@@ -394,9 +394,6 @@ msgstr "暂无日志输出。"
 msgid "No tunnels are configured yet."
 msgstr "尚未配置任何隧道。"
 
-msgid "None"
-msgstr "无"
-
 msgid "None — TLS will not work until one is bound"
 msgstr "无 — 未绑定证书前 TLS 无法工作"
 
@@ -444,6 +441,9 @@ msgstr "通过共享的 HTTP / HTTPS 端口路由到本隧道的域名模式。"
 
 msgid "Private key"
 msgstr "私钥"
+
+msgid "Proves the domain is yours. DNS is the only way available here, because HTTP validation would need port 80 on this router reachable from the internet."
+msgstr "用于证明域名归你所有。这里只能用 DNS 验证，因为 HTTP 验证需要本路由器的 80 端口能从公网访问。"
 
 msgid "Provider"
 msgstr "服务商"
@@ -496,9 +496,6 @@ msgstr "剩余不足 30 天时自动续期。"
 msgid "Request a certificate"
 msgstr "申请证书"
 
-msgid "Required for a wildcard: only a DNS record can prove control of names that do not exist yet."
-msgstr "泛域名必填：只有 DNS 记录才能证明你对尚不存在的名字有控制权。"
-
 msgid "Resolution"
 msgstr "解析方式"
 
@@ -534,6 +531,9 @@ msgstr "私密 TCP"
 
 msgid "Secret key"
 msgstr "访问密钥"
+
+msgid "Select a DNS account."
+msgstr "请选择一个 DNS 账号。"
 
 msgid "Server"
 msgstr "服务端"

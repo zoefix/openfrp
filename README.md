@@ -292,6 +292,9 @@ by the consumer; `pkg/` free of business logic.
   transport selector exists; the transports do not.
 - **Twelve of the nineteen planned DNS providers are unwritten.** The seven
   present are Aliyun, DNSPod, Huawei, Cloudflare, NameSilo, PowerDNS and West.
+- **DNS-01 is the only ACME challenge implemented**, so every certificate needs
+  a DNS account. HTTP-01 would need port 80 on the router reachable from the
+  internet, which is the thing the tunnel exists to avoid relying on.
 - **DNS and certificate management need SQLite, which has no MIPS port.** On a
   MIPS router those two pages report themselves unavailable; tunnels are
   unaffected.

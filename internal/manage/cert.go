@@ -148,18 +148,26 @@ func (s *Service) CreateOrder(ctx context.Context, in OrderInput) (OrderView, er
 		return OrderView{}, fmt.Errorf("manage: unknown certificate authority %q", ca)
 	}
 
-	// A wildcard can only be validated over DNS-01, which needs credentials.
-	// Refusing here beats accepting the order and failing at issuance, when
-	// the operator has moved on and only sees a red state.
-	if cert.NeedsDNSChallenge(domains) && in.AccountID == 0 {
-		return OrderView{}, fmt.Errorf(
-			"manage: a wildcard certificate needs a DNS account, because only " +
-				"the DNS-01 challenge can prove a wildcard")
-	}
-	if in.AccountID != 0 {
-		if _, err := s.accounts.Get(ctx, in.AccountID); err != nil {
-			return OrderView{}, err
+	// Every order needs a DNS account, not just a wildcard one.
+	//
+	// A wildcard can only be proved over DNS-01, and DNS-01 is the only
+	// challenge implemented here — HTTP-01 would need port 80 on this router
+	// reachable from the internet, which is the thing the tunnel exists to
+	// avoid relying on. Accepting an order without one produced an order that
+	// looked fine and could never issue.
+	if in.AccountID == 0 {
+		if cert.NeedsDNSChallenge(domains) {
+			return OrderView{}, fmt.Errorf(
+				"manage: a wildcard certificate needs a DNS account, because only " +
+					"the DNS-01 challenge can prove a wildcard")
 		}
+		return OrderView{}, fmt.Errorf(
+			"manage: this certificate needs a DNS account: DNS-01 is the only " +
+				"challenge available here, because HTTP validation would need " +
+				"port 80 on this router reachable from the internet")
+	}
+	if _, err := s.accounts.Get(ctx, in.AccountID); err != nil {
+		return OrderView{}, err
 	}
 
 	created, err := s.orders.Create(ctx, repo.Order{
@@ -281,9 +289,13 @@ func (s *Service) issue(ctx context.Context, order repo.Order,
 	// here; HTTP-01 would need port 80 on this router to be reachable from the
 	// internet, which is the thing the tunnel exists to avoid relying on.
 	if order.AccountID == 0 {
+		// Says what to do rather than why. The account may have been deleted,
+		// or the order may predate this being required; neither is
+		// distinguishable here, and claiming one of them would be a guess
+		// dressed up as a diagnosis.
 		return nil, fmt.Errorf(
-			"manage: order %d has no DNS account — it was deleted, so pick another one",
-			order.ID)
+			"manage: order %d has no DNS account. Delete it and request the "+
+				"certificate again with one selected", order.ID)
 	}
 
 	provider, err := s.provider(ctx, order.AccountID)

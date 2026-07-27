@@ -34,6 +34,10 @@ type reply struct {
 	Error string `json:"error,omitempty"`
 }
 
+// errReported marks a failure that has already been described on stdout, so
+// main exits non-zero without printing it a second time.
+var errReported = errors.New("reported")
+
 // emit writes the envelope and reports whether it was a success.
 func emit(data any, err error) error {
 	response := reply{OK: err == nil, Data: data}
@@ -52,8 +56,14 @@ func emit(data any, err error) error {
 
 	fmt.Println(string(encoded))
 
-	// The error was reported in the body, so exit 0: a non-zero status would
-	// have the job worker treat a legitimate "no such account" as a crash.
+	if err != nil {
+		// The exit status has to say so too. The rpcd backend reads stdout and
+		// ignores the status, but the job worker branches on it — and reported
+		// a failed certificate issuance as "certificate issued" for as long as
+		// this returned nil. A machine-readable error on stdout is not a
+		// substitute for the one signal the caller actually checked.
+		return errReported
+	}
 	return nil
 }
 

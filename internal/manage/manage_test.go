@@ -312,3 +312,36 @@ func storedCredentials(t *testing.T, path string, id int64) map[string]string {
 	}
 	return account.Credentials
 }
+
+// TestEveryOrderNeedsADNSAccount covers the order that looked fine and could
+// never issue.
+//
+// DNS-01 is the only challenge implemented, so an order without an account is
+// dead on arrival whether or not it names a wildcard. It used to be accepted,
+// and then failed at issuance with a message claiming the account had been
+// deleted — which was a guess, and in the case that prompted this, wrong: none
+// had ever been selected.
+func TestEveryOrderNeedsADNSAccount(t *testing.T) {
+	ctx := context.Background()
+	s, _ := service(t)
+
+	_, err := s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"openwrt.arm.moe"}, // not a wildcard
+		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
+	})
+	if err == nil {
+		t.Fatal("an order with no DNS account was accepted")
+	}
+	if !strings.Contains(err.Error(), "DNS account") {
+		t.Errorf("the error does not say what is missing: %v", err)
+	}
+
+	// And it still works when one is given.
+	account := cloudflareAccount(t, s)
+	if _, err := s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"openwrt.arm.moe"}, KeyType: "ec256",
+		CA: "letsencrypt", Email: "ops@example.com", AccountID: account.ID,
+	}); err != nil {
+		t.Errorf("an order with an account was rejected: %v", err)
+	}
+}

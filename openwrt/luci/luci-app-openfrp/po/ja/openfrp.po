@@ -394,9 +394,6 @@ msgstr "まだログ出力はありません。"
 msgid "No tunnels are configured yet."
 msgstr "トンネルがまだ設定されていません。"
 
-msgid "None"
-msgstr "なし"
-
 msgid "None — TLS will not work until one is bound"
 msgstr "なし — 紐付けるまで TLS は機能しません"
 
@@ -444,6 +441,9 @@ msgstr "共有 HTTP / HTTPS ポート経由でこのトンネルに振り分け�
 
 msgid "Private key"
 msgstr "秘密鍵"
+
+msgid "Proves the domain is yours. DNS is the only way available here, because HTTP validation would need port 80 on this router reachable from the internet."
+msgstr "ドメインの所有を証明します。ここでは DNS しか使えません。HTTP 検証にはこのルーターの 80 番ポートがインターネットから到達できる必要があるためです。"
 
 msgid "Provider"
 msgstr "プロバイダ"
@@ -496,9 +496,6 @@ msgstr "残り 30 日を切ると自動的に更新します。"
 msgid "Request a certificate"
 msgstr "証明書を申請"
 
-msgid "Required for a wildcard: only a DNS record can prove control of names that do not exist yet."
-msgstr "ワイルドカードには必須です。まだ存在しない名前の管理権は DNS レコードでしか証明できません。"
-
 msgid "Resolution"
 msgstr "解決方式"
 
@@ -534,6 +531,9 @@ msgstr "シークレット TCP"
 
 msgid "Secret key"
 msgstr "シークレットキー"
+
+msgid "Select a DNS account."
+msgstr "DNS アカウントを選択してください。"
 
 msgid "Server"
 msgstr "サーバー"

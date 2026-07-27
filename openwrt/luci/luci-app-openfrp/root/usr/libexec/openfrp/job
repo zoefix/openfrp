@@ -2,11 +2,12 @@
 #
 # Detached worker for long-running LuCI actions.
 #
-# Invoked as:  job <kind> <log-path> <status-path>
-# with the job's arguments arriving on stdin as JSON.
+# Invoked as:  job <kind> <log-path> <status-path> <args-path>
 #
-# Arguments come in on stdin rather than argv on purpose: /proc/*/cmdline is
-# readable by every local process, and a deploy job carries an SSH password.
+# The arguments file holds the job's JSON and may contain an SSH password. It
+# is read once and unlinked immediately. Arguments are never passed on the
+# command line: /proc/*/cmdline is readable by every local process on the
+# router, so an argument is a broadcast.
 #
 # POSIX sh only — the shell here is busybox ash.
 #
@@ -15,9 +16,10 @@ set -u
 KIND="${1:-}"
 LOG="${2:-}"
 STATUS="${3:-}"
+ARGS_FILE="${4:-}"
 
 [ -n "$KIND" ] && [ -n "$LOG" ] && [ -n "$STATUS" ] || {
-	echo "usage: job <kind> <log-path> <status-path>" >&2
+	echo "usage: job <kind> <log-path> <status-path> [args-path]" >&2
 	exit 2
 }
 
@@ -35,14 +37,56 @@ log() {
 }
 
 finish() {
-	local state="$1"
+	state="$1"
+	# The staged arguments outlive us if a step exited early. Whatever else
+	# happens, the password does not stay on the filesystem.
+	[ -n "$ARGS_FILE" ] && rm -f "$ARGS_FILE"
 	write_status "$state"
-	exit "$([ "$state" = "succeeded" ] && echo 0 || echo 1)"
+	[ "$state" = "succeeded" ] && exit 0
+	exit 1
 }
 
-# Read the arguments before doing anything else: the caller's pipe closes as
-# soon as it has written, and leaving it unread would block them.
-ARGS="$(cat)"
+# Read the arguments and remove them before doing anything else, so the window
+# in which the password exists on tmpfs is as short as possible.
+ARGS=""
+if [ -n "$ARGS_FILE" ] && [ -f "$ARGS_FILE" ]; then
+	ARGS="$(cat "$ARGS_FILE")"
+	rm -f "$ARGS_FILE"
+fi
+
+# record_result stores what the deployment produced.
+#
+# The server generates its own token when none was supplied, so without this
+# the client would have no way to learn the shared secret and the tunnel could
+# never come up. The host fingerprint is recorded on the same pass so the next
+# deployment authenticates the server rather than trusting it again.
+record_result() {
+	line="$(grep '"result"' "$LOG" | tail -n 1)"
+	[ -n "$line" ] || return 0
+
+	# jsonfilter rather than sed: the token is generated and may contain any
+	# character a JSON string can carry, escapes included.
+	token="$(printf '%s' "$line" | jsonfilter -e '@.result.token' 2>/dev/null)"
+	fingerprint="$(printf '%s' "$line" | jsonfilter -e '@.result.host_fingerprint' 2>/dev/null)"
+	bind_port="$(printf '%s' "$line" | jsonfilter -e '@.result.bind_port' 2>/dev/null)"
+
+	[ -n "$token" ] && uci -q set openfrp.server.token="$token"
+	[ -n "$bind_port" ] && uci -q set openfrp.server.port="$bind_port"
+	[ -n "$fingerprint" ] && {
+		uci -q set openfrp.deploy.host_fingerprint="$fingerprint"
+		log "==> recorded host fingerprint $fingerprint"
+	}
+
+	# Point the client at the host that was just provisioned, unless the user
+	# has already aimed it somewhere else deliberately.
+	if [ -z "$(uci -q get openfrp.server.addr)" ]; then
+		host="$(printf '%s' "$ARGS" | jsonfilter -e '@.host' 2>/dev/null)"
+		[ -n "$host" ] && uci -q set openfrp.server.addr="$host"
+	fi
+
+	uci -q commit openfrp
+	log "==> token and connection settings saved"
+}
 
 write_status running
 
@@ -50,13 +94,23 @@ case "$KIND" in
 	deploy)
 		# Server provisioning over SSH. The engine lives in the Go binary so
 		# progress arrives as structured events rather than scraped stderr;
-		# this wrapper only detaches it and captures the stream. Lands in P3.
+		# this wrapper only detaches it and captures the stream.
 		if ! command -v openfrpc >/dev/null 2>&1; then
 			log "openfrpc is not installed"
 			finish failed
 		fi
+
+		if [ -z "$ARGS" ]; then
+			log "no deployment settings were supplied"
+			finish failed
+		fi
+
 		log "==> starting server deployment"
-		if printf '%s' "$ARGS" | openfrpc deploy --json >> "$LOG" 2>&1; then
+		# -stdin is what makes the JSON on stdin count. Without it the flag
+		# defaults win and every credential piped in here is discarded in
+		# silence, leaving the deploy to fail on a missing server address.
+		if printf '%s' "$ARGS" | openfrpc deploy -stdin -json >> "$LOG" 2>&1; then
+			record_result
 			log "==> deployment finished"
 			finish succeeded
 		fi

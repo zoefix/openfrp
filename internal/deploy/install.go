@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -26,7 +27,24 @@ func (d *Deployer) installBinary(ctx context.Context, report stepReporter, info 
 	}
 
 	if d.opts.LocalBinary != "" {
-		return d.uploadBinary(ctx, report)
+		_, err := os.Stat(d.opts.LocalBinary)
+		switch {
+		case err == nil:
+			ok, mismatch := binaryMatchesArch(d.opts.LocalBinary, info.Arch)
+			if ok {
+				return d.uploadBinary(ctx, report)
+			}
+			// The bundled copy is built for the router, which is not always
+			// what the server runs. Downloading the right one beats
+			// installing one that cannot execute.
+			report.Warnf("bundled binary does not fit this server: %v", mismatch)
+
+		case !errors.Is(err, os.ErrNotExist):
+			return fmt.Errorf("deploy: %s: %w", d.opts.LocalBinary, err)
+
+		default:
+			report.Infof("no local binary at %s", d.opts.LocalBinary)
+		}
 	}
 	return d.downloadBinary(ctx, report, info)
 }

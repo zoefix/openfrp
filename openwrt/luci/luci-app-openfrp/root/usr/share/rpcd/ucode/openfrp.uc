@@ -12,7 +12,8 @@
 'use strict';
 
 import { cursor } from 'uci';
-import { popen, open, stat, unlink, lsdir, mkdir } from 'fs';
+import { popen, open, stat, unlink, mkdir } from 'fs';
+import { rand, srand } from 'math';
 
 const RUNDIR = '/var/run/openfrp';
 const WORKER = '/usr/libexec/openfrp/job';
@@ -125,30 +126,60 @@ const methods = {
 
 			mkdir(RUNDIR, 0o750);
 
-			// Time plus pid is unique enough here: jobs are serialised per
-			// router and the directory is wiped on reboot.
-			const id = sprintf('%x%x', time(), getpid());
+			// ucode has no getpid(), so the id is the clock plus a random
+			// suffix, retried until it names a file that does not exist.
+			//
+			// An earlier version called getpid() — which does not exist in
+			// ucode either — and the resulting exception failed *every*
+			// job_start with a bare "Unknown error", including the deploy
+			// button. Nothing in the log said which call was at fault.
+			srand(time());
+			let id = null;
+			for (let attempt = 0; attempt < 16; attempt++) {
+				const candidate = sprintf('%x%04x', time(), rand() % 0x10000);
+				if (!stat(RUNDIR + '/' + candidate + '.status')) {
+					id = candidate;
+					break;
+				}
+			}
+			if (!id)
+				return { error: 'could not allocate a job id' };
 
 			const logPath = jobPath(id, '.log');
 			const statusPath = jobPath(id, '.status');
-			if (!logPath || !statusPath)
+			const argsPath = jobPath(id, '.args');
+			if (!logPath || !statusPath || !argsPath)
 				return { error: 'could not allocate a job id' };
+
+			// Job arguments carry the SSH password, so they are handed to the
+			// worker through a file and only the path is ever spoken aloud.
+			//
+			// The obvious `printf '%s' <args> | worker` does not work here: it
+			// keeps the password out of the *worker's* argv but puts it in the
+			// argv of the intermediate shell, where any local process can read
+			// it from /proc/<pid>/cmdline. That was verified on a live router,
+			// not assumed — a grep for the secret across /proc matches that
+			// shell for as long as it lives.
+			//
+			// RUNDIR is on tmpfs, so this file is RAM only and never reaches
+			// flash, and the worker unlinks it the moment it has been read.
+			const fd = open(argsPath, 'w', 0o600);
+			if (!fd)
+				return { error: 'could not stage the job arguments' };
+			fd.write(req.args?.args ?? '');
+			fd.close();
 
 			// setsid detaches the worker from rpcd's process group, so it
 			// survives the 30-second timeout that is about to end this call.
-			//
-			// Arguments go on the worker's stdin, never in argv: /proc/*/cmdline
-			// is readable by every local process, and a deploy carries an SSH
-			// password.
-			const cmd = sprintf(
-				"printf '%%s' %s | setsid %s %s %s %s >/dev/null 2>&1 &",
-				shellQuote(req.args?.args ?? ''),
-				WORKER, shellQuote(kind), shellQuote(logPath), shellQuote(statusPath)
-			);
+			const cmd = sprintf('setsid %s %s %s %s %s >/dev/null 2>&1 &',
+				WORKER, shellQuote(kind), shellQuote(logPath),
+				shellQuote(statusPath), shellQuote(argsPath));
 
 			const proc = popen(cmd, 'r');
-			if (!proc)
+			if (!proc) {
+				unlink(argsPath);
 				return { error: 'could not start the job worker' };
+			}
 			proc.close();
 
 			return { id: id };
@@ -212,5 +243,22 @@ const methods = {
 		}
 	}
 };
+
+// An uncaught exception in a method reaches the browser as a bare "Unknown
+// error" and writes nothing to the log — there is no indication of which call
+// failed, or that a call failed at all rather than the object being missing.
+// A getpid() typo hid behind that message and broke every job on this backend.
+//
+// Wrapping the methods turns any such crash into a message the UI can show.
+for (let name in methods) {
+	const inner = methods[name].call;
+	methods[name].call = function(req) {
+		try {
+			return inner(req);
+		} catch (e) {
+			return { error: 'openfrp backend: ' + e };
+		}
+	};
+}
 
 return { 'luci.openfrp': methods };

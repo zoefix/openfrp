@@ -25,7 +25,13 @@ PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
 GO_PKG:=github.com/zoefix/openfrp
-GO_PKG_BUILD_PKG:=github.com/zoefix/openfrp/cmd/openfrpc
+# Both binaries. openfrps is not run on the router — it is the payload the SSH
+# provisioner uploads, so a deployment works with no outbound internet on the
+# server and installs bytes this router checksummed. It is built for the
+# router's own architecture, so it only fits a server of the same kind; the
+# deployer checks the ELF machine type and falls back to a download when it
+# does not match.
+GO_PKG_BUILD_PKG:=github.com/zoefix/openfrp/cmd/...
 GO_PKG_LDFLAGS:=-s -w
 GO_PKG_LDFLAGS_X:=github.com/zoefix/openfrp/internal/version.Version=$(PKG_VERSION)
 
@@ -75,6 +81,9 @@ define Package/openfrp/install
 
 	$(INSTALL_DIR) $(1)/usr/libexec/openfrp
 	$(INSTALL_BIN) ./files/openfrp-render $(1)/usr/libexec/openfrp/render
+
+	$(INSTALL_DIR) $(1)/usr/lib/openfrp
+	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/openfrps $(1)/usr/lib/openfrp/openfrps
 endef
 
 define Package/openfrp/postinst

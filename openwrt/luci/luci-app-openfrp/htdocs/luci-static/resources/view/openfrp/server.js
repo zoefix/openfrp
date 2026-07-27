@@ -187,13 +187,32 @@ return view.extend({
 		o = s.option(form.Value, 'user', _('SSH user'));
 		o.default = 'root';
 
+		o = s.option(form.ListValue, 'auth', _('Authentication'));
+		o.value('password', _('Password'));
+		o.value('key', _('Private key'));
+		o.default = 'password';
+		o.description = _('A password is typed in when you deploy and is never ' +
+			'stored on this router. A key is stronger, and the deployment can ' +
+			'install one for you.');
+
 		o = s.option(form.Value, 'key_path', _('Private key'),
-			_('Path to a key on this router. Recommended over a password.'));
+			_('Path to a key on this router.'));
 		o.placeholder = '/etc/openfrp/id_ed25519';
+		o.depends('auth', 'key');
 
 		o = s.option(form.Value, 'host_fingerprint', _('Host key fingerprint'),
 			_('Recorded on first connection and checked afterwards.'));
 		o.readonly = true;
+
+		o = s.option(form.Value, 'binary_path', _('Server binary'),
+			_('Uploaded to the server. Works without outbound internet there, ' +
+			  'and installs the exact bytes this router checksummed.'));
+		o.placeholder = '/usr/lib/openfrp/openfrps';
+
+		o = s.option(form.Value, 'release_url', _('Download URL'),
+			_('Used when the file above is missing. {arch} and {os} are ' +
+			  'substituted with what the server turns out to be.'));
+		o.placeholder = 'https://example.com/openfrps_{os}_{arch}';
 
 		o = s.option(form.Button, '_deploy', _('Deploy'));
 		o.inputtitle = _('Deploy now');
@@ -209,41 +228,112 @@ return view.extend({
 				return;
 			}
 
-			// The password, if one is used, is prompted for here and passed
-			// straight through to the job. It is never written to UCI and
-			// never appears in a command line.
-			ui.showModal(_('Deploy server'), [
-				E('p', {}, _('Deploying to %s. This can take a few minutes.').format(host)),
-				E('div', { 'class': 'right' }, [
-					E('button', {
-						'class': 'btn',
-						'click': ui.hideModal
-					}, _('Cancel')),
-					' ',
-					E('button', {
-						'class': 'btn cbi-button-positive',
-						'click': function () {
-							ui.hideModal();
-							var args = JSON.stringify({
-								host: host,
-								port: uci.get('openfrp', 'deploy', 'port') || '22',
-								user: uci.get('openfrp', 'deploy', 'user') || 'root',
-								key_path: uci.get('openfrp', 'deploy', 'key_path') || ''
-							});
-							callJobStart('deploy', args).then(function (res) {
-								if (!res || res.error) {
-									ui.addNotification(null, E('p', {},
-										_('Could not start the deployment: %s')
-											.format((res && res.error) || _('no response'))),
-										'error');
-									return;
-								}
-								showJobModal(_('Deploying server'), res.id);
-							});
-						}
-					}, _('Start'))
-				])
-			]);
+			// The password is prompted for here and handed straight to the job.
+			// It is deliberately not a UCI option: LuCI's o.password only masks
+			// a field on screen, and the value behind it sits in /etc/config in
+			// plain text where it survives backups and firmware upgrades. Asked
+			// for each deployment, it never reaches disk at all.
+			var usesPassword = (uci.get('openfrp', 'deploy', 'auth') || 'password') === 'password';
+
+			var passwordInput = E('input', {
+				'type': 'password',
+				'class': 'cbi-input-password',
+				'style': 'width:100%',
+				'autocomplete': 'off',
+				'placeholder': _('SSH password for %s@%s')
+					.format(uci.get('openfrp', 'deploy', 'user') || 'root', host)
+			});
+
+			function start() {
+				var password = passwordInput.value;
+
+				if (usesPassword && !password) {
+					ui.addNotification(null,
+						E('p', {}, _('Enter the SSH password.')), 'warning');
+					return;
+				}
+
+				ui.hideModal();
+
+				var args = {
+					host: host,
+					port: parseInt(uci.get('openfrp', 'deploy', 'port') || '22', 10),
+					user: uci.get('openfrp', 'deploy', 'user') || 'root'
+				};
+
+				if (usesPassword)
+					args.password = password;
+				else if (uci.get('openfrp', 'deploy', 'key_path'))
+					args.key_path = uci.get('openfrp', 'deploy', 'key_path');
+
+				// Sent back so a repeat deployment authenticates the server
+				// instead of trusting it afresh.
+				if (uci.get('openfrp', 'deploy', 'host_fingerprint'))
+					args.host_fingerprint = uci.get('openfrp', 'deploy', 'host_fingerprint');
+
+				// Keep the provisioned server consistent with what this client
+				// is configured to expect. Re-deploying with the existing token
+				// is what makes the operation an in-place upgrade rather than a
+				// re-key that silently orphans the client.
+				if (uci.get('openfrp', 'server', 'token'))
+					args.token = uci.get('openfrp', 'server', 'token');
+				if (uci.get('openfrp', 'server', 'port'))
+					args.bind_port = parseInt(uci.get('openfrp', 'server', 'port'), 10);
+
+				args.local_binary = uci.get('openfrp', 'deploy', 'binary_path') ||
+					'/usr/lib/openfrp/openfrps';
+				if (uci.get('openfrp', 'deploy', 'release_url'))
+					args.release_url = uci.get('openfrp', 'deploy', 'release_url');
+
+				// The backend rejects unknown fields, so nothing beyond this
+				// set may be added here without a matching change in
+				// cmd/openfrpc/cmd/deploy.go.
+				callJobStart('deploy', JSON.stringify(args)).then(function (res) {
+					// Drop the password as soon as it has been handed over.
+					password = null;
+					passwordInput.value = '';
+
+					if (!res || res.error) {
+						ui.addNotification(null, E('p', {},
+							_('Could not start the deployment: %s')
+								.format((res && res.error) || _('no response'))),
+							'error');
+						return;
+					}
+					showJobModal(_('Deploying server'), res.id);
+				});
+			}
+
+			var body = [
+				E('p', {}, _('Deploying to %s. This can take a few minutes.').format(host))
+			];
+
+			if (usesPassword) {
+				body.push(E('div', { 'class': 'cbi-value' }, [
+					E('label', { 'class': 'cbi-value-title' }, _('SSH password')),
+					E('div', { 'class': 'cbi-value-field' }, [
+						passwordInput,
+						E('div', { 'class': 'cbi-value-description' },
+							_('Used for this deployment only. It is not saved.'))
+					])
+				]));
+				// Enter should submit, as it would in any login prompt.
+				passwordInput.addEventListener('keydown', function (ev) {
+					if (ev.key === 'Enter')
+						start();
+				});
+			}
+
+			body.push(E('div', { 'class': 'right' }, [
+				E('button', { 'class': 'btn', 'click': ui.hideModal }, _('Cancel')),
+				' ',
+				E('button', { 'class': 'btn cbi-button-positive', 'click': start }, _('Start'))
+			]));
+
+			ui.showModal(_('Deploy server'), body);
+
+			if (usesPassword)
+				passwordInput.focus();
 		};
 
 		return m.render();

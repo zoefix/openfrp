@@ -86,6 +86,16 @@ record_result() {
 
 	uci -q commit openfrp
 	log "==> token and connection settings saved"
+
+	# The running client still holds the previous token in memory. A
+	# deployment that re-keys the server would otherwise leave it retrying
+	# forever against "authentication failed", with the config on disk
+	# perfectly correct and only the process wrong — which reads like a
+	# rejected credential rather than a stale one.
+	if /etc/init.d/openfrp enabled 2>/dev/null; then
+		/etc/init.d/openfrp reload >/dev/null 2>&1
+		log "==> reloaded the client so it picks up the new settings"
+	fi
 }
 
 write_status running

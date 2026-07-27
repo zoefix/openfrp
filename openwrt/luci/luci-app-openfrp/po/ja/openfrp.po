@@ -738,3 +738,12 @@ msgstr "デプロイが完了していません — トークンがまだあり�
 
 msgid "No token — this server cannot be reached"
 msgstr "トークンがありません — このサーバーには接続できません"
+
+msgid "Issued. Deploying it to the server…"
+msgstr "発行しました。サーバーへ配布しています…"
+
+msgid "Issued, bound, and deployed to the server."
+msgstr "発行・紐付け・サーバーへの配布が完了しました。"
+
+msgid "Issued and bound, but applying it failed: %s"
+msgstr "発行と紐付けは完了しましたが、適用に失敗しました: %s"

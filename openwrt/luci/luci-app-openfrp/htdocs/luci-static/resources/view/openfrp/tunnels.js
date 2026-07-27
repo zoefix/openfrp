@@ -63,7 +63,7 @@ function certCall(action, params, payload) {
 // which DNS account proves it. Everything else is inferred: a previous order's
 // address is reused, and a single name is validated over HTTP, which needs no
 // credentials at all.
-function requestCertificate(section_id, domains, accounts, lastEmail) {
+function requestCertificate(view, section_id, domains, accounts, lastEmail) {
 	var wildcard = domains.some(function (d) { return d.indexOf('*') === 0; });
 
 	var emailInput = E('input', {
@@ -193,9 +193,27 @@ function requestCertificate(section_id, domains, accounts, lastEmail) {
 				// else, so leaving them unlinked would be busywork with a
 				// chance of choosing the wrong one.
 				uci.set('openfrp', section_id, 'cert_id', String(orderId));
+
+				// Issued is not the same as serving. The server is handed a
+				// certificate by the daemon, and the daemon only knows which
+				// tunnel uses which one after it has reloaded — so a binding
+				// left staged is a certificate that exists and protects
+				// nothing. Applying is the rest of the one click.
+				statusLine.textContent = _('Issued. Deploying it to the server…');
+
 				uci.save().then(function () {
+					return uci.apply();
+				}).then(function () {
 					statusLine.textContent =
-						_('Issued and bound to this tunnel. Save and apply to use it.');
+						_('Issued, bound, and deployed to the server.');
+					// The row still offers to request one until it re-reads
+					// the binding that now exists.
+					if (view && view.reload)
+						view.reload();
+				}).catch(function (err) {
+					statusLine.textContent =
+						_('Issued and bound, but applying it failed: %s')
+							.format((err && err.message) || err);
 				});
 			});
 		}
@@ -289,8 +307,25 @@ return view.extend({
 		]);
 	},
 
+	// reload re-reads UCI and re-renders. Issuing a certificate binds it to a
+	// tunnel, so the row that offered to request one is out of date the moment
+	// it succeeds — and left alone it goes on offering, which is an invitation
+	// to order a duplicate the authority will refuse.
+	reload: function () {
+		var self = this;
+		uci.unload('openfrp');
+		return self.load().then(function (data) {
+			return self.render(data).then(function (node) {
+				var container = document.querySelector('#view');
+				if (container)
+					dom.content(container, node);
+			});
+		});
+	},
+
 	render: function (data) {
 		var m, s, o;
+		var self = this;
 		var certificates = data[1] || [];
 		var accounts = data[2] || [];
 
@@ -359,7 +394,7 @@ return view.extend({
 					_('Add a domain to this tunnel first.')), 'warning');
 				return false;
 			}
-			requestCertificate(section_id, domains, accounts, lastEmail);
+			requestCertificate(self, section_id, domains, accounts, lastEmail);
 			return false;
 		};
 

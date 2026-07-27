@@ -738,3 +738,12 @@ msgstr "部署未完成 — 還沒有權杖"
 
 msgid "No token — this server cannot be reached"
 msgstr "沒有權杖 — 無法連線此伺服器"
+
+msgid "Issued. Deploying it to the server…"
+msgstr "已簽發,正在部署到伺服器…"
+
+msgid "Issued, bound, and deployed to the server."
+msgstr "已簽發、已綁定,並已部署到伺服器。"
+
+msgid "Issued and bound, but applying it failed: %s"
+msgstr "已簽發並綁定,但套用失敗:%s"

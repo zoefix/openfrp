@@ -738,3 +738,12 @@ msgstr "部署未完成 — 还没有令牌"
 
 msgid "No token — this server cannot be reached"
 msgstr "没有令牌 — 无法连接此服务器"
+
+msgid "Issued. Deploying it to the server…"
+msgstr "已签发,正在部署到服务端…"
+
+msgid "Issued, bound, and deployed to the server."
+msgstr "已签发、已绑定,并已部署到服务端。"
+
+msgid "Issued and bound, but applying it failed: %s"
+msgstr "已签发并绑定,但应用失败:%s"

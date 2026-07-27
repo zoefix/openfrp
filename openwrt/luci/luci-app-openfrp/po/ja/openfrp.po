@@ -100,6 +100,9 @@ msgstr "両方の入力が必要です。"
 msgid "Cancel"
 msgstr "キャンセル"
 
+msgid "Certificate"
+msgstr "証明書"
+
 msgid "Certificate management is unavailable."
 msgstr "証明書管理は利用できません。"
 
@@ -337,6 +340,9 @@ msgstr "DNS アカウントがまだありません。追加するとレコー�
 msgid "No DNS providers are available."
 msgstr "利用できる DNS プロバイダがありません。"
 
+msgid "No certificates have been issued yet. Request one on the Certificates page first."
+msgstr "まだ証明書が発行されていません。先に証明書ページで申請してください。"
+
 msgid "No certificates yet."
 msgstr "証明書はまだありません。"
 
@@ -348,6 +354,9 @@ msgstr "トンネルがまだ設定されていません。"
 
 msgid "None"
 msgstr "なし"
+
+msgid "None — TLS will not work until one is bound"
+msgstr "なし — 紐付けるまで TLS は機能しません"
 
 msgid "Not issued yet"
 msgstr "未発行"
@@ -387,6 +396,9 @@ msgstr "プロバイダ"
 
 msgid "Provision the server"
 msgstr "サーバーの構築"
+
+msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
+msgstr "サーバーへ配布して接続を切らずに読み込みます。証明書を紐付けたトンネルだけが配布対象です。"
 
 msgid "Recent log"
 msgstr "最近のログ"

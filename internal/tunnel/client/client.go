@@ -40,6 +40,14 @@ type Client struct {
 	// so the server recognises us rather than counting a second client.
 	mu    sync.Mutex
 	runID string
+
+	// certs resolves the certificate a tunnel is bound to. Optional: without
+	// it, tunnels terminating TLS rely on whatever the server already holds.
+	certs CertSource
+
+	// pushedCerts records what the current session has already sent, so the
+	// renewal watcher only speaks when something actually changed.
+	pushedCerts pushed
 }
 
 // New builds a client from cfg.

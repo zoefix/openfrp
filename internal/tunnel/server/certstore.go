@@ -182,11 +182,28 @@ func (s *CertStore) Entries() []Entry {
 }
 
 // TLSConfig returns a config that serves from this store.
+// TLSConfig is the configuration used for edge termination.
+//
+// HTTP/1.1 only, deliberately. Terminating here decrypts the stream and then
+// relays the plaintext to the tunnel unchanged — this is a byte pipe, not an
+// HTTP server. Advertising h2 promises the visitor a protocol on this end of a
+// connection whose other end was never asked whether it speaks it, and the
+// visitor's h2 frames then land on whatever the LAN service happens to be.
+//
+// That is not theoretical: against an nginx backend it negotiated h2, forwarded
+// the HTTP/2 preface, and nginx answered 421 Misdirected Request. Over HTTP/1.1
+// the same request returned 200. A browser shows the 421, so the failure looks
+// like a broken site rather than a protocol the proxy should not have offered.
+//
+// Offering h2 would mean either knowing the backend speaks h2c, or terminating
+// HTTP/2 properly and re-issuing HTTP/1.1 requests — which would make this a
+// real proxy and cost the splice path that edge termination already gives up
+// enough of.
 func (s *CertStore) TLSConfig() *tls.Config {
 	return &tls.Config{
 		GetCertificate: s.GetCertificate,
 		MinVersion:     tls.VersionTLS12,
-		NextProtos:     []string{"h2", "http/1.1"},
+		NextProtos:     []string{"http/1.1"},
 	}
 }
 

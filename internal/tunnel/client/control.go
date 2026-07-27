@@ -35,16 +35,36 @@ type session struct {
 // serve publishes the configured tunnels and runs the control loop.
 func (s *session) serve(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
-	// Wait for every work connection goroutine before returning, so a
-	// reconnect does not race the previous session's stragglers.
+	// Order matters, and defers run last-registered-first: this cancels and
+	// then waits.
+	//
+	// Waiting first deadlocks the moment any goroutine's only exit is the
+	// cancellation — it would never arrive, and the client would sit alive
+	// with no connection, never reconnecting and logging nothing at all. The
+	// heartbeat happened to survive that ordering because its next write fails
+	// on a dead socket and it returns on its own; the certificate watcher has
+	// no such accident to rely on.
 	defer s.wg.Wait()
+	defer cancel()
 
 	s.tunnels = make(map[string]config.Tunnel)
 	if err := s.publishTunnels(); err != nil {
 		return err
 	}
+
+	// Certificates go up after the tunnels exist on the server, so the store
+	// is populated before the first request can arrive for one of them. The
+	// record of what was sent is cleared first: this is a new session, and the
+	// server it belongs to holds nothing yet.
+	s.client.pushedCerts.reset()
+	s.client.pushCertificates(ctx, s)
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.client.watchCertificates(ctx, s)
+	}()
 
 	s.wg.Add(1)
 	go func() {

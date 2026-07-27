@@ -100,6 +100,9 @@ msgstr "兩項都必須填寫。"
 msgid "Cancel"
 msgstr "取消"
 
+msgid "Certificate"
+msgstr "憑證"
+
 msgid "Certificate management is unavailable."
 msgstr "憑證管理不可用。"
 
@@ -337,6 +340,9 @@ msgstr "還沒有 DNS 帳號。新增一個即可管理解析記錄並簽發泛�
 msgid "No DNS providers are available."
 msgstr "沒有可用的 DNS 服務商。"
 
+msgid "No certificates have been issued yet. Request one on the Certificates page first."
+msgstr "還沒有簽發任何憑證。請先到憑證頁面申請一張。"
+
 msgid "No certificates yet."
 msgstr "還沒有憑證。"
 
@@ -348,6 +354,9 @@ msgstr "尚未設定任何通道。"
 
 msgid "None"
 msgstr "無"
+
+msgid "None — TLS will not work until one is bound"
+msgstr "無 — 未綁定憑證前 TLS 無法運作"
 
 msgid "Not issued yet"
 msgstr "尚未簽發"
@@ -387,6 +396,9 @@ msgstr "服務商"
 
 msgid "Provision the server"
 msgstr "部署伺服器"
+
+msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
+msgstr "推送到伺服器熱載入，不會斷開任何連線。只有綁定了憑證的通道才會推送。"
 
 msgid "Recent log"
 msgstr "最近日誌"

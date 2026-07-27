@@ -71,6 +71,17 @@ termination — where the router issues the certificate and pushes it up — is
 available per tunnel via `tls_mode`, and costs `splice(2)` for that connection
 since a decrypting proxy cannot hand the kernel a raw socket.
 
+A tunnel that terminates TLS names the certificate it uses, and only a bound
+tunnel has one pushed. With several certificates on file, choosing one
+automatically would eventually serve the wrong name — which a browser reports
+to the visitor as an impersonation attempt, not as a misconfiguration.
+
+Termination offers **HTTP/1.1 only**. The decrypted stream is relayed to the
+LAN service unchanged, so whatever is negotiated here is spoken directly at
+that service; advertising HTTP/2 promises a protocol the other end was never
+asked about. Measured against a real nginx backend, doing so returned 421
+where HTTP/1.1 returned 200.
+
 ## Why it is faster than frp
 
 frp has three structural bottlenecks. Each one is addressed by a specific
@@ -258,9 +269,9 @@ by the consumer; `pkg/` free of business logic.
 - **DNS and certificate management need SQLite, which has no MIPS port.** On a
   MIPS router those two pages report themselves unavailable; tunnels are
   unaffected.
-- Certificates are pushed to the server and hot-loaded, but the tunnel-side
-  `tls_mode: terminate` wiring has not been exercised against a real
-  certificate end to end.
+- Renewal reaches a running client by polling the database once a minute
+  rather than being told, because issuance runs in a separate process. A
+  renewed certificate is therefore live within a minute, not instantly.
 
 ## If the client cannot connect
 

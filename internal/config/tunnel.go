@@ -56,6 +56,16 @@ type Tunnel struct {
 	// TLSMode applies to https tunnels. Defaults to passthrough.
 	TLSMode TLSMode `json:"tls_mode,omitempty"`
 
+	// CertID binds an issued certificate to this tunnel, by the id it has in
+	// the local database.
+	//
+	// Only a bound tunnel has a certificate pushed to the server. Terminating
+	// TLS without one is an unfinished configuration rather than an invitation
+	// to guess which of several certificates was meant — and guessing wrong
+	// serves the wrong name, which a browser reports as an impersonation
+	// attempt.
+	CertID int `json:"cert_id,omitempty"`
+
 	// SecretKey authenticates visitors to an stcp tunnel.
 	SecretKey string `json:"secret_key,omitempty"`
 }

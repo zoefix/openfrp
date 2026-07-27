@@ -100,6 +100,9 @@ msgstr "两项都必须填写。"
 msgid "Cancel"
 msgstr "取消"
 
+msgid "Certificate"
+msgstr "证书"
+
 msgid "Certificate management is unavailable."
 msgstr "证书管理不可用。"
 
@@ -337,6 +340,9 @@ msgstr "还没有 DNS 账号。添加一个即可管理解析记录并签发泛�
 msgid "No DNS providers are available."
 msgstr "没有可用的 DNS 服务商。"
 
+msgid "No certificates have been issued yet. Request one on the Certificates page first."
+msgstr "还没有签发任何证书。请先到证书页面申请一张。"
+
 msgid "No certificates yet."
 msgstr "还没有证书。"
 
@@ -348,6 +354,9 @@ msgstr "尚未配置任何隧道。"
 
 msgid "None"
 msgstr "无"
+
+msgid "None — TLS will not work until one is bound"
+msgstr "无 — 未绑定证书前 TLS 无法工作"
 
 msgid "Not issued yet"
 msgstr "尚未签发"
@@ -387,6 +396,9 @@ msgstr "服务商"
 
 msgid "Provision the server"
 msgstr "部署服务端"
+
+msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
+msgstr "推送到服务端热加载，不会断开任何连接。只有绑定了证书的隧道才会推送。"
 
 msgid "Recent log"
 msgstr "最近日志"

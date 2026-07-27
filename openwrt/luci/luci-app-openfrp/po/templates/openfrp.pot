@@ -9,16 +9,17 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:36
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:62
 msgid "\"*\" is only allowed as the leftmost label"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:41
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:67
 msgid "\"*\" must be a whole label, not part of one"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:78
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:81
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:180
 msgid "%d days left"
 msgstr ""
 
@@ -38,7 +39,7 @@ msgstr ""
 msgid "%s is required"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:45
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:71
 msgid "%s is too broad; a wildcard needs a domain beneath it"
 msgstr ""
 
@@ -64,18 +65,18 @@ msgstr ""
 msgid "%s needs external account binding credentials."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:60
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:90
 msgid ""
 "A \"*\" label matches exactly one level and may appear at any depth: "
 "*.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win "
 "over wildcards, and deeper wildcards win over shallower ones."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:26
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:52
 msgid "A domain needs at least two labels, for example aaa.com"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:83
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:113
 msgid "A name is required"
 msgstr ""
 
@@ -119,7 +120,7 @@ msgid ""
 "replace them."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:94
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:124
 msgid "Another tunnel already uses the name %s"
 msgstr ""
 
@@ -161,6 +162,10 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:328
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:62
 msgid "Cancel"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:169
+msgid "Certificate"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:511
@@ -309,7 +314,7 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:103
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:298
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:123
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:153
 msgid "Domains"
 msgstr ""
 
@@ -327,7 +332,7 @@ msgstr ""
 msgid "EAB key ID"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:59
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:89
 msgid "Each tunnel exposes one local service through the server."
 msgstr ""
 
@@ -344,7 +349,7 @@ msgstr ""
 msgid "Edit record"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:32
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:58
 msgid "Empty label in %s"
 msgstr ""
 
@@ -353,7 +358,7 @@ msgid "Enable OpenFrp"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:105
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:74
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:104
 msgid "Enabled"
 msgstr ""
 
@@ -437,7 +442,7 @@ msgstr ""
 msgid "Key type"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:118
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:148
 msgid "Leave empty to let the server allocate one."
 msgstr ""
 
@@ -457,11 +462,11 @@ msgstr ""
 msgid "Loading zones…"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:107
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:137
 msgid "Local address"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:113
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:143
 msgid "Local port"
 msgstr ""
 
@@ -494,7 +499,7 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:289
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:368
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:84
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:78
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:108
 msgid "Name"
 msgstr ""
 
@@ -514,6 +519,12 @@ msgstr ""
 msgid "No DNS providers are available."
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:184
+msgid ""
+"No certificates have been issued yet. Request one on the Certificates "
+"page first."
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:100
 msgid "No certificates yet."
 msgstr ""
@@ -529,6 +540,10 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:169
 msgid "None"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:173
+msgid "None — TLS will not work until one is bound"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:89
@@ -557,14 +572,14 @@ msgstr ""
 msgid "Overview"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:135
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:165
 msgid ""
 "Passthrough forwards the encrypted stream untouched, so the local "
 "service owns the certificate. Termination requires a certificate issued "
 "here and pushed to the server."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:132
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:162
 msgid "Passthrough — the server does not decrypt"
 msgstr ""
 
@@ -576,7 +591,7 @@ msgstr ""
 msgid "Path to a key on this router."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:124
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:154
 msgid "Patterns routed to this tunnel over the shared HTTP and HTTPS ports."
 msgstr ""
 
@@ -592,6 +607,12 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:175
 msgid "Provision the server"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:170
+msgid ""
+"Pushed to the server and hot-loaded, without dropping a connection. "
+"Only a bound tunnel has its certificate pushed."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:162
@@ -610,7 +631,7 @@ msgstr ""
 msgid "Records in %s"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:117
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:147
 msgid "Remote port"
 msgstr ""
 
@@ -683,11 +704,11 @@ msgstr ""
 msgid "Saved — leave blank to keep"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:104
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:134
 msgid "Secret TCP"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:139
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:187
 msgid "Secret key"
 msgstr ""
 
@@ -737,7 +758,7 @@ msgid ""
 "value."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:130
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:160
 msgid "TLS handling"
 msgstr ""
 
@@ -750,7 +771,7 @@ msgstr ""
 msgid "TTL"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:133
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:163
 msgid "Terminate at the server (needs a pushed certificate)"
 msgstr ""
 
@@ -762,7 +783,7 @@ msgstr ""
 msgid "Testing credentials"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:108
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:138
 msgid "The LAN host running the service."
 msgstr ""
 
@@ -805,20 +826,20 @@ msgstr ""
 msgid "Transport"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:71
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:101
 msgid "Tunnel"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:110
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:79
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:58
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:88
 msgid "Tunnels"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:290
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:369
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:85
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:99
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:129
 msgid "Type"
 msgstr ""
 
@@ -828,7 +849,7 @@ msgid ""
 "installs the exact bytes this router checksummed."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:85
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:115
 msgid "Use letters, digits, dot, dash or underscore only"
 msgstr ""
 
@@ -847,7 +868,7 @@ msgstr ""
 msgid "Value"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:140
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:188
 msgid "Visitors must present this to reach the tunnel."
 msgstr ""
 
@@ -901,6 +922,6 @@ msgstr ""
 msgid "the request failed"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:71
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:101
 msgid "unnamed"
 msgstr ""

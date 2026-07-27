@@ -2,6 +2,7 @@
 'require view';
 'require form';
 'require uci';
+'require rpc';
 'require ui';
 
 /*
@@ -10,7 +11,32 @@
  * Domain patterns are validated here as well as in the daemon. The daemon is
  * the authority, but a rejected pattern there surfaces as a log line the user
  * has to go looking for, whereas catching it in the form points at the field.
+ *
+ * A tunnel that terminates TLS names the certificate it uses. Only a bound
+ * tunnel has its certificate pushed to the server: with several certificates
+ * on file, picking one automatically would sooner or later serve the wrong
+ * name, which a browser reports to the visitor as an impersonation attempt.
  */
+
+var callCert = rpc.declare({
+	object: 'luci.openfrp',
+	method: 'cert',
+	params: ['action', 'params', 'payload'],
+	expect: {}
+});
+
+// issuedCertificates lists what a tunnel may be bound to. Only issued ones:
+// binding to an order that has never been issued would produce a tunnel that
+// looks configured and cannot serve TLS.
+function issuedCertificates() {
+	return callCert('orders', {}, '').then(function (res) {
+		if (!res || res.error || res.ok === false)
+			return [];
+		return (res.data || []).filter(function (order) {
+			return order.state === 'issued';
+		});
+	}).catch(function () { return []; });
+}
 
 // A "*" label matches exactly one level and may appear only leftmost.
 function validateDomainPattern(section_id, value) {
@@ -49,11 +75,15 @@ function validateDomainPattern(section_id, value) {
 
 return view.extend({
 	load: function () {
-		return uci.load('openfrp');
+		return Promise.all([
+			uci.load('openfrp'),
+			issuedCertificates()
+		]);
 	},
 
-	render: function () {
+	render: function (data) {
 		var m, s, o;
+		var certificates = data[1] || [];
 
 		m = new form.Map('openfrp', _('Tunnels'),
 			_('Each tunnel exposes one local service through the server.') + ' ' +
@@ -135,6 +165,24 @@ return view.extend({
 		o.description = _('Passthrough forwards the encrypted stream untouched, so the ' +
 			'local service owns the certificate. Termination requires a certificate ' +
 			'issued here and pushed to the server.');
+
+		o = s.option(form.ListValue, 'cert_id', _('Certificate'),
+			_('Pushed to the server and hot-loaded, without dropping a ' +
+			  'connection. Only a bound tunnel has its certificate pushed.'));
+		o.depends('tls_mode', 'terminate');
+		o.value('', _('None — TLS will not work until one is bound'));
+
+		certificates.forEach(function (order) {
+			// The expiry is worth showing at the point of choosing: two
+			// certificates often cover the same names and only one is current.
+			o.value(String(order.id), order.domains.join(', ') +
+				' (' + order.ca_label + ', ' +
+				_('%d days left').format(order.days_remaining) + ')');
+		});
+
+		if (!certificates.length)
+			o.description = _('No certificates have been issued yet. Request one ' +
+				'on the Certificates page first.');
 
 		o = s.option(form.Value, 'secret_key', _('Secret key'),
 			_('Visitors must present this to reach the tunnel.'));

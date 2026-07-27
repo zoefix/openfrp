@@ -451,12 +451,6 @@ msgstr "PROXY 协议 v1（文本）"
 msgid "PROXY protocol v2 (binary)"
 msgstr "PROXY 协议 v2（二进制）"
 
-msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Termination requires a certificate issued here and pushed to the server."
-msgstr "透传会原样转发加密流量，证书由内网服务自己持有。终止则需要在本机签发证书并推送到服务端。"
-
-msgid "Passthrough — the server does not decrypt"
-msgstr "透传 — 服务端不解密"
-
 msgid "Password"
 msgstr "密码"
 
@@ -752,3 +746,9 @@ msgstr "不开启的话，内网服务会把每个访客都记成本路由器。
 
 msgid "Decrypted by the remote server"
 msgstr "由远端服务器解密"
+
+msgid "Passthrough — the remote server does not decrypt"
+msgstr "透传 — 远端服务器不解密"
+
+msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
+msgstr "透传会原样转发加密流量，证书由内网服务自己持有。由远端服务器解密则需要在本机签发证书并推送过去。"

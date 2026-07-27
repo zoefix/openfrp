@@ -486,12 +486,12 @@ return view.extend({
 
 		o = s.option(form.ListValue, 'tls_mode', _('TLS handling'));
 		o.depends({ type: 'http', https: '1' });
-		o.value('passthrough', _('Passthrough — the server does not decrypt'));
+		o.value('passthrough', _('Passthrough — the remote server does not decrypt'));
 		o.value('terminate', _('Decrypted by the remote server'));
 		o.default = 'passthrough';
-		o.description = _('Passthrough forwards the encrypted stream untouched, so the ' +
-			'local service owns the certificate. Termination requires a certificate ' +
-			'issued here and pushed to the server.');
+		o.description = _('Passthrough forwards the encrypted stream untouched, so ' +
+			'the local service owns the certificate. Letting the remote server ' +
+			'decrypt needs a certificate issued here and pushed to it.');
 
 		o = s.option(form.ListValue, 'cert_id', _('Certificate'),
 			_('Pushed to the server and hot-loaded, without dropping a ' +

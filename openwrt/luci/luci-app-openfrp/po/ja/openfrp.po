@@ -451,12 +451,6 @@ msgstr "PROXY プロトコル v1 (テキスト)"
 msgid "PROXY protocol v2 (binary)"
 msgstr "PROXY プロトコル v2 (バイナリ)"
 
-msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Termination requires a certificate issued here and pushed to the server."
-msgstr "パススルーは暗号化されたままの通信をそのまま転送するため、証明書はローカルのサービスが持ちます。終端する場合は、ここで発行した証明書をサーバーへ配布する必要があります。"
-
-msgid "Passthrough — the server does not decrypt"
-msgstr "パススルー — サーバーは復号しません"
-
 msgid "Password"
 msgstr "パスワード"
 
@@ -752,3 +746,9 @@ msgstr "有効にしないと、ローカルサービスは全ての訪問者を
 
 msgid "Decrypted by the remote server"
 msgstr "リモートサーバーで復号化"
+
+msgid "Passthrough — the remote server does not decrypt"
+msgstr "パススルー — リモートサーバーは復号化しない"
+
+msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
+msgstr "パススルーは暗号化されたストリームをそのまま転送するため、証明書はローカルサービスが持ちます。リモートサーバーで復号化する場合は、ここで発行した証明書をそちらへ送る必要があります。"

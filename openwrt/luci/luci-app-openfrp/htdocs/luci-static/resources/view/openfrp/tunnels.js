@@ -298,15 +298,22 @@ return view.extend({
 		o.editable = true;
 		o.inputtitle = _('Request a certificate');
 		o.inputstyle = 'apply';
-		o.depends({ type: 'http', https: '1' });
+		// No depends. A dependency is resolved against the other options'
+		// widgets, and in a grid row only an editable option has one — the
+		// rest are plain text — so a dependency on the type could never be
+		// satisfied here and the button silently never appeared. The whole
+		// condition is decided below, against the configuration itself.
 		o.cfgvalue = function (section_id) {
 			// Only offered where it is the missing piece: an HTTPS tunnel that
 			// terminates TLS and has nothing bound cannot serve a request.
+			var type = uci.get('openfrp', section_id, 'type');
 			var https = uci.get('openfrp', section_id, 'https') === '1' ||
-				uci.get('openfrp', section_id, 'type') === 'https';
+				type === 'https';
 			var mode = uci.get('openfrp', section_id, 'tls_mode') || 'terminate';
 			var bound = uci.get('openfrp', section_id, 'cert_id');
 
+			if (type !== 'http' && type !== 'https')
+				return false;
 			if (!https || mode !== 'terminate' || bound)
 				return false;
 			return '';
@@ -380,8 +387,13 @@ return view.extend({
 		o.depends('type', 'http');
 		o.default = '0';
 		o.cfgvalue = function (section_id) {
-			if (uci.get('openfrp', section_id, 'https') !== null)
-				return uci.get('openfrp', section_id, 'https');
+			// Tested against what a stored flag looks like rather than against
+			// null: an option that was never written reads back as undefined,
+			// so a null check accepts it and the tunnel below reads as plain
+			// HTTP — which then overwrites its own type on the next save.
+			var stored = uci.get('openfrp', section_id, 'https');
+			if (stored === '1' || stored === '0')
+				return stored;
 			// A tunnel written before the two were merged.
 			return uci.get('openfrp', section_id, 'type') === 'https' ? '1' : '0';
 		};

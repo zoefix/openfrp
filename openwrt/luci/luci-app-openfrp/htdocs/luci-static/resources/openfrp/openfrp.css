@@ -33,6 +33,18 @@
  */
 .cbi-value-field > .cbi-value-description {
 	margin-top: 0.25em;
+
+	/*
+	 * A description is rendered as plain text — LuCI ignores anything else —
+	 * so the only structure available to it is the line break. Honouring
+	 * those lets a description that has to quote configuration set it out
+	 * line by line, instead of running it into a sentence where every
+	 * semicolon has to be picked out by eye. Descriptions written as one
+	 * paragraph are unaffected: there is nothing in them to honour. pre-wrap
+	 * rather than pre-line so an indented block keeps its indent, and long
+	 * lines still wrap rather than running off the side.
+	 */
+	white-space: pre-wrap;
 }
 
 @media screen and (max-width: 600px) {

@@ -512,9 +512,7 @@ return view.extend({
 			o.description = _('No certificates have been issued yet. Request one ' +
 				'on the Certificates page first.');
 
-		o = s.option(form.ListValue, 'proxy_protocol', _('Client IP'),
-			_('Without this the local service records every visitor as this ' +
-			  'router, because that is what connects to it.'));
+		o = s.option(form.ListValue, 'proxy_protocol', _('Client IP'));
 		o.modalonly = true;
 		o.value('', _('Not announced'));
 		o.value('v1', _('PROXY protocol v1 (text)'));
@@ -523,12 +521,25 @@ return view.extend({
 		o.depends('type', 'http');
 		o.depends('type', 'https');
 		o.depends('type', 'stcp');
-		o.description = _('Without this the local service records every visitor as ' +
-			'this router, because that is what connects to it. The service must be ' +
-			'configured to expect the header — it arrives where a request is ' +
-			'expected, so one that is not looking for it will refuse the connection. ' +
-			'For nginx: listen 80 proxy_protocol; set_real_ip_from <this router>; ' +
-			'real_ip_header proxy_protocol;');
+
+		// Written to be read in the order the work has to be done, because
+		// getting that order wrong takes the site down. The tunnel is a byte
+		// relay — it never rewrites a request, which is where its speed comes
+		// from — so the address has nowhere to go except ahead of the stream,
+		// and both ends have to agree about it before any traffic arrives.
+		o.description = _('Without this the local service records every visitor ' +
+			'as this router, because that is what connects to it.\n\n' +
+			'Configure the service first, then turn this on. The header arrives ' +
+			'where the request line is expected, so a service that is not looking ' +
+			'for it answers 400 to everything — and a service configured for it ' +
+			'while this is off waits for a header that never comes. Either way ' +
+			'the site is down until both agree, so change them together.\n\n' +
+			'For nginx, on the port this tunnel points at:\n' +
+			'    listen <port> proxy_protocol;\n' +
+			'    set_real_ip_from <this router\'s LAN address>;\n' +
+			'    real_ip_header proxy_protocol;\n\n' +
+			'Apache needs mod_remoteip and RemoteIPProxyProtocol On. Caddy, ' +
+			'Traefik and HAProxy each have their own switch for it.');
 
 		o = s.option(form.Value, 'secret_key', _('Secret key'),
 			_('Visitors must present this to reach the tunnel.'));

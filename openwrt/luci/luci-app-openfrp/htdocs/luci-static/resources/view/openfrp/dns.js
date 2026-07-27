@@ -50,7 +50,10 @@ var state = {
 	accounts: [],
 	// The account whose records are being browsed, and the zone within it.
 	account: null,
-	zone: null
+	zone: null,
+	// What the browsed account's provider supports, so the UI offers controls
+	// that exist rather than ones that fail on save.
+	capabilities: {}
 };
 
 function providerByKey(key) {
@@ -220,11 +223,16 @@ var recordsHolder = E('div', {});
 function browseAccount(account) {
 	state.account = account;
 	state.zone = null;
+	state.capabilities = {};
 	dom.content(recordsHolder, E('p', { 'class': 'spinning' }, _('Loading zones…')));
 
-	call('domains', { id: String(account.id) })
-		.then(function (domains) {
-			renderZones(domains || []);
+	Promise.all([
+		call('domains', { id: String(account.id) }),
+		call('capabilities', { id: String(account.id) }).catch(function () { return {}; })
+	])
+		.then(function (results) {
+			state.capabilities = results[1] || {};
+			renderZones(results[0] || []);
 		})
 		.catch(function (err) {
 			dom.content(recordsHolder, E('div', { 'class': 'alert-message warning' },
@@ -290,11 +298,22 @@ function recordsTable(records) {
 		E('th', { 'class': 'th' }, _('Type')),
 		E('th', { 'class': 'th' }, _('Value')),
 		E('th', { 'class': 'th' }, _('TTL')),
-		E('th', { 'class': 'th' }, _('Line')),
-		E('th', { 'class': 'th' }, '')
-	]);
+		E('th', { 'class': 'th' }, _('Line'))
+	].concat(state.capabilities.proxy
+		? [E('th', { 'class': 'th' }, _('Resolution'))] : []
+	).concat([E('th', { 'class': 'th' }, '')]));
 
 	var rows = records.map(function (record) {
+		var proxyCell = [];
+		if (state.capabilities.proxy) {
+			proxyCell = [E('td', { 'class': 'td' }, record.proxied
+				? E('span', {
+					'style': 'padding:2px 8px;border-radius:3px;' +
+						'background:#f38020;color:#fff;white-space:nowrap'
+				}, _('Proxied'))
+				: E('span', { 'style': 'opacity:0.7' }, _('DNS only')))];
+		}
+
 		return E('tr', { 'class': 'tr' }, [
 			E('td', { 'class': 'td' }, record.name || '@'),
 			E('td', { 'class': 'td' }, record.type),
@@ -303,7 +322,8 @@ function recordsTable(records) {
 				'style': 'word-break:break-all;max-width:24em'
 			}, record.value),
 			E('td', { 'class': 'td' }, String(record.ttl || '')),
-			E('td', { 'class': 'td' }, record.line || 'default'),
+			E('td', { 'class': 'td' }, record.line || 'default')
+		].concat(proxyCell).concat([
 			E('td', { 'class': 'td', 'style': 'text-align:right;white-space:nowrap' }, [
 				button(_('Edit'), 'cbi-button-action', function () {
 					recordDialog(record);
@@ -312,11 +332,15 @@ function recordsTable(records) {
 					deleteRecord(record);
 				})
 			])
-		]);
+		]));
 	});
 
 	return [E('table', { 'class': 'table' }, [head].concat(rows))];
 }
+
+// proxiableTypes are the record types an edge network can front. Offering the
+// control on others would produce a request the provider rejects.
+var proxiableTypes = ['A', 'AAAA', 'CNAME'];
 
 function recordDialog(existing) {
 	var editing = !!existing;
@@ -347,6 +371,44 @@ function recordDialog(existing) {
 		'value': existing ? existing.ttl : 600
 	});
 
+	// Resolution mode: through the provider's edge, or answering with the
+	// origin address. Only offered where the provider has the concept and only
+	// for record types it will accept it on.
+	var proxySelect = E('select', { 'class': 'cbi-input-select' }, [
+		E('option', { 'value': '0' }, _('DNS only — answer with this address')),
+		E('option', { 'value': '1' }, _('Proxied — route through the provider'))
+	]);
+	if (existing && existing.proxied)
+		proxySelect.value = '1';
+
+	var proxyHint = E('div', { 'class': 'cbi-value-description' }, '');
+	var proxyRow = E('div', { 'class': 'cbi-value' }, [
+		E('label', { 'class': 'cbi-value-title' }, _('Resolution')),
+		E('div', { 'class': 'cbi-value-field' }, [proxySelect, proxyHint])
+	]);
+
+	function refreshProxyRow() {
+		var applicable = state.capabilities.proxy &&
+			proxiableTypes.indexOf(typeSelect.value) !== -1;
+
+		proxyRow.style.display = applicable ? '' : 'none';
+		if (!applicable)
+			return;
+
+		// Worth stating at the point of choosing rather than in documentation
+		// nobody reads: a proxied name cannot carry a tunnel.
+		dom.content(proxyHint, proxySelect.value === '1'
+			? E('span', { 'style': 'color:#d9534f' },
+				_('A tunnel will not work through the proxy: it carries only ' +
+				  'HTTP and HTTPS on its own ports, and terminates TLS. Use ' +
+				  'DNS only for names that point at your tunnel server.'))
+			: _('The address is answered directly, which is what a tunnel needs.'));
+	}
+
+	typeSelect.addEventListener('change', refreshProxyRow);
+	proxySelect.addEventListener('change', refreshProxyRow);
+	refreshProxyRow();
+
 	function save() {
 		var record = {
 			name: nameInput.value,
@@ -355,6 +417,13 @@ function recordDialog(existing) {
 			ttl: parseInt(ttlInput.value, 10) || 600,
 			enabled: true
 		};
+
+		// Always sent when the provider supports it, never left out. Cloudflare
+		// replaces the whole record on write, so an omitted flag resets it and
+		// an edit of the TTL would quietly take the name off the edge.
+		if (state.capabilities.proxy && proxiableTypes.indexOf(typeSelect.value) !== -1)
+			record.proxied = proxySelect.value === '1';
+
 		if (editing)
 			record.id = existing.id;
 
@@ -369,6 +438,7 @@ function recordDialog(existing) {
 		field(_('Type'), typeSelect),
 		field(_('Value'), valueInput),
 		field(_('TTL'), ttlInput),
+		proxyRow,
 		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
 			button(_('Cancel'), '', ui.hideModal), ' ',
 			button(_('Save'), 'cbi-button-positive', save)

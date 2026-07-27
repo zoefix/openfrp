@@ -55,6 +55,21 @@ type Record struct {
 	Remark string `json:"remark,omitempty"`
 	// Enabled is false for a record the provider is holding but not serving.
 	Enabled bool `json:"enabled"`
+
+	// Proxied routes the name through the provider's edge network instead of
+	// answering with the origin address — Cloudflare's orange cloud. Nil where
+	// the provider has no such concept, or where the caller is not expressing
+	// an opinion.
+	//
+	// A pointer because "unspecified" and "off" mean different things on an
+	// update: providers that replace the whole record on write will reset an
+	// omitted flag, so an edit of the TTL would silently switch proxying off.
+	//
+	// A record pointing at a tunnel server must not be proxied. The edge only
+	// carries HTTP and HTTPS on its own set of ports, so proxying breaks
+	// non-standard ports outright and terminates TLS that this project routes
+	// on SNI without decrypting.
+	Proxied *bool `json:"proxied,omitempty"`
 }
 
 // FQDN renders the record's fully qualified name within a zone.
@@ -120,6 +135,9 @@ type Capabilities struct {
 	Weight bool `json:"weight"`
 	// Redirect is URL forwarding.
 	Redirect bool `json:"redirect"`
+	// Proxy is an edge network the record can be routed through, rather than
+	// answering with the origin address.
+	Proxy bool `json:"proxy"`
 	// AddZone is creating a zone through the API.
 	AddZone bool `json:"add_zone"`
 	// Paginated is false when the provider returns everything at once and the

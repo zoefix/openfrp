@@ -23,11 +23,11 @@ msgstr ""
 msgid "%d days left"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:196
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:199
 msgid "%d stored"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:155
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:158
 msgid "%s accepted the credentials."
 msgstr ""
 
@@ -80,7 +80,7 @@ msgstr ""
 msgid "A name is required"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:70
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:73
 msgid "A name you will recognise, for example aliyun-main"
 msgstr ""
 
@@ -90,27 +90,34 @@ msgid ""
 "router. A key is stronger, and the deployment can install one for you."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:438
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:402
+msgid ""
+"A tunnel will not work through the proxy: it carries only HTTP and "
+"HTTPS on its own ports, and terminates TLS. Use DNS only for names that "
+"point at your tunnel server."
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:508
 msgid "Accounts"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:433
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:503
 msgid ""
 "Accounts here are used to manage records and to prove domain ownership "
 "when issuing certificates. A wildcard certificate can only be issued "
 "through DNS, so it needs an account."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:128
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:131
 msgid "Add DNS account"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:441
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:511
 msgid "Add account"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:257
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:367
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:265
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:436
 msgid "Add record"
 msgstr ""
 
@@ -130,7 +137,7 @@ msgid ""
 "restarts."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:147
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:150
 msgid "Asking %s to confirm the credentials…"
 msgstr ""
 
@@ -155,10 +162,10 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:313
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:349
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:474
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:139
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:172
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:373
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:384
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:142
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:175
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:443
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:454
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:328
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:62
 msgid "Cancel"
@@ -183,7 +190,7 @@ msgid ""
 "TLS handling is set to terminate at the server."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:169
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:172
 msgid ""
 "Certificates issued through this account are kept, but they cannot "
 "renew until you point them at another account."
@@ -235,11 +242,11 @@ msgstr ""
 msgid "Create"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:190
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:193
 msgid "Credentials"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:432
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:502
 msgid "DNS"
 msgstr ""
 
@@ -247,24 +254,32 @@ msgstr ""
 msgid "DNS account"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:423
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:493
 msgid "DNS management is unavailable."
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:314
+msgid "DNS only"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:378
+msgid "DNS only — answer with this address"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:129
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:475
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:173
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:207
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:311
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:385
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:176
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:210
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:331
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:455
 msgid "Delete"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:166
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:169
 msgid "Delete %s?"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:165
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:168
 msgid "Delete DNS account"
 msgstr ""
 
@@ -272,11 +287,11 @@ msgstr ""
 msgid "Delete certificate"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:380
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:450
 msgid "Delete record"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:381
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:451
 msgid "Delete the %s record for %s?"
 msgstr ""
 
@@ -344,16 +359,16 @@ msgstr ""
 msgid "Each tunnel exposes one local service through the server."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:206
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:308
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:209
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:328
 msgid "Edit"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:128
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:131
 msgid "Edit DNS account"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:367
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:436
 msgid "Edit record"
 msgstr ""
 
@@ -454,7 +469,7 @@ msgstr ""
 msgid "Leave empty to let the server allocate one."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:293
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:301
 msgid "Line"
 msgstr ""
 
@@ -462,11 +477,11 @@ msgstr ""
 msgid "List at least one domain."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:274
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:282
 msgid "Loading records…"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:223
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:227
 msgid "Loading zones…"
 msgstr ""
 
@@ -502,10 +517,10 @@ msgstr ""
 msgid "Multiplexed — shared congestion window, no kernel zero-copy"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:130
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:188
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:289
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:368
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:133
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:191
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:297
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:437
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:174
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:108
 msgid "Name"
@@ -517,13 +532,13 @@ msgid ""
 "wildcard certificate cannot be issued without it."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:184
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:187
 msgid ""
 "No DNS accounts yet. Add one to manage records and to issue wildcard "
 "certificates."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:79
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:82
 msgid "No DNS providers are available."
 msgstr ""
 
@@ -608,13 +623,21 @@ msgstr ""
 msgid "Private key"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:134
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:189
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:137
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:192
 msgid "Provider"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:175
 msgid "Provision the server"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:313
+msgid "Proxied"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:379
+msgid "Proxied — route through the provider"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:170
@@ -631,11 +654,11 @@ msgstr ""
 msgid "Recorded on first connection and checked afterwards."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:204
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:207
 msgid "Records"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:252
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:260
 msgid "Records in %s"
 msgstr ""
 
@@ -670,6 +693,11 @@ msgid ""
 "that do not exist yet."
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:303
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:386
+msgid "Resolution"
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:136
 msgid "Running"
 msgstr ""
@@ -698,8 +726,8 @@ msgstr ""
 msgid "SSH user"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:140
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:374
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:143
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:444
 msgid "Save"
 msgstr ""
 
@@ -774,8 +802,8 @@ msgstr ""
 msgid "TLS on the control connection"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:292
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:371
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:300
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:440
 msgid "TTL"
 msgstr ""
 
@@ -783,11 +811,11 @@ msgstr ""
 msgid "Terminate at the server (needs a pushed certificate)"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:205
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:208
 msgid "Test"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:146
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:149
 msgid "Testing credentials"
 msgstr ""
 
@@ -795,8 +823,12 @@ msgstr ""
 msgid "The LAN host running the service."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:106
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:109
 msgid "The account needs a name."
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:405
+msgid "The address is answered directly, which is what a tunnel needs."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:302
@@ -811,7 +843,7 @@ msgstr ""
 msgid "The daemon writes to syslog through procd."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:239
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:247
 msgid "This account manages no zones."
 msgstr ""
 
@@ -821,7 +853,7 @@ msgid ""
 "propagate before it will issue."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:286
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:294
 msgid "This zone has no records."
 msgstr ""
 
@@ -848,8 +880,8 @@ msgstr ""
 msgid "Tunnels"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:290
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:369
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:298
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:438
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:175
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:129
 msgid "Type"
@@ -879,8 +911,8 @@ msgid ""
 "with what the server turns out to be."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:291
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:370
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:299
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:439
 msgid "Value"
 msgstr ""
 
@@ -901,11 +933,11 @@ msgstr ""
 msgid "Where to find it"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:254
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:262
 msgid "Zone"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:238
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:246
 msgid "Zones"
 msgstr ""
 
@@ -917,7 +949,7 @@ msgstr ""
 msgid "no response"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:197
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:200
 msgid "none stored"
 msgstr ""
 

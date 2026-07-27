@@ -58,6 +58,9 @@ msgstr "自分でわかる名前（例: aliyun-main）"
 msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
 msgstr "パスワードはデプロイ時に入力し、このルーターには保存されません。鍵の方が安全で、デプロイ時に自動でインストールできます。"
 
+msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
+msgstr "トンネルはプロキシ経由では動作しません。プロキシは自前のポートで HTTP と HTTPS だけを扱い、TLS を終端します。トンネルサーバーを指す名前には「DNS のみ」を使ってください。"
+
 msgid "Accounts"
 msgstr "アカウント"
 
@@ -159,6 +162,12 @@ msgstr "DNS アカウント"
 
 msgid "DNS management is unavailable."
 msgstr "DNS 管理は利用できません。"
+
+msgid "DNS only"
+msgstr "DNS のみ"
+
+msgid "DNS only — answer with this address"
+msgstr "DNS のみ — このアドレスをそのまま返す"
 
 msgid "Delete"
 msgstr "削除"
@@ -403,6 +412,12 @@ msgstr "プロバイダ"
 msgid "Provision the server"
 msgstr "サーバーの構築"
 
+msgid "Proxied"
+msgstr "プロキシ経由"
+
+msgid "Proxied — route through the provider"
+msgstr "プロキシ経由 — プロバイダを通す"
+
 msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
 msgstr "サーバーへ配布して接続を切らずに読み込みます。証明書を紐付けたトンネルだけが配布対象です。"
 
@@ -438,6 +453,9 @@ msgstr "証明書を申請"
 
 msgid "Required for a wildcard: only a DNS record can prove control of names that do not exist yet."
 msgstr "ワイルドカードには必須です。まだ存在しない名前の管理権は DNS レコードでしか証明できません。"
+
+msgid "Resolution"
+msgstr "解決方式"
 
 msgid "Running"
 msgstr "実行中"
@@ -528,6 +546,9 @@ msgstr "そのサービスが動いている LAN 上のホストです。"
 
 msgid "The account needs a name."
 msgstr "アカウント名は必須です。"
+
+msgid "The address is answered directly, which is what a tunnel needs."
+msgstr "アドレスをそのまま返します。トンネルにはこれが必要です。"
 
 msgid "The authority requires one, and uses it for expiry warnings."
 msgstr "認証局が要求し、有効期限の通知にも使われます。"

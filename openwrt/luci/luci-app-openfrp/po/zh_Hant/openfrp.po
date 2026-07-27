@@ -58,6 +58,9 @@ msgstr "一個你能認出來的名稱，例如 aliyun-main"
 msgid "A password is typed in when you deploy and is never stored on this router. A key is stronger, and the deployment can install one for you."
 msgstr "密碼在部署時輸入，不會儲存在本路由器上。金鑰更安全，部署過程可以幫你自動安裝。"
 
+msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
+msgstr "通道無法透過代理運作：代理只承載它自己那幾個連接埠上的 HTTP 和 HTTPS，而且會終止 TLS。指向穿透伺服器的網域請用「僅 DNS」。"
+
 msgid "Accounts"
 msgstr "帳號"
 
@@ -159,6 +162,12 @@ msgstr "DNS 帳號"
 
 msgid "DNS management is unavailable."
 msgstr "DNS 管理不可用。"
+
+msgid "DNS only"
+msgstr "僅 DNS"
+
+msgid "DNS only — answer with this address"
+msgstr "僅 DNS — 直接回傳該位址"
 
 msgid "Delete"
 msgstr "刪除"
@@ -403,6 +412,12 @@ msgstr "服務商"
 msgid "Provision the server"
 msgstr "部署伺服器"
 
+msgid "Proxied"
+msgstr "已代理"
+
+msgid "Proxied — route through the provider"
+msgstr "已代理 — 流量經服務商中轉"
+
 msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
 msgstr "推送到伺服器熱載入，不會斷開任何連線。只有綁定了憑證的通道才會推送。"
 
@@ -438,6 +453,9 @@ msgstr "申請憑證"
 
 msgid "Required for a wildcard: only a DNS record can prove control of names that do not exist yet."
 msgstr "泛網域必填：只有 DNS 記錄才能證明你對尚不存在的名字有控制權。"
+
+msgid "Resolution"
+msgstr "解析方式"
 
 msgid "Running"
 msgstr "執行中"
@@ -528,6 +546,9 @@ msgstr "執行該服務的內網主機。"
 
 msgid "The account needs a name."
 msgstr "帳號必須有名稱。"
+
+msgid "The address is answered directly, which is what a tunnel needs."
+msgstr "直接回傳該位址，這正是通道所需要的。"
 
 msgid "The authority requires one, and uses it for expiry warnings."
 msgstr "憑證頒發機構要求填寫，並用於到期提醒。"

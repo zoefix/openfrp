@@ -29,6 +29,7 @@ Actions:
   events        -id N     show an order's history
   export        -id N     print the issued chain as PEM
   issue         -id N     obtain or renew the certificate
+  eab-status    -id N     report whether the order's authority needs EAB
   eab                     store external account binding credentials; JSON on stdin
 
 issue talks to the CA and waits for DNS propagation, so it takes minutes and
@@ -98,6 +99,9 @@ func runCert(ctx context.Context, args []string) error {
 				return nil, err
 			}
 			return map[string]string{"result": "the certificate was issued"}, nil
+
+		case "eab-status":
+			return service.EABStatus(ctx, *id)
 
 		case "eab":
 			var in struct {

@@ -31,6 +31,18 @@ msgstr "%s 不能為空"
 msgid "%s is too broad; a wildcard needs a domain beneath it"
 msgstr "%s 範圍過大；泛網域下面必須還有一級網域"
 
+msgid "%s issues only to accounts it already knows, so it needs a key pair created in your %s account. This is stored once and reused for every certificate from that authority."
+msgstr "%s 只向它已知的帳號簽發，因此需要一對在你的 %s 帳號裡建立的金鑰。它只需儲存一次，之後該機構的所有憑證都會重複使用。"
+
+msgid "%s issues only to accounts it already knows. Create a pair in your %s account and paste it here."
+msgstr "%s 只向它已知的帳號簽發。請在你的 %s 帳號裡建立一對金鑰並貼上到這裡。"
+
+msgid "%s needs an account binding"
+msgstr "%s 需要帳號綁定"
+
+msgid "%s needs external account binding credentials."
+msgstr "%s 需要外部帳號綁定（EAB）憑證。"
+
 msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
 msgstr "\"*\" 標籤只比對一層，可以出現在任意深度：*.aaa.com 比對 www.aaa.com，但不比對 x.bb.aaa.com。精確網域優先於泛網域，層級更深的泛網域優先於更淺的。"
 
@@ -78,6 +90,9 @@ msgstr "憑證頒發機構"
 
 msgid "Automatic"
 msgstr "自動"
+
+msgid "Both fields are required."
+msgstr "兩項都必須填寫。"
 
 msgid "Cancel"
 msgstr "取消"
@@ -184,6 +199,12 @@ msgstr "網域"
 msgid "Download URL"
 msgstr "下載網址"
 
+msgid "EAB HMAC key"
+msgstr "EAB HMAC 金鑰"
+
+msgid "EAB key ID"
+msgstr "EAB Key ID"
+
 msgid "Each tunnel exposes one local service through the server."
 msgstr "每條通道透過伺服器公開一個內網服務。"
 
@@ -207,6 +228,9 @@ msgstr "已啟用"
 
 msgid "Enabled but not running"
 msgstr "已啟用但未執行"
+
+msgid "Enter a contact email address."
+msgstr "請填寫聯絡信箱。"
 
 msgid "Enter the SSH password."
 msgstr "請輸入 SSH 密碼。"
@@ -418,6 +442,9 @@ msgstr "SSH 使用者"
 msgid "Save"
 msgstr "儲存"
 
+msgid "Save and issue"
+msgstr "儲存並簽發"
+
 msgid "Secret TCP"
 msgstr "私密 TCP"
 
@@ -534,6 +561,9 @@ msgstr "預熱連線數"
 
 msgid "Where this router connects, and how to provision that server."
 msgstr "本路由器連線到哪裡，以及如何部署那台伺服器。"
+
+msgid "Where to find it"
+msgstr "在哪裡取得"
 
 msgid "Zone"
 msgstr "網域"

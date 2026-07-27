@@ -270,7 +270,9 @@ func (s *Service) issue(ctx context.Context, order repo.Order,
 
 	request := cert.IssueRequest{
 		Domains: order.Domains,
-		CA:      ca.Directory,
+		// The key, not the directory URL: the issuer resolves it and needs the
+		// key to find the authority's metadata.
+		CA:      ca.Key,
 		KeyType: cert.KeyType(order.KeyType),
 		Account: account,
 	}
@@ -354,6 +356,66 @@ func (s *Service) saveACMEAccount(ctx context.Context, ca string, account *cert.
 		EABKeyID: account.EABKeyID, EABHMAC: account.EABHMAC,
 	})
 	return err
+}
+
+// EABState reports whether an order's authority needs external account
+// binding, and whether credentials for it are already stored.
+//
+// The UI needs both answers before it can decide what to ask for: prompting
+// for EAB on a CA that does not use it is noise, and not prompting on one that
+// does leaves the operator staring at a refusal with nothing to act on.
+type EABState struct {
+	Required  bool   `json:"required"`
+	Present   bool   `json:"present"`
+	CA        string `json:"ca"`
+	CALabel   string `json:"ca_label"`
+	Email     string `json:"email"`
+	HowToGet  string `json:"how_to_get,omitempty"`
+	AccountID int64  `json:"-"`
+}
+
+// EABStatus describes what an order needs before it can be issued.
+func (s *Service) EABStatus(ctx context.Context, orderID int64) (EABState, error) {
+	order, err := s.orders.Get(ctx, orderID)
+	if err != nil {
+		return EABState{}, err
+	}
+
+	ca, known := cert.LookupCA(order.CA)
+	if !known {
+		return EABState{}, fmt.Errorf("manage: unknown certificate authority %q", order.CA)
+	}
+
+	state := EABState{
+		Required: ca.RequiresEAB,
+		CA:       ca.Key,
+		CALabel:  ca.Label,
+		Email:    order.Email,
+	}
+	if !ca.RequiresEAB {
+		return state, nil
+	}
+
+	state.HowToGet = eabSource(ca.Key)
+
+	stored, err := repo.NewACMEAccounts(s.db.DB).Find(ctx, ca.Key, order.Email)
+	if err == nil && stored.EABKeyID != "" {
+		state.Present = true
+	}
+	return state, nil
+}
+
+// eabSource says where to obtain the credentials, which is the part an
+// operator cannot guess from the refusal alone.
+func eabSource(ca string) string {
+	switch ca {
+	case "zerossl":
+		return "https://app.zerossl.com/developer"
+	case "google":
+		return "https://console.cloud.google.com/security/publicca"
+	default:
+		return ""
+	}
 }
 
 // SetEAB stores external account binding credentials for a CA that needs them.

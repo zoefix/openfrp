@@ -234,6 +234,47 @@ func TestOrderRequiresEmailAndKnownCA(t *testing.T) {
 	}
 }
 
+// TestIssueReachesTheCA checks the handoff from manage to cert.
+//
+// Issuance cannot be completed in a test — it talks to a real CA — so this
+// asserts on how far it gets: past resolving the authority. The bug it guards
+// is that manage passed a directory URL where the issuer wanted a key, so
+// every issuance died at the first step with "unknown certificate authority"
+// naming a URL that was perfectly valid.
+func TestIssueReachesTheCA(t *testing.T) {
+	ctx := context.Background()
+	s, _ := service(t)
+
+	account := cloudflareAccount(t, s)
+
+	order, err := s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"*.aiqno.com"}, KeyType: "ec256", CA: "letsencrypt",
+		Email: "ops@example.com", AccountID: account.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.Issue(ctx, order.ID, nil)
+	if err == nil {
+		t.Skip("issuance unexpectedly succeeded; this test needs no network")
+	}
+
+	if strings.Contains(err.Error(), "unknown certificate authority") {
+		t.Errorf("issuance failed while resolving the CA: %v", err)
+	}
+
+	// Whatever else happens, the order must not be left in "issuing" — the
+	// next attempt would look like one is already running.
+	orders, err := s.ListOrders(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if orders[0].State == "issuing" {
+		t.Error("a failed issuance left the order stuck in the issuing state")
+	}
+}
+
 // TestNewOrdersAutoRenewByDefault guards the trap that a plain bool would
 // reintroduce: an order created without mentioning renewal must renew, or the
 // first anyone hears of it is an expired certificate.

@@ -34,15 +34,34 @@ func NewSolver(provider Provider, zone string) *Solver {
 	}
 }
 
+// challengePrefix is the label a DNS-01 challenge answers on.
+const challengePrefix = "_acme-challenge."
+
 // challengeKey is the fully qualified name a DNS-01 challenge answers on.
+//
+// It accepts either a certificate domain or an already-resolved challenge
+// name, because both reach it. lego hands its solver an EffectiveFQDN that
+// already carries the prefix — and which may point somewhere else entirely
+// when _acme-challenge is CNAMEd to a delegated zone — while a caller working
+// from a certificate domain has only the bare name.
+//
+// Prepending unconditionally produced _acme-challenge._acme-challenge.aiqno.com
+// and a challenge that could never be found. Nothing failed loudly: the record
+// was created, the API call succeeded, and the CA simply saw nothing at the
+// name it was looking at.
 func challengeKey(fqdn string) string {
 	fqdn = strings.TrimSuffix(strings.ToLower(fqdn), ".")
+
 	// A wildcard is validated against the base name: the challenge for
 	// *.example.com lives at _acme-challenge.example.com, exactly where the
 	// challenge for example.com does. That collision is why cleanup tracks
 	// record IDs rather than matching on name.
 	fqdn = strings.TrimPrefix(fqdn, "*.")
-	return "_acme-challenge." + fqdn
+
+	if strings.HasPrefix(fqdn, challengePrefix) {
+		return fqdn
+	}
+	return challengePrefix + fqdn
 }
 
 // Present publishes the challenge TXT record.

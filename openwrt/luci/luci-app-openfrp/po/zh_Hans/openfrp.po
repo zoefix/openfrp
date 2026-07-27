@@ -31,6 +31,18 @@ msgstr "%s 不能为空"
 msgid "%s is too broad; a wildcard needs a domain beneath it"
 msgstr "%s 范围过大；泛域名下面必须还有一级域名"
 
+msgid "%s issues only to accounts it already knows, so it needs a key pair created in your %s account. This is stored once and reused for every certificate from that authority."
+msgstr "%s 只向它已知的账号签发，因此需要一对在你的 %s 账号里创建的密钥。它只需保存一次，之后该机构的所有证书都会复用。"
+
+msgid "%s issues only to accounts it already knows. Create a pair in your %s account and paste it here."
+msgstr "%s 只向它已知的账号签发。请在你的 %s 账号里创建一对密钥并粘贴到这里。"
+
+msgid "%s needs an account binding"
+msgstr "%s 需要账号绑定"
+
+msgid "%s needs external account binding credentials."
+msgstr "%s 需要外部账号绑定（EAB）凭据。"
+
 msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
 msgstr "\"*\" 标签只匹配一层，可以出现在任意深度：*.aaa.com 匹配 www.aaa.com，但不匹配 x.bb.aaa.com。精确域名优先于泛域名，层级更深的泛域名优先于更浅的。"
 
@@ -78,6 +90,9 @@ msgstr "证书颁发机构"
 
 msgid "Automatic"
 msgstr "自动"
+
+msgid "Both fields are required."
+msgstr "两项都必须填写。"
 
 msgid "Cancel"
 msgstr "取消"
@@ -184,6 +199,12 @@ msgstr "域名"
 msgid "Download URL"
 msgstr "下载地址"
 
+msgid "EAB HMAC key"
+msgstr "EAB HMAC 密钥"
+
+msgid "EAB key ID"
+msgstr "EAB Key ID"
+
 msgid "Each tunnel exposes one local service through the server."
 msgstr "每条隧道通过服务端暴露一个内网服务。"
 
@@ -207,6 +228,9 @@ msgstr "已启用"
 
 msgid "Enabled but not running"
 msgstr "已启用但未运行"
+
+msgid "Enter a contact email address."
+msgstr "请填写联系邮箱。"
 
 msgid "Enter the SSH password."
 msgstr "请输入 SSH 密码。"
@@ -418,6 +442,9 @@ msgstr "SSH 用户"
 msgid "Save"
 msgstr "保存"
 
+msgid "Save and issue"
+msgstr "保存并签发"
+
 msgid "Secret TCP"
 msgstr "私密 TCP"
 
@@ -534,6 +561,9 @@ msgstr "预热连接数"
 
 msgid "Where this router connects, and how to provision that server."
 msgstr "本路由器连接到哪里，以及如何部署那台服务器。"
+
+msgid "Where to find it"
+msgstr "在哪里获取"
 
 msgid "Zone"
 msgstr "域名"

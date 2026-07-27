@@ -31,6 +31,18 @@ msgstr "%s は必須です"
 msgid "%s is too broad; a wildcard needs a domain beneath it"
 msgstr "%s は範囲が広すぎます。ワイルドカードの下にはドメインが必要です"
 
+msgid "%s issues only to accounts it already knows, so it needs a key pair created in your %s account. This is stored once and reused for every certificate from that authority."
+msgstr "%s は既知のアカウントにしか発行しないため、%s のアカウントで作成した鍵ペアが必要です。一度保存すれば、その認証局の証明書すべてで再利用されます。"
+
+msgid "%s issues only to accounts it already knows. Create a pair in your %s account and paste it here."
+msgstr "%s は既知のアカウントにしか発行しません。%s のアカウントで鍵ペアを作成し、ここに貼り付けてください。"
+
+msgid "%s needs an account binding"
+msgstr "%s にはアカウントバインドが必要です"
+
+msgid "%s needs external account binding credentials."
+msgstr "%s には外部アカウントバインド (EAB) の認証情報が必要です。"
+
 msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
 msgstr "\"*\" ラベルはちょうど 1 階層だけに一致し、どの深さにも置けます。*.aaa.com は www.aaa.com に一致しますが、x.bb.aaa.com には一致しません。完全一致がワイルドカードより優先され、深いワイルドカードが浅いものより優先されます。"
 
@@ -78,6 +90,9 @@ msgstr "認証局"
 
 msgid "Automatic"
 msgstr "自動"
+
+msgid "Both fields are required."
+msgstr "両方の入力が必要です。"
 
 msgid "Cancel"
 msgstr "キャンセル"
@@ -184,6 +199,12 @@ msgstr "ドメイン"
 msgid "Download URL"
 msgstr "ダウンロード URL"
 
+msgid "EAB HMAC key"
+msgstr "EAB HMAC キー"
+
+msgid "EAB key ID"
+msgstr "EAB キー ID"
+
 msgid "Each tunnel exposes one local service through the server."
 msgstr "各トンネルはローカルのサービスを 1 つ、サーバー経由で公開します。"
 
@@ -207,6 +228,9 @@ msgstr "有効"
 
 msgid "Enabled but not running"
 msgstr "有効ですが実行されていません"
+
+msgid "Enter a contact email address."
+msgstr "連絡先メールアドレスを入力してください。"
 
 msgid "Enter the SSH password."
 msgstr "SSH パスワードを入力してください。"
@@ -418,6 +442,9 @@ msgstr "SSH ユーザー"
 msgid "Save"
 msgstr "保存"
 
+msgid "Save and issue"
+msgstr "保存して発行"
+
 msgid "Secret TCP"
 msgstr "シークレット TCP"
 
@@ -534,6 +561,9 @@ msgstr "ウォーム接続数"
 
 msgid "Where this router connects, and how to provision that server."
 msgstr "このルーターの接続先と、そのサーバーを構築する方法です。"
+
+msgid "Where to find it"
+msgstr "取得方法"
 
 msgid "Zone"
 msgstr "ゾーン"

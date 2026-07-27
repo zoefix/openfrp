@@ -36,7 +36,7 @@ const ACTIONS = {
 	],
 	cert: [
 		'cas', 'keytypes', 'orders', 'order-add', 'order-delete',
-		'events', 'export', 'eab'
+		'events', 'export', 'eab', 'eab-status'
 	]
 };
 

@@ -125,7 +125,8 @@ func (a *Account) ensureKey() error {
 type IssueRequest struct {
 	// Domains are the names to cover. A wildcard forces DNS-01 for the order.
 	Domains []string
-	// CA selects the authority. Empty means Let's Encrypt.
+	// CA selects the authority: either a key from CAs(), or an ACME directory
+	// URL for one that is not listed. Empty means Let's Encrypt.
 	CA string
 	// KeyType is the certificate key algorithm. Empty means ECDSA P-256.
 	KeyType KeyType
@@ -171,13 +172,9 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 				"do not exist yet", strings.Join(wildcards, ", "))
 	}
 
-	caKey := req.CA
-	if caKey == "" {
-		caKey = "letsencrypt"
-	}
-	ca, known := LookupCA(caKey)
-	if !known {
-		return nil, fmt.Errorf("cert: unknown certificate authority %q", caKey)
+	ca, err := resolveCA(req.CA)
+	if err != nil {
+		return nil, err
 	}
 
 	account := req.Account
@@ -280,4 +277,37 @@ func (i *Issuer) register(_ context.Context, client *lego.Client, account *Accou
 	}
 	account.registration = resource
 	return nil
+}
+
+// resolveCA turns the CA field of a request into a concrete authority.
+//
+// It accepts either a key from CAs() or a bare ACME directory URL. Both are
+// legitimate: the keys cover the authorities with known quirks such as
+// mandatory external account binding, and a URL is how a private or otherwise
+// unlisted ACME server is reached.
+//
+// Distinguishing them by scheme rather than by lookup-then-fallback keeps the
+// error honest — a mistyped key reports as an unknown key rather than being
+// silently treated as a URL and failing much later with a network error.
+func resolveCA(value string) (CA, error) {
+	if value == "" {
+		value = "letsencrypt"
+	}
+
+	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		// A directory URL may still name one of the known authorities, and if
+		// it does we want its metadata — RequiresEAB in particular.
+		for _, ca := range CAs() {
+			if ca.Directory == value {
+				return ca, nil
+			}
+		}
+		return CA{Key: value, Label: value, Directory: value}, nil
+	}
+
+	ca, known := LookupCA(value)
+	if !known {
+		return CA{}, fmt.Errorf("cert: unknown certificate authority %q", value)
+	}
+	return ca, nil
 }

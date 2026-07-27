@@ -175,6 +175,40 @@ function orderDialog() {
 		'type': 'checkbox', 'class': 'cbi-input-checkbox', 'checked': ''
 	});
 
+	// External account binding. ZeroSSL and Google Trust Services refuse to
+	// issue without it; Let's Encrypt does not use it at all. The rows are
+	// hidden rather than absent so switching authority does not relayout.
+	var eabKeyInput = E('input', {
+		'type': 'text', 'class': 'cbi-input-text', 'style': 'width:100%'
+	});
+	var eabHmacInput = E('input', {
+		'type': 'password', 'class': 'cbi-input-password', 'style': 'width:100%'
+	});
+	var eabHint = E('div', { 'class': 'cbi-value-description' }, '');
+
+	function selectedCA() {
+		return state.cas.filter(function (ca) { return ca.key === caSelect.value; })[0];
+	}
+
+	function refreshEAB() {
+		var ca = selectedCA();
+		var needed = !!(ca && ca.requires_eab);
+
+		eabRows.forEach(function (row) { row.style.display = needed ? '' : 'none'; });
+
+		if (needed)
+			dom.content(eabHint, [
+				_('%s issues only to accounts it already knows. Create a pair in your %s account and paste it here.')
+					.format(ca.label, ca.label), ' ',
+				E('a', {
+					'href': ca.key === 'zerossl'
+						? 'https://app.zerossl.com/developer'
+						: 'https://console.cloud.google.com/security/publicca',
+					'target': '_blank', 'rel': 'noreferrer'
+				}, _('Where to find it'))
+			]);
+	}
+
 	function save() {
 		var domains = domainsInput.value.split(/[\s,]+/).filter(function (d) {
 			return d.length > 0;
@@ -185,6 +219,27 @@ function orderDialog() {
 			return;
 		}
 
+		var ca = selectedCA();
+		if (ca && ca.requires_eab && (!eabKeyInput.value || !eabHmacInput.value)) {
+			notifyError(new Error(
+				_('%s needs external account binding credentials.').format(ca.label)));
+			return;
+		}
+		if (!emailInput.value) {
+			notifyError(new Error(_('Enter a contact email address.')));
+			return;
+		}
+
+		// Store the binding first. Doing it after would leave an order that
+		// exists and cannot issue if this call failed.
+		var prepared = (ca && ca.requires_eab)
+			? call('eab', {}, {
+				ca: caSelect.value, email: emailInput.value,
+				key_id: eabKeyInput.value, hmac: eabHmacInput.value
+			})
+			: Promise.resolve();
+
+		prepared.then(function () {
 		call('order-add', {}, {
 			domains: domains,
 			key_type: keySelect.value,
@@ -195,7 +250,15 @@ function orderDialog() {
 		})
 			.then(function () { ui.hideModal(); refresh(); })
 			.catch(notifyError);
+		}).catch(notifyError);
 	}
+
+	var eabRows = [
+		field(_('EAB key ID'), eabKeyInput),
+		field(_('EAB HMAC key'), eabHmacInput, eabHint)
+	];
+
+	caSelect.addEventListener('change', refreshEAB);
 
 	ui.showModal(_('Request a certificate'), [
 		field(_('Domains'), domainsInput,
@@ -208,6 +271,8 @@ function orderDialog() {
 		field(_('DNS account'), accountSelect,
 			_('Required for a wildcard: only a DNS record can prove control of ' +
 			  'names that do not exist yet.')),
+		eabRows[0],
+		eabRows[1],
 		field(_('Renew automatically'), autoRenew,
 			_('Renews once fewer than 30 days remain.')),
 		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
@@ -215,12 +280,75 @@ function orderDialog() {
 			button(_('Create'), 'cbi-button-positive', save)
 		])
 	]);
+
+	refreshEAB();
+}
+
+// eabDialog collects binding credentials for an order that cannot issue
+// without them, so a failed order can be repaired rather than recreated.
+function eabDialog(order, status, then) {
+	var keyInput = E('input', {
+		'type': 'text', 'class': 'cbi-input-text', 'style': 'width:100%'
+	});
+	var hmacInput = E('input', {
+		'type': 'password', 'class': 'cbi-input-password', 'style': 'width:100%'
+	});
+
+	function row(label, input) {
+		return E('div', { 'class': 'cbi-value' }, [
+			E('label', { 'class': 'cbi-value-title' }, label),
+			E('div', { 'class': 'cbi-value-field' }, input)
+		]);
+	}
+
+	ui.showModal(_('%s needs an account binding').format(status.ca_label), [
+		E('p', {}, _('%s issues only to accounts it already knows, so it needs a ' +
+			'key pair created in your %s account. This is stored once and reused ' +
+			'for every certificate from that authority.')
+			.format(status.ca_label, status.ca_label)),
+		status.how_to_get ? E('p', {}, E('a', {
+			'href': status.how_to_get, 'target': '_blank', 'rel': 'noreferrer'
+		}, _('Where to find it'))) : E('span', {}),
+		row(_('EAB key ID'), keyInput),
+		row(_('EAB HMAC key'), hmacInput),
+		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
+			button(_('Cancel'), '', ui.hideModal), ' ',
+			button(_('Save and issue'), 'cbi-button-positive', function () {
+				if (!keyInput.value || !hmacInput.value) {
+					notifyError(new Error(_('Both fields are required.')));
+					return;
+				}
+				call('eab', {}, {
+					ca: status.ca, email: status.email,
+					key_id: keyInput.value, hmac: hmacInput.value
+				}).then(function () { ui.hideModal(); then(); })
+					.catch(notifyError);
+			})
+		])
+	]);
 }
 
 /* ------------------------------------------------------------------ */
 
-// issue runs the job and follows its log.
+// issue checks the order can actually proceed, then runs the job.
+//
+// Starting a job that is certain to be refused wastes minutes and teaches the
+// operator nothing they can act on — which is exactly what happened before
+// there was anywhere to enter these credentials.
 function issue(order) {
+	call('eab-status', { id: String(order.id) })
+		.then(function (status) {
+			if (status && status.required && !status.present) {
+				eabDialog(order, status, function () { startIssue(order); });
+				return;
+			}
+			startIssue(order);
+		})
+		.catch(function () { startIssue(order); });
+}
+
+// startIssue runs the job and follows its log.
+function startIssue(order) {
 	var offset = 0;
 	var output = E('pre', {
 		'style': 'max-height:24em;overflow:auto;white-space:pre-wrap;font-size:90%;' +

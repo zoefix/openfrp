@@ -307,7 +307,17 @@ func (s *Service) issue(ctx context.Context, order repo.Order,
 
 	case s.httpSolver != nil:
 		progress("proving ownership over HTTP, answered by the tunnel server")
-		progress("the names must already resolve to it, and its port 80 must be reachable")
+
+		// Checked before asking the authority for anything. A failed
+		// validation is rate-limited, so spending one on a name that points
+		// somewhere else can lock out the retry that would have worked — and
+		// the answer is knowable from here.
+		note, err := s.httpSolver.checkReachable(ctx, order.Domains)
+		if err != nil {
+			return nil, err
+		}
+		progress(note)
+
 		request.HTTPSolver = s.httpSolver
 
 	default:

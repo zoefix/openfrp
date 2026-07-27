@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 
 	"github.com/zoefix/openfrp/internal/config"
 	"github.com/zoefix/openfrp/internal/tunnel/client"
@@ -25,6 +26,18 @@ type httpSolver struct {
 	servers []config.Upstream
 	version string
 	logger  *slog.Logger
+
+	// resolve overrides how names are looked up. Nil uses public DNS; a test
+	// supplies its own so the pre-flight can be exercised without a network.
+	resolve func(ctx context.Context, name string) []string
+}
+
+// SetHTTPChallengeResolver overrides name resolution for the pre-flight check.
+// Intended for tests.
+func (s *Service) SetHTTPChallengeResolver(resolve func(context.Context, string) []string) {
+	if s.httpSolver != nil {
+		s.httpSolver.resolve = resolve
+	}
 }
 
 // SetHTTPChallengeServers tells the service where to publish HTTP-01
@@ -41,16 +54,77 @@ func (s *Service) SetHTTPChallengeServers(servers []config.Upstream, version str
 	}
 }
 
-// Present publishes the validation on every configured server.
+// Present publishes the validation where the authority will look for it.
 //
-// Every one, not just the likely one: which server the authority reaches is
-// decided by DNS, which this router does not control in the HTTP-01 case —
-// that is the whole point of using it. Publishing everywhere costs a few bytes
-// and removes the guess.
+// The server that matters is the one the name resolves to, and only that one:
+// publishing succeeded elsewhere while failing there is indistinguishable from
+// working until the authority reports a 404 from an address the log never
+// mentions. Every other server is a courtesy, so that a DNS change between now
+// and validation still finds it.
 func (h *httpSolver) Present(ctx context.Context, domain, token, keyAuth string) error {
-	return h.broadcast(ctx, &protocol.HTTPChallenge{
+	message := &protocol.HTTPChallenge{
 		Domain: domain, Token: token, KeyAuth: keyAuth,
-	}, "publish")
+	}
+
+	required := h.serversFor(ctx, domain)
+	if len(required) > 0 {
+		if err := h.send(ctx, required, message, "publish"); err != nil {
+			return err
+		}
+		// The rest are best effort; the one that counts already has it.
+		h.sendQuietly(ctx, h.others(required), message, "publish")
+		return nil
+	}
+
+	// Where the name points could not be determined. Publish everywhere and
+	// let the authority decide, rather than guessing at one.
+	return h.send(ctx, h.servers, message, "publish")
+}
+
+// serversFor returns the configured servers a name actually resolves to.
+func (h *httpSolver) serversFor(ctx context.Context, domain string) []config.Upstream {
+	addresses := map[string]bool{}
+	for _, address := range h.lookup(ctx, domain) {
+		addresses[address] = true
+	}
+	if len(addresses) == 0 {
+		return nil
+	}
+
+	var out []config.Upstream
+	for _, server := range h.servers {
+		for _, address := range h.addressesOf(ctx, server) {
+			if addresses[address] {
+				out = append(out, server)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// addressesOf is where one server is.
+func (h *httpSolver) addressesOf(ctx context.Context, server config.Upstream) []string {
+	if ip := net.ParseIP(server.Addr); ip != nil {
+		return []string{ip.String()}
+	}
+	return h.lookup(ctx, server.Addr)
+}
+
+// others is every configured server except those given.
+func (h *httpSolver) others(exclude []config.Upstream) []config.Upstream {
+	excluded := map[string]bool{}
+	for _, server := range exclude {
+		excluded[server.Name] = true
+	}
+
+	var out []config.Upstream
+	for _, server := range h.servers {
+		if !excluded[server.Name] {
+			out = append(out, server)
+		}
+	}
+	return out
 }
 
 // CleanUp withdraws it again.
@@ -59,7 +133,7 @@ func (h *httpSolver) Present(ctx context.Context, domain, token, keyAuth string)
 // behind expires on its own, while refusing a certificate that was already
 // granted would be a self-inflicted outage.
 func (h *httpSolver) CleanUp(ctx context.Context, domain, token, keyAuth string) error {
-	if err := h.broadcast(ctx, &protocol.HTTPChallenge{
+	if err := h.send(ctx, h.servers, &protocol.HTTPChallenge{
 		Domain: domain, Token: token, Remove: true,
 	}, "withdraw"); err != nil {
 		h.logger.Warn("could not withdraw an ACME challenge",
@@ -68,13 +142,27 @@ func (h *httpSolver) CleanUp(ctx context.Context, domain, token, keyAuth string)
 	return nil
 }
 
-// broadcast sends one message to every server, succeeding if any accepts it.
-func (h *httpSolver) broadcast(ctx context.Context,
+// sendQuietly delivers where a failure does not matter.
+func (h *httpSolver) sendQuietly(ctx context.Context, servers []config.Upstream,
+	message *protocol.HTTPChallenge, what string) {
+
+	if err := h.send(ctx, servers, message, what); err != nil {
+		h.logger.Debug("secondary server did not take the challenge",
+			"domain", message.Domain, "error", err)
+	}
+}
+
+// send delivers one message to the given servers, failing if none accepts it.
+func (h *httpSolver) send(ctx context.Context, servers []config.Upstream,
 	message *protocol.HTTPChallenge, what string) error {
+
+	if len(servers) == 0 {
+		return nil
+	}
 
 	var failures []error
 
-	for _, server := range h.servers {
+	for _, server := range servers {
 		reply, err := client.Announce(ctx, server, h.version,
 			message, protocol.TypeHTTPChallengeResp)
 		if err != nil {
@@ -97,8 +185,9 @@ func (h *httpSolver) broadcast(ctx context.Context,
 		// a DNS change between now and validation does not matter.
 	}
 
-	if len(failures) == len(h.servers) {
-		return fmt.Errorf("manage: no server could %s the challenge for %s: %w",
+	if len(failures) == len(servers) {
+		return fmt.Errorf("manage: could not %s the challenge for %s on the "+
+			"server that name points at: %w",
 			what, message.Domain, errors.Join(failures...))
 	}
 	return nil

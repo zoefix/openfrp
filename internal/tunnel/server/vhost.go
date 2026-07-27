@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net"
 	"strconv"
@@ -139,7 +140,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	if !found {
 		v.logger.Debug("no route for host",
 			"scheme", string(v.scheme), "host", host, "source", source)
-		v.reject(userConn, statusNotFound)
+		v.unclaimed(userConn, host)
 		return
 	}
 
@@ -240,6 +241,60 @@ const (
 	statusNotFound   = "404 Not Found"
 	statusBadGateway = "502 Bad Gateway"
 )
+
+// unclaimed answers a request for a name no tunnel serves.
+//
+// A bare 404 with no body is the correct status and a useless answer: someone
+// who has just pointed a name here sees an empty page and cannot tell whether
+// DNS is wrong, the server is wrong, or the tunnel is. Saying which of those
+// is true costs one page and removes the guesswork.
+//
+// It names nothing about the other tunnels on this server. Confirming that a
+// request reached OpenFrp is unavoidable — it is answering, after all — but
+// which names it serves is not this visitor's business.
+func (v *vhostListener) unclaimed(conn net.Conn, host string) {
+	if v.scheme != vhost.SchemeHTTP {
+		// Over TLS there is nothing useful to say: the handshake needs a
+		// certificate this server does not have for a name it does not serve,
+		// so the connection is closed and the browser reports it.
+		return
+	}
+
+	shown := host
+	if shown == "" {
+		shown = "this address"
+	}
+
+	body := fmt.Sprintf(`<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>No tunnel for %s</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;margin:0;padding:3em 1.5em;color:#222;background:#fafafa}
+main{max-width:34em;margin:0 auto}
+h1{font-size:1.3em;margin:0 0 .8em}
+code{background:#eee;padding:.1em .35em;border-radius:3px}
+ul{padding-left:1.2em}li{margin:.4em 0}
+p.f{color:#666;font-size:.85em;margin-top:2em}
+</style></head>
+<body><main>
+<h1>This is an OpenFrp server, but no tunnel is serving %s.</h1>
+<p>The request arrived here, so DNS is pointing the right way. What is missing
+is a tunnel claiming this name.</p>
+<ul>
+<li>Add the name to a tunnel's <code>domains</code> on the router, and enable it.</li>
+<li>A <code>*</code> covers exactly one label: <code>*.example.com</code> serves
+<code>www.example.com</code> but not <code>a.b.example.com</code>.</li>
+<li>Check the router is connected — a tunnel whose client is offline claims nothing.</li>
+</ul>
+<p class="f">OpenFrp</p>
+</main></body></html>
+`, template.HTMLEscapeString(shown), template.HTMLEscapeString(shown))
+
+	fmt.Fprintf(conn,
+		"HTTP/1.1 %s\r\nContent-Type: text/html; charset=utf-8\r\n"+
+			"Content-Length: %d\r\nConnection: close\r\n\r\n%s",
+		statusNotFound, len(body), body)
+}
 
 // reject answers a failed request. Only HTTP gets a response body — speaking
 // HTTP over a port the client opened for TLS would just produce a confusing

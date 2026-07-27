@@ -359,3 +359,139 @@ func TestOrderWithoutDNSUsesHTTPValidation(t *testing.T) {
 		t.Errorf("the error does not explain why: %v", err)
 	}
 }
+
+// TestHTTPValidationChecksWhereTheNamePoints covers the pre-flight.
+//
+// The authority fetches the challenge at whatever address the name resolves
+// to. If that is not a tunnel server the validation fails, and a failed
+// validation is rate-limited — so spending one on a name pointing elsewhere
+// can lock out the retry that would have worked. The answer is knowable
+// before asking, so it is asked before.
+func TestHTTPValidationChecksWhereTheNamePoints(t *testing.T) {
+	ctx := context.Background()
+	s, _ := service(t)
+
+	s.SetHTTPChallengeServers([]config.Upstream{
+		{Name: "main", Addr: "203.0.113.1", Port: 7000},
+	}, "test")
+
+	// The name points at something else entirely, which is the case that
+	// prompted this: a record left pointing at a previous host.
+	s.SetHTTPChallengeResolver(func(context.Context, string) []string {
+		return []string{"64.90.22.142"}
+	})
+
+	order, err := s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"openwrt.arm.moe"},
+		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.Issue(ctx, order.ID, nil)
+	if err == nil {
+		t.Fatal("issuance proceeded for a name that points elsewhere")
+	}
+	if !strings.Contains(err.Error(), "64.90.22.142") {
+		t.Errorf("the error does not say where the name points: %v", err)
+	}
+	if !strings.Contains(err.Error(), "203.0.113.1") {
+		t.Errorf("the error does not say where it should point: %v", err)
+	}
+	// It must not have reached the authority at all: the point is to spend no
+	// rate-limited validation on something knowable from here.
+	if strings.Contains(err.Error(), "acme") {
+		t.Errorf("reached the authority anyway: %v", err)
+	}
+}
+
+// TestHTTPValidationAllowsAMatchingName is the other half: the check must not
+// block an issuance that would have worked.
+func TestHTTPValidationAllowsAMatchingName(t *testing.T) {
+	ctx := context.Background()
+	s, _ := service(t)
+
+	s.SetHTTPChallengeServers([]config.Upstream{
+		{Name: "main", Addr: "203.0.113.1", Port: 7000},
+	}, "test")
+	s.SetHTTPChallengeResolver(func(context.Context, string) []string {
+		return []string{"203.0.113.1"}
+	})
+
+	order, err := s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"good.example"},
+		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// It cannot complete without a real authority, but it must get past the
+	// check rather than be stopped by it.
+	if err := s.Issue(ctx, order.ID, nil); err != nil &&
+		strings.Contains(err.Error(), "resolves to") {
+		t.Errorf("a name pointing at the server was rejected: %v", err)
+	}
+}
+
+// TestHTTPValidationSaysWhenItCouldNotCheck keeps the progress line honest.
+//
+// It used to report "the names resolve to a tunnel server" whenever the check
+// did not fail — including when the lookup returned nothing at all, which is
+// a claim nobody verified and turns a diagnosable misconfiguration into a
+// mystery.
+func TestHTTPValidationSaysWhenItCouldNotCheck(t *testing.T) {
+	ctx := context.Background()
+	s, _ := service(t)
+
+	s.SetHTTPChallengeServers([]config.Upstream{
+		{Name: "main", Addr: "203.0.113.1", Port: 7000},
+	}, "test")
+
+	order, err := s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"unresolvable.example"},
+		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var notes []string
+	s.SetHTTPChallengeResolver(func(context.Context, string) []string { return nil })
+	s.Issue(ctx, order.ID, func(note string) { notes = append(notes, note) })
+
+	joined := strings.Join(notes, " | ")
+	if strings.Contains(joined, "points at the tunnel server") {
+		t.Errorf("claimed the name was verified when it could not be looked up: %s", joined)
+	}
+	if !strings.Contains(joined, "unverified") {
+		t.Errorf("did not say the check was inconclusive: %s", joined)
+	}
+}
+
+// TestHTTPValidationDoesNotBlockOnDoubt covers a name that cannot be resolved
+// from here at all. It may still resolve for the authority, and refusing on
+// that basis would be a guess.
+func TestHTTPValidationDoesNotBlockOnDoubt(t *testing.T) {
+	ctx := context.Background()
+	s, _ := service(t)
+
+	s.SetHTTPChallengeServers([]config.Upstream{
+		{Name: "main", Addr: "203.0.113.1", Port: 7000},
+	}, "test")
+	s.SetHTTPChallengeResolver(func(context.Context, string) []string { return nil })
+
+	order, err := s.CreateOrder(ctx, manage.OrderInput{
+		Domains: []string{"unresolvable.example"},
+		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Issue(ctx, order.ID, nil); err != nil &&
+		strings.Contains(err.Error(), "resolves to") {
+		t.Errorf("an unresolvable name was refused rather than attempted: %v", err)
+	}
+}

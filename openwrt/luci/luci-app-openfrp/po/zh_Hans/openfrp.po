@@ -59,7 +59,7 @@ msgid "A name you will recognise, for example aliyun-main"
 msgstr "一个你能认出来的名称，例如 aliyun-main"
 
 msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
-msgstr "隧道无法通过代理工作：代理只承载它自己那几个端口上的 HTTP 和 HTTPS，而且会终止 TLS。指向穿透服务端的域名请用\"仅 DNS\"。"
+msgstr "反向代理无法通过代理工作：代理只承载它自己那几个端口上的 HTTP 和 HTTPS，而且会终止 TLS。指向穿透服务端的域名请用\"仅 DNS\"。"
 
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr "泛域名只能通过 DNS 验证，请选择一个账号。"
@@ -95,7 +95,7 @@ msgid "An existing server"
 msgstr "已有服务端"
 
 msgid "Another tunnel already uses the name %s"
-msgstr "已有隧道使用名称 %s"
+msgstr "已有反向代理使用名称 %s"
 
 msgid "Anything still serving it will keep the copy it already has until it restarts."
 msgstr "仍在使用它的服务会继续用手上那份，直到重启为止。"
@@ -128,7 +128,7 @@ msgid "Certificates"
 msgstr "证书"
 
 msgid "Certificates are issued here and pushed to the server, which loads them without dropping a single connection. They are used by tunnels whose TLS handling is set to terminate at the server."
-msgstr "证书在这里签发并推送到服务端，服务端会热加载，不会断开任何一条连接。TLS 处理方式设为\"在服务端终止\"的隧道会使用它们。"
+msgstr "证书在这里签发并推送到服务端，服务端会热加载，不会断开任何一条连接。TLS 处理方式设为\"在服务端终止\"的反向代理会使用它们。"
 
 msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
 msgstr "通过该账号签发的证书会保留，但在你把它们指向其他账号之前无法续期。"
@@ -239,7 +239,7 @@ msgid "EAB key ID"
 msgstr "EAB Key ID"
 
 msgid "Each tunnel exposes one local service through the server."
-msgstr "每条隧道通过服务端暴露一个内网服务。"
+msgstr "每条反向代理通过服务端暴露一个内网服务。"
 
 msgid "Edit"
 msgstr "编辑"
@@ -275,7 +275,7 @@ msgid "Enter the server address."
 msgstr "请填写服务器地址。"
 
 msgid "Every server this router connects to. Each has its own control connection, and a tunnel names the one that publishes it."
-msgstr "本路由器连接的所有服务器。每台各有一条独立的控制连接，隧道指定由哪台发布。"
+msgstr "本路由器连接的所有服务器。每台各有一条独立的控制连接，反向代理指定由哪台发布。"
 
 msgid "Expired"
 msgstr "已过期"
@@ -356,10 +356,10 @@ msgid "Local target"
 msgstr "内网目标"
 
 msgid "Local to this router — a tunnel points at it."
-msgstr "仅本路由器内使用 —— 隧道靠它指向这台服务器。"
+msgstr "仅本路由器内使用 —— 反向代理靠它指向这台服务器。"
 
 msgid "Local to this router — a tunnel points at it. The server never sees it."
-msgstr "仅本路由器内使用 —— 隧道靠它指向这台服务器。服务端看不到这个名字。"
+msgstr "仅本路由器内使用 —— 反向代理靠它指向这台服务器。服务端看不到这个名字。"
 
 msgid "Log level"
 msgstr "日志级别"
@@ -398,7 +398,7 @@ msgid "No log output yet."
 msgstr "暂无日志输出。"
 
 msgid "No tunnels are configured yet."
-msgstr "尚未配置任何隧道。"
+msgstr "尚未配置任何反向代理。"
 
 msgid "None — TLS will not work until one is bound"
 msgstr "无 — 未绑定证书前 TLS 无法工作"
@@ -419,7 +419,7 @@ msgid "Nothing has happened to this certificate yet."
 msgstr "该证书还没有任何记录。"
 
 msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
-msgstr "与 frp 不同，此项默认关闭。多路复用会让所有隧道共用一个拥塞窗口，一个丢包就会拖住全部隧道，而且无法走内核零拷贝。只有当套接字数量比吞吐更重要时才启用。"
+msgstr "与 frp 不同，此项默认关闭。多路复用会让所有反向代理共用一个拥塞窗口，一个丢包就会拖住全部反向代理，而且无法走内核零拷贝。只有当套接字数量比吞吐更重要时才启用。"
 
 msgid "One per line. A \"*\" covers exactly one level, so *.aiqno.com covers acgshop.aiqno.com but not a.b.aiqno.com."
 msgstr "每行一个。\"*\" 只覆盖一层，所以 *.aiqno.com 覆盖 acgshop.aiqno.com，但不覆盖 a.b.aiqno.com。"
@@ -446,7 +446,7 @@ msgid "Path to a key on this router."
 msgstr "本路由器上的密钥文件路径。"
 
 msgid "Patterns routed to this tunnel over the shared HTTP and HTTPS ports."
-msgstr "通过共享的 HTTP / HTTPS 端口路由到本隧道的域名模式。"
+msgstr "通过共享的 HTTP / HTTPS 端口路由到本反向代理的域名模式。"
 
 msgid "Private key"
 msgstr "私钥"
@@ -464,7 +464,7 @@ msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量经服务商中转"
 
 msgid "Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
-msgstr "推送到服务端热加载，不会断开任何连接。只有绑定了证书的隧道才会推送。"
+msgstr "推送到服务端热加载，不会断开任何连接。只有绑定了证书的反向代理才会推送。"
 
 msgid "Recent log"
 msgstr "最近日志"
@@ -590,7 +590,7 @@ msgid "The account needs a name."
 msgstr "账号必须有名称。"
 
 msgid "The address is answered directly, which is what a tunnel needs."
-msgstr "直接返回该地址,这正是隧道所需要的。"
+msgstr "直接返回该地址,这正是反向代理所需要的。"
 
 msgid "The authority requires one, and uses it for expiry warnings."
 msgstr "证书颁发机构要求填写，并用于到期提醒。"
@@ -629,10 +629,10 @@ msgid "Transport"
 msgstr "传输方式"
 
 msgid "Tunnel"
-msgstr "隧道"
+msgstr "反向代理"
 
 msgid "Tunnels"
-msgstr "隧道"
+msgstr "反向代理"
 
 msgid "Type"
 msgstr "类型"
@@ -656,7 +656,7 @@ msgid "Value"
 msgstr "记录值"
 
 msgid "Visitors must present this to reach the tunnel."
-msgstr "访问者必须提供此密钥才能连接到该隧道。"
+msgstr "访问者必须提供此密钥才能连接到该反向代理。"
 
 msgid "Warm connections"
 msgstr "预热连接数"
@@ -665,7 +665,7 @@ msgid "Where to find it"
 msgstr "在哪里获取"
 
 msgid "Which server publishes this tunnel. Leave unset for the first one."
-msgstr "由哪台服务器发布这条隧道。留空则用第一台。"
+msgstr "由哪台服务器发布这条反向代理。留空则用第一台。"
 
 msgid "Without this the local service records every visitor as this router, because that is what connects to it."
 msgstr "不开启的话，内网服务会把每个访客都记成本路由器，因为连上去的确实是它。"

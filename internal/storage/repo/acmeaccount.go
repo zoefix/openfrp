@@ -49,14 +49,23 @@ func (r *ACMEAccounts) Find(ctx context.Context, ca, email string) (ACMEAccount,
 // Upsert rather than insert: registration data arrives after the key is
 // created, and an issuance that failed part way must not leave a row that
 // blocks the retry.
+//
+// An empty key or registration never overwrites a stored one. Storing EAB
+// credentials against an already-registered account passes neither, and
+// clobbering the key would lose the ability to revoke every certificate issued
+// under it — silently, since the next issuance would simply register again.
 func (r *ACMEAccounts) Save(ctx context.Context, account ACMEAccount) (ACMEAccount, error) {
 	row := r.db.QueryRowContext(ctx, `
 		INSERT INTO acme_account
 			(ca, email, private_key, registration, eab_key_id, eab_hmac, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, unixepoch())
 		ON CONFLICT (ca, email) DO UPDATE SET
-			private_key  = excluded.private_key,
-			registration = excluded.registration,
+			private_key = CASE
+				WHEN length(coalesce(excluded.private_key, '')) > 0
+				THEN excluded.private_key ELSE acme_account.private_key END,
+			registration = CASE
+				WHEN length(coalesce(excluded.registration, '')) > 0
+				THEN excluded.registration ELSE acme_account.registration END,
 			eab_key_id   = excluded.eab_key_id,
 			eab_hmac     = excluded.eab_hmac
 		RETURNING id, created_at`,

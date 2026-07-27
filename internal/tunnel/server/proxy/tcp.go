@@ -27,6 +27,7 @@ type tcpProxy struct {
 	port        int
 	acceptLoops int
 	reusePort   bool
+	recorder    Recorder
 
 	mu       sync.Mutex
 	listener net.Listener
@@ -52,6 +53,7 @@ func newTCPProxy(opts Options) (Proxy, error) {
 		port:        opts.Spec.RemotePort,
 		acceptLoops: opts.AcceptLoops,
 		reusePort:   opts.ReusePort,
+		recorder:    opts.Recorder,
 	}, nil
 }
 
@@ -156,13 +158,18 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 		p.logger.Debug("tune user connection", "error", err)
 	}
 
-	stats := netutil.Relay(userConn, workConn)
+	transferred := netutil.Relay(userConn, workConn)
+
+	if p.recorder != nil {
+		p.recorder.RecordTransfer(p.name,
+			transferred.AToB, transferred.BToA, transferred.Spliced)
+	}
 
 	p.logger.Debug("connection closed",
 		"source", source,
-		"to_client", stats.AToB,
-		"to_user", stats.BToA,
-		"spliced", stats.Spliced)
+		"to_client", transferred.AToB,
+		"to_user", transferred.BToA,
+		"spliced", transferred.Spliced)
 }
 
 func (p *tcpProxy) Close() error {

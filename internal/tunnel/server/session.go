@@ -45,6 +45,7 @@ type Session struct {
 	reusePort   bool
 
 	routes         proxy.RouteRegistrar
+	recorder       proxy.Recorder
 	vhostHTTPPort  int
 	vhostHTTPSPort int
 }
@@ -69,6 +70,7 @@ type SessionOptions struct {
 	ReusePort   bool
 
 	Routes         proxy.RouteRegistrar
+	Recorder       proxy.Recorder
 	VhostHTTPPort  int
 	VhostHTTPSPort int
 }
@@ -94,6 +96,7 @@ func newSession(opts SessionOptions) *Session {
 		reusePort:   opts.ReusePort,
 
 		routes:         opts.Routes,
+		recorder:       opts.Recorder,
 		vhostHTTPPort:  opts.VhostHTTPPort,
 		vhostHTTPSPort: opts.VhostHTTPSPort,
 	}
@@ -214,6 +217,7 @@ func (s *Session) AddProxy(ctx context.Context, spec protocol.ProxySpec) (int, e
 		ReusePort:   s.reusePort,
 
 		Routes:         s.routes,
+		Recorder:       s.recorder,
 		VhostHTTPPort:  s.vhostHTTPPort,
 		VhostHTTPSPort: s.vhostHTTPSPort,
 	})

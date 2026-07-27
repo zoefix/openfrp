@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zoefix/openfrp/internal/stats"
 	"github.com/zoefix/openfrp/internal/tunnel/vhost"
 	"github.com/zoefix/openfrp/pkg/netutil"
 )
@@ -33,6 +34,7 @@ type vhostListener struct {
 	router   *vhost.Router
 	registry *Registry
 	certs    *CertStore
+	stats    *stats.Registry
 	logger   *slog.Logger
 
 	acceptLoops int
@@ -172,16 +174,25 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 		return
 	}
 
-	stats := netutil.Relay(userConn, workConn)
+	transferred := netutil.Relay(userConn, workConn)
+	v.record(route.ProxyName, transferred)
 
 	v.logger.Debug("vhost connection closed",
 		"scheme", string(v.scheme),
 		"host", host,
 		"proxy", route.ProxyName,
 		"source", source,
-		"to_client", stats.AToB,
-		"to_user", stats.BToA,
-		"spliced", stats.Spliced)
+		"to_client", transferred.AToB,
+		"to_user", transferred.BToA,
+		"spliced", transferred.Spliced)
+}
+
+// record accounts for one completed transfer.
+func (v *vhostListener) record(proxyName string, transferred netutil.RelayStats) {
+	if v.stats == nil {
+		return
+	}
+	v.stats.RecordTransfer(proxyName, transferred.AToB, transferred.BToA, transferred.Spliced)
 }
 
 // sniff recovers the target host and the bytes consumed doing so.
@@ -252,7 +263,7 @@ func (v *vhostListener) addr() net.Addr {
 // newVhostListener builds a listener for one scheme.
 func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 	router *vhost.Router, registry *Registry, certs *CertStore,
-	logger *slog.Logger, acceptLoops int) *vhostListener {
+	traffic *stats.Registry, logger *slog.Logger, acceptLoops int) *vhostListener {
 
 	return &vhostListener{
 		scheme:      scheme,
@@ -261,6 +272,7 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 		router:      router,
 		registry:    registry,
 		certs:       certs,
+		stats:       traffic,
 		logger:      logger,
 		acceptLoops: acceptLoops,
 		reusePort:   acceptLoops != 1,
@@ -296,11 +308,13 @@ func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Co
 		return
 	}
 
-	stats := netutil.Relay(tlsConn, workConn)
+	transferred := netutil.Relay(tlsConn, workConn)
+	v.record(route.ProxyName, transferred)
 
 	v.logger.Debug("terminated connection closed",
 		"host", host, "proxy", route.ProxyName, "source", source,
-		"to_client", stats.AToB, "to_user", stats.BToA, "spliced", stats.Spliced)
+		"to_client", transferred.AToB, "to_user", transferred.BToA,
+		"spliced", transferred.Spliced)
 }
 
 // replayConn re-serves bytes already read from the connection.

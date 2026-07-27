@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/zoefix/openfrp/internal/config"
+	"github.com/zoefix/openfrp/internal/stats"
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 	"github.com/zoefix/openfrp/internal/tunnel/server/proxy"
 	"github.com/zoefix/openfrp/internal/tunnel/transport"
@@ -33,6 +34,7 @@ type Server struct {
 	registry *Registry
 	router   *vhost.Router
 	certs    *CertStore
+	stats    *stats.Registry
 	version  string
 
 	listenerMu sync.Mutex
@@ -60,6 +62,7 @@ func New(cfg *config.Server, logger *slog.Logger, version string) (*Server, erro
 		registry: NewRegistry(),
 		router:   vhost.NewRouter(),
 		certs:    NewCertStore(),
+		stats:    stats.NewRegistry(),
 		version:  version,
 	}, nil
 }
@@ -72,6 +75,9 @@ func (s *Server) Router() *vhost.Router { return s.router }
 
 // Certs exposes the certificate store used for edge TLS termination.
 func (s *Server) Certs() *CertStore { return s.certs }
+
+// Stats exposes the traffic counters.
+func (s *Server) Stats() *stats.Registry { return s.stats }
 
 // VhostAddr reports the bound address of one vhost listener, or nil when that
 // scheme is not configured.
@@ -148,7 +154,7 @@ func (s *Server) Listen(ctx context.Context) error {
 			continue
 		}
 		v := newVhostListener(want.scheme, want.port, s.cfg.BindAddr,
-			s.router, s.registry, s.certs, s.logger, s.cfg.AcceptLoops)
+			s.router, s.registry, s.certs, s.stats, s.logger, s.cfg.AcceptLoops)
 		if err := v.listen(ctx); err != nil {
 			for _, started := range s.vhosts {
 				started.close()

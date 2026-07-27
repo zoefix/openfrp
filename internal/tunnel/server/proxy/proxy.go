@@ -29,6 +29,13 @@ type WorkConnSource interface {
 	GetWorkConn(ctx context.Context, proxyName, sourceAddr string) (net.Conn, error)
 }
 
+// Recorder accounts for a completed transfer. Declared on the consuming side
+// so proxy depends on the one operation it performs rather than the whole
+// statistics registry.
+type Recorder interface {
+	RecordTransfer(name string, in, out int64, spliced bool)
+}
+
 // Proxy is one published tunnel.
 type Proxy interface {
 	// Name is the client-assigned identifier, unique within a session.
@@ -72,6 +79,9 @@ type Options struct {
 	AcceptLoops int
 	// ReusePort enables the multi-accept path.
 	ReusePort bool
+
+	// Recorder accounts for completed transfers. Nil disables accounting.
+	Recorder Recorder
 
 	// Routes is where domain-routed proxies register themselves. Nil means the
 	// server has no vhost listener configured, and publishing an http or https

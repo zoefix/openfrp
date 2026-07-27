@@ -72,6 +72,7 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		ReusePort:   s.cfg.AcceptLoops != 1,
 
 		Routes:         s.routeRegistrar(),
+		Recorder:       s.stats,
 		VhostHTTPPort:  s.cfg.VhostHTTPPort,
 		VhostHTTPSPort: s.cfg.VhostHTTPSPort,
 	})

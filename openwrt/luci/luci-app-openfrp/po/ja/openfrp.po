@@ -629,10 +629,10 @@ msgid "Transport"
 msgstr "トランスポート"
 
 msgid "Tunnel"
-msgstr "リバースプロキシ"
+msgstr "トンネル"
 
 msgid "Tunnels"
-msgstr "リバースプロキシ"
+msgstr "トンネル"
 
 msgid "Type"
 msgstr "種類"

@@ -8,13 +8,14 @@ Three pieces:
 | | |
 |---|---|
 | **`openfrps`** | Public server. Moves tunnel traffic and nothing else — no cloud credentials live here. |
-| **`openfrpc`** | Runs on the router. Maintains tunnels, provisions the server over SSH, and (from P5) manages DNS and certificates locally. |
+| **`openfrpc`** | Runs on the router. Maintains tunnels, provisions the server over SSH, and manages DNS and certificates locally. |
 | **`luci-app-openfrp`** | The LuCI web UI. Every management action happens here. |
 
-Status: **P3 complete** — tunnels, wildcard domain routing, HTTP vhost, TLS
-passthrough, the OpenWrt package and LuCI app, and one-command server
-provisioning all work end to end against real hardware. See
-[the roadmap](#roadmap).
+Status: **P0–P6 and P8–P10 complete**; P7 partially. Tunnels (TCP, UDP and
+domain-routed HTTP/HTTPS), the OpenWrt package and LuCI app, one-command
+server provisioning, DNS management, ACME issuance with zero-downtime
+rotation, renewal scheduling and traffic accounting are all working and
+tested. See [the roadmap](#roadmap) for what is not.
 
 ## Provisioning a server
 
@@ -52,9 +53,11 @@ level — so a route can never resolve to a tunnel whose certificate does not
 cover the name. Under frp's rule that mismatch is silent and unpleasant to
 debug.
 
-HTTPS is routed on the TLS SNI **without decrypting**: the server forwards
-ciphertext untouched and the backend owns the certificate. Edge termination,
-where the router issues the certificate and pushes it up, lands in P6.
+HTTPS is routed on the TLS SNI **without decrypting** by default: the server
+forwards ciphertext untouched and the backend owns the certificate. Edge
+termination — where the router issues the certificate and pushes it up — is
+available per tunnel via `tls_mode`, and costs `splice(2)` for that connection
+since a decrypting proxy cannot hand the kernel a raw socket.
 
 ## Why it is faster than frp
 
@@ -175,14 +178,16 @@ internal/
     transport/           TCP dialer, opt-in yamux
     vhost/               wildcard routing, Host and SNI sniffing
     server/  client/     the two daemons
-  dns/                   DNS providers             (P5)
-  cert/                  ACME issuance             (P6)
-  deploy/                SSH provisioning          (P3)
-  storage/               SQLite via modernc.org/sqlite (pure Go, no CGO)
+  dns/                   DNS management and providers
+  cert/                  ACME issuance and renewal
+  deploy/                SSH provisioning
+  scheduler/             periodic jobs
+  stats/                 traffic accounting
 pkg/
   netutil/               splice, buffers, socket options — the hot path
-  cloudapi/              cloud API signing         (P4)
-openwrt/                 OpenWrt feed and LuCI app (P2)
+  cloudapi/              cloud API request signing
+  schema/                declarative provider forms
+openwrt/                 OpenWrt feed and LuCI app
 ```
 
 Rules that hold throughout: one DNS provider per package; registries populated

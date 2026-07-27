@@ -148,7 +148,8 @@ func TestProviderConstructionSucceedsWithPlausibleCredentials(t *testing.T) {
 }
 
 func TestExpectedProvidersArePresent(t *testing.T) {
-	want := []string{"aliyun", "cloudflare", "dnspod", "huawei", "west"}
+	want := []string{"aliyun", "cloudflare", "dnspod", "huawei", "west",
+		"namesilo", "powerdns"}
 	have := strings.Join(dns.Keys(), ",")
 
 	for _, key := range want {

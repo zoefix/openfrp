@@ -62,6 +62,11 @@ func (o *Options) ApplyDefaults() {
 
 // Result reports what a deployment achieved.
 type Result struct {
+	// Replaced is true when a previous installation was found and cleared,
+	// which the UI reports so an operator is not surprised that a redeployment
+	// generated a new token.
+	Replaced bool `json:"replaced,omitempty"`
+
 	Fingerprint string            `json:"host_fingerprint"`
 	Token       string            `json:"token"`
 	BindPort    int               `json:"bind_port"`
@@ -133,6 +138,16 @@ func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// What is already here, before anything is changed. Installing over a
+	// previous version without clearing its service leaves that service
+	// holding the port, and the new binary starts and immediately fails to
+	// bind — which reads like a broken build rather than a leftover.
+	existing := d.findExisting(ctx)
+	result.Replaced = existing.Found
+	if existing.Found {
+		probe.Infof("an OpenFrp server is already installed: %s", existing.Describe())
+	}
 	result.Detected = info.Summary()
 	probe.Detail("inspected the server", info.Summary())
 
@@ -147,6 +162,18 @@ func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 
 	// --- install ---------------------------------------------------------
 	install := d.step("install")
+
+	// Clear the previous installation first. Its service is stopped and
+	// removed before the new binary lands, so nothing is holding the port when
+	// the new service starts.
+	if d.opts.DryRun {
+		if existing.Found {
+			install.Infof("would remove the existing installation: %s", existing.Describe())
+		}
+	} else if err := d.removeExisting(ctx, install, existing); err != nil {
+		return nil, err
+	}
+
 	if err := d.ensureServiceUser(ctx, install); err != nil {
 		return nil, err
 	}

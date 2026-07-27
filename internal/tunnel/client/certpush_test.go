@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -371,5 +372,65 @@ func TestRejectedGivesUpEventually(t *testing.T) {
 	}
 	if republished == 0 {
 		t.Error("gave up without trying at all")
+	}
+}
+
+// TestLoginTimesOutOnASilentServer covers the failure that took the client
+// down twice in one session.
+//
+// A server that completes the TCP handshake and then says nothing left the
+// client blocked in login forever: alive, no connection, never reconnecting,
+// logging nothing, with procd reporting the service healthy. The control loop
+// had always had a read deadline; login was the gap.
+func TestLoginTimesOutOnASilentServer(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	// Accept and say nothing at all, which is what a server mid-shutdown or a
+	// middlebox answering on its behalf does.
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		accepted <- conn
+	}()
+
+	client := &Client{
+		cfg: &config.Client{
+			Transport: config.Transport{DialTimeout: config.Duration(500 * time.Millisecond)},
+		},
+		logger: slog.New(slog.DiscardHandler),
+	}
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.login(context.Background(), conn)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("login succeeded against a server that never replied")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("login blocked on a silent server; the client would never reconnect")
+	}
+
+	select {
+	case c := <-accepted:
+		c.Close()
+	default:
 	}
 }

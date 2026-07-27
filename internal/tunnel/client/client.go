@@ -173,6 +173,26 @@ func (c *Client) runOnce(ctx context.Context) error {
 
 // login performs the handshake and returns a live session.
 func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
+	// Bound the whole exchange. Without this a server that completes the TCP
+	// handshake and then says nothing — one shutting down, or a middlebox that
+	// accepted on its behalf — leaves this read blocked forever. The client
+	// stays alive with no connection, never reconnects and logs nothing, and
+	// procd reports the service as healthy the entire time.
+	//
+	// The control loop has always had a deadline; login is the gap it was
+	// missing, and it is the one place where the peer has not yet proved it is
+	// the server at all.
+	deadline := c.cfg.Transport.DialTimeout.D()
+	if deadline <= 0 {
+		deadline = 30 * time.Second
+	}
+	if err := conn.SetDeadline(time.Now().Add(deadline)); err != nil {
+		return nil, fmt.Errorf("client: login: %w", err)
+	}
+	// Cleared before returning: the session that follows manages its own, and
+	// leaving this one in place would kill an idle but healthy connection.
+	defer conn.SetDeadline(time.Time{})
+
 	timestamp := time.Now().Unix()
 
 	hostname, _ := os.Hostname()

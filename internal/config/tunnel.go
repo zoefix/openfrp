@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
+	"github.com/zoefix/openfrp/pkg/netutil"
 )
 
 // TunnelType identifies how a tunnel exposes its local service.
@@ -56,6 +58,11 @@ type Tunnel struct {
 	// TLSMode applies to https tunnels. Defaults to passthrough.
 	TLSMode TLSMode `json:"tls_mode,omitempty"`
 
+	// Server names the upstream this tunnel is published to. Empty means the
+	// first one configured, which is what a single-server setup wants and what
+	// a configuration written before servers had names meant.
+	Server string `json:"server,omitempty"`
+
 	// CertID binds an issued certificate to this tunnel, by the id it has in
 	// the local database.
 	//
@@ -68,6 +75,17 @@ type Tunnel struct {
 
 	// SecretKey authenticates visitors to an stcp tunnel.
 	SecretKey string `json:"secret_key,omitempty"`
+
+	// ProxyProtocol makes the client announce the visitor's address to the
+	// local service before relaying, so logs and rate limits see whoever
+	// actually connected rather than this router.
+	//
+	// Empty disables it. The local service must be configured to expect the
+	// header — it arrives where a request is expected, so a service that is
+	// not looking for one rejects the connection. That is the right failure:
+	// the alternative is every visitor being recorded as the router, which
+	// looks like working software.
+	ProxyProtocol string `json:"proxy_protocol,omitempty"`
 }
 
 // NeedsRemotePort reports whether this tunnel type binds its own server port.
@@ -157,6 +175,15 @@ func (t *Tunnel) Validate() error {
 
 	if t.Type == TunnelSTCP && t.SecretKey == "" {
 		return fmt.Errorf("tunnel %q: stcp requires a secret_key", t.Name)
+	}
+
+	if !netutil.ValidProxyProtocol(t.ProxyProtocol) {
+		return fmt.Errorf("tunnel %q: unknown proxy_protocol %q, want v1 or v2",
+			t.Name, t.ProxyProtocol)
+	}
+	if t.ProxyProtocol != "" && t.Type == TunnelUDP {
+		return fmt.Errorf("tunnel %q: proxy_protocol needs a stream; UDP has none",
+			t.Name)
 	}
 
 	return nil

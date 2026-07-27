@@ -257,3 +257,119 @@ func TestSessionShutdownDoesNotDeadlock(t *testing.T) {
 		t.Fatal("shutdown deadlocked: the wait runs before the cancel it is waiting for")
 	}
 }
+
+// TestRejectedRetriesOnlyAStaleClaim covers the restart race.
+//
+// procd starts the new client before the old one has finished exiting, so the
+// new session publishes while the server still holds the old session's routes
+// and reaps them a fraction of a second later. Treating that as final leaves
+// the tunnel down until something restarts it again — an outage caused by the
+// act of applying a configuration change.
+//
+// A rejection for any other reason is a real disagreement and must not be
+// retried, or a genuinely misconfigured tunnel would hammer the server.
+func TestRejectedRetriesOnlyAStaleClaim(t *testing.T) {
+	cases := []struct {
+		name  string
+		error string
+		retry bool
+	}{
+		{
+			name:  "a route still held by the previous session",
+			error: `vhost: "*.aiqno.com" is already routed to tunnel "acgshop" on client "fd31c9e5"`,
+			retry: true,
+		},
+		{
+			name:  "a name still registered by the previous session",
+			error: `proxy "acgshop" is already registered`,
+			retry: true,
+		},
+		{
+			name:  "a port genuinely taken by something else",
+			error: "bind: address already in use",
+			retry: false,
+		},
+		{
+			name:  "a tunnel the server rejects outright",
+			error: "unknown proxy type",
+			retry: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tunnel := config.Tunnel{
+				Name: "acgshop", Enabled: true, Type: "https",
+				Domains: []string{"*.aiqno.com"},
+			}
+
+			client, sess, wire := harness(t, []config.Tunnel{tunnel}, nil)
+			_ = client
+			sess.tunnels = map[string]config.Tunnel{tunnel.Name: tunnel}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			sess.rejected(ctx, &protocol.NewProxyResp{Name: tunnel.Name, Error: tc.error})
+			sess.wg.Wait()
+
+			var republished int
+			reader := bytes.NewReader(wire.Bytes())
+			for reader.Len() > 0 {
+				msg, err := protocol.ReadMessage(reader)
+				if err != nil {
+					t.Fatalf("decode: %v", err)
+				}
+				if _, ok := msg.(*protocol.NewProxy); ok {
+					republished++
+				}
+			}
+
+			if tc.retry && republished != 1 {
+				t.Errorf("republished %d times, want 1", republished)
+			}
+			if !tc.retry && republished != 0 {
+				t.Errorf("republished %d times for a real rejection, want 0", republished)
+			}
+		})
+	}
+}
+
+// TestRejectedGivesUpEventually stops a permanent conflict becoming a loop.
+func TestRejectedGivesUpEventually(t *testing.T) {
+	tunnel := config.Tunnel{
+		Name: "acgshop", Enabled: true, Type: "https",
+		Domains: []string{"*.aiqno.com"},
+	}
+
+	_, sess, wire := harness(t, []config.Tunnel{tunnel}, nil)
+	sess.tunnels = map[string]config.Tunnel{tunnel.Name: tunnel}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stale := `vhost: "*.aiqno.com" is already routed to tunnel "acgshop" on client "other"`
+	for range republishAttempts + 4 {
+		sess.rejected(ctx, &protocol.NewProxyResp{Name: tunnel.Name, Error: stale})
+	}
+	sess.wg.Wait()
+
+	var republished int
+	reader := bytes.NewReader(wire.Bytes())
+	for reader.Len() > 0 {
+		msg, err := protocol.ReadMessage(reader)
+		if err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if _, ok := msg.(*protocol.NewProxy); ok {
+			republished++
+		}
+	}
+
+	if republished > republishAttempts {
+		t.Errorf("republished %d times, want at most %d", republished, republishAttempts)
+	}
+	if republished == 0 {
+		t.Error("gave up without trying at all")
+	}
+}

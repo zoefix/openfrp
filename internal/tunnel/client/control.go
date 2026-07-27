@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,10 @@ type session struct {
 	// assigned to a proxy knows where to forward.
 	tunnelsMu sync.RWMutex
 	tunnels   map[string]config.Tunnel
+
+	// retries bounds how long a tunnel keeps waiting for a previous session's
+	// claim to be released.
+	retries retryCounter
 
 	wg sync.WaitGroup
 }
@@ -88,23 +93,111 @@ func (s *session) publishTunnels() error {
 	}
 
 	for _, tunnel := range enabled {
-		s.tunnelsMu.Lock()
-		s.tunnels[tunnel.Name] = tunnel
-		s.tunnelsMu.Unlock()
-
-		spec := protocol.ProxySpec{
-			Name:       tunnel.Name,
-			Kind:       string(tunnel.Type),
-			RemotePort: tunnel.RemotePort,
-			Domains:    tunnel.Domains,
-			TLSMode:    string(tunnel.TLSMode),
-			SecretKey:  tunnel.SecretKey,
-		}
-		if err := s.codec.Write(&protocol.NewProxy{Proxy: spec}); err != nil {
-			return fmt.Errorf("client: publish tunnel %q: %w", tunnel.Name, err)
+		if err := s.publishTunnel(tunnel); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// publishTunnel asks the server to publish one tunnel.
+func (s *session) publishTunnel(tunnel config.Tunnel) error {
+	s.tunnelsMu.Lock()
+	s.tunnels[tunnel.Name] = tunnel
+	s.tunnelsMu.Unlock()
+
+	spec := protocol.ProxySpec{
+		Name:       tunnel.Name,
+		Kind:       string(tunnel.Type),
+		RemotePort: tunnel.RemotePort,
+		Domains:    tunnel.Domains,
+		TLSMode:    string(tunnel.TLSMode),
+		SecretKey:  tunnel.SecretKey,
+	}
+	if err := s.codec.Write(&protocol.NewProxy{Proxy: spec}); err != nil {
+		return fmt.Errorf("client: publish tunnel %q: %w", tunnel.Name, err)
+	}
+	return nil
+}
+
+// republishAttempts and republishDelay bound the retry below.
+//
+// Two seconds of retrying covers the overlap; beyond that the conflict is with
+// something that genuinely intends to keep the name.
+const (
+	republishAttempts = 8
+	republishDelay    = 250 * time.Millisecond
+)
+
+// rejected handles a tunnel the server refused.
+//
+// A name or domain still held by a previous session is retried rather than
+// given up on. Restarting the client overlaps the two processes — procd starts
+// the new one before the old one has finished exiting — so the new session
+// publishes while the server still holds the old session's routes, and reaps
+// them a fraction of a second later. Failing there leaves the tunnel down
+// until something else restarts it, which is a self-inflicted outage on every
+// configuration change.
+//
+// Anything else is a real disagreement and is reported.
+func (s *session) rejected(ctx context.Context, resp *protocol.NewProxyResp) {
+	if !strings.Contains(resp.Error, "already routed") &&
+		!strings.Contains(resp.Error, "already registered") {
+		s.logger.Error("server rejected tunnel", "tunnel", resp.Name, "error", resp.Error)
+		return
+	}
+
+	tunnel, ok := s.tunnel(resp.Name)
+	if !ok {
+		s.logger.Error("server rejected an unknown tunnel",
+			"tunnel", resp.Name, "error", resp.Error)
+		return
+	}
+
+	attempt := s.retries.next(resp.Name)
+	if attempt > republishAttempts {
+		s.logger.Error("tunnel is still claimed by another client",
+			"tunnel", resp.Name, "error", resp.Error)
+		return
+	}
+
+	s.logger.Info("tunnel is still held by a previous session, retrying",
+		"tunnel", resp.Name, "attempt", attempt)
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+
+		timer := time.NewTimer(republishDelay)
+		defer timer.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+
+		if err := s.publishTunnel(tunnel); err != nil {
+			s.logger.Debug("republish", "tunnel", tunnel.Name, "error", err)
+		}
+	}()
+}
+
+// retryCounter tracks republish attempts per tunnel for one session.
+type retryCounter struct {
+	mu     sync.Mutex
+	counts map[string]int
+}
+
+func (r *retryCounter) next(name string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.counts == nil {
+		r.counts = map[string]int{}
+	}
+	r.counts[name]++
+	return r.counts[name]
 }
 
 // heartbeat keeps the control connection alive and detects a server that has
@@ -178,7 +271,7 @@ func (s *session) controlLoop(ctx context.Context) error {
 
 		case *protocol.NewProxyResp:
 			if m.Error != "" {
-				s.logger.Error("server rejected tunnel", "tunnel", m.Name, "error", m.Error)
+				s.rejected(ctx, m)
 				continue
 			}
 			s.logger.Info("tunnel published", "tunnel", m.Name, "remote_port", m.RemotePort)

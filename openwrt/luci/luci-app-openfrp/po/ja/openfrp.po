@@ -118,6 +118,9 @@ msgstr "証明書はここで発行してサーバーへ配布します。サー
 msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
 msgstr "このアカウントで発行した証明書は残りますが、別のアカウントに紐付け直すまで更新できません。"
 
+msgid "Client IP"
+msgstr "クライアント IP"
+
 msgid "Close"
 msgstr "閉じる"
 
@@ -373,6 +376,9 @@ msgstr "なし"
 msgid "None — TLS will not work until one is bound"
 msgstr "なし — 紐付けるまで TLS は機能しません"
 
+msgid "Not announced"
+msgstr "通知しない"
+
 msgid "Not issued yet"
 msgstr "未発行"
 
@@ -387,6 +393,12 @@ msgstr "1 行に 1 つ。\"*\" はちょうど 1 階層だけを対象とする�
 
 msgid "Overview"
 msgstr "概要"
+
+msgid "PROXY protocol v1 (text)"
+msgstr "PROXY プロトコル v1 (テキスト)"
+
+msgid "PROXY protocol v2 (binary)"
+msgstr "PROXY プロトコル v2 (バイナリ)"
 
 msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Termination requires a certificate issued here and pushed to the server."
 msgstr "パススルーは暗号化されたままの通信をそのまま転送するため、証明書はローカルのサービスが持ちます。終端する場合は、ここで発行した証明書をサーバーへ配布する必要があります。"
@@ -615,6 +627,12 @@ msgstr "このルーターの接続先と、そのサーバーを構築する方
 
 msgid "Where to find it"
 msgstr "取得方法"
+
+msgid "Without this the local service records every visitor as this router, because that is what connects to it."
+msgstr "有効にしないと、ローカルのサービスはすべての訪問者をこのルーターとして記録します。実際に接続しているのがルーターだからです。"
+
+msgid "Without this the local service records every visitor as this router, because that is what connects to it. The service must be configured to expect the header — it arrives where a request is expected, so one that is not looking for it will refuse the connection. For nginx: listen 80 proxy_protocol; set_real_ip_from <this router>; real_ip_header proxy_protocol;"
+msgstr "有効にしないと、ローカルのサービスはすべての訪問者をこのルーターとして記録します。サービス側でこのヘッダーを受け付ける設定が必要です。リクエストが来るはずの位置に現れるため、想定していないサービスは接続を拒否します。nginx の場合: listen 80 proxy_protocol; set_real_ip_from <このルーター>; real_ip_header proxy_protocol;"
 
 msgid "Zone"
 msgstr "ゾーン"

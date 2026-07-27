@@ -46,7 +46,7 @@ append_domain() {
 
 add_tunnel() {
 	local section="$1"
-	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id
+	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol
 
 	config_get name "$section" name
 	config_get_bool enabled "$section" enabled 0
@@ -56,6 +56,7 @@ add_tunnel() {
 	config_get remote_port "$section" remote_port
 	config_get tls_mode "$section" tls_mode
 	config_get cert_id "$section" cert_id
+	config_get proxy_protocol "$section" proxy_protocol
 	config_get secret_key "$section" secret_key
 
 	# A tunnel without a name or a local port cannot be published, and the
@@ -76,6 +77,9 @@ add_tunnel() {
 	# Which issued certificate this tunnel uses. Only a bound tunnel has one
 	# pushed to the server.
 	add_int cert_id "$cert_id"
+	# Announce the visitor to the local service, so its logs show whoever
+	# connected rather than this router.
+	add_string proxy_protocol "$proxy_protocol"
 	add_string secret_key "$secret_key"
 
 	# Domain patterns for http and https tunnels. Emitted only when present,

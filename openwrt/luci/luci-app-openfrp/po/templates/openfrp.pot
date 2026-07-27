@@ -196,6 +196,10 @@ msgid ""
 "renew until you point them at another account."
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:187
+msgid "Client IP"
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:394
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:462
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:55
@@ -569,6 +573,10 @@ msgstr ""
 msgid "None — TLS will not work until one is bound"
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:190
+msgid "Not announced"
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:89
 msgid "Not issued yet"
 msgstr ""
@@ -593,6 +601,14 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:161
 msgid "Overview"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:191
+msgid "PROXY protocol v1 (text)"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:192
+msgid "PROXY protocol v2 (binary)"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:165
@@ -744,7 +760,7 @@ msgstr ""
 msgid "Secret TCP"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:187
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:204
 msgid "Secret key"
 msgstr ""
 
@@ -916,7 +932,7 @@ msgstr ""
 msgid "Value"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:188
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:205
 msgid "Visitors must present this to reach the tunnel."
 msgstr ""
 
@@ -931,6 +947,22 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:227
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:345
 msgid "Where to find it"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:188
+msgid ""
+"Without this the local service records every visitor as this router, "
+"because that is what connects to it."
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:197
+msgid ""
+"Without this the local service records every visitor as this router, "
+"because that is what connects to it. The service must be configured to "
+"expect the header — it arrives where a request is expected, so one "
+"that is not looking for it will refuse the connection. For nginx: "
+"listen 80 proxy_protocol; set_real_ip_from <this router>; "
+"real_ip_header proxy_protocol;"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:262

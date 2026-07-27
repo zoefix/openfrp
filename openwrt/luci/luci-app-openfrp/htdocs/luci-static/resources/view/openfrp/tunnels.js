@@ -184,6 +184,23 @@ return view.extend({
 			o.description = _('No certificates have been issued yet. Request one ' +
 				'on the Certificates page first.');
 
+		o = s.option(form.ListValue, 'proxy_protocol', _('Client IP'),
+			_('Without this the local service records every visitor as this ' +
+			  'router, because that is what connects to it.'));
+		o.value('', _('Not announced'));
+		o.value('v1', _('PROXY protocol v1 (text)'));
+		o.value('v2', _('PROXY protocol v2 (binary)'));
+		o.depends('type', 'tcp');
+		o.depends('type', 'http');
+		o.depends('type', 'https');
+		o.depends('type', 'stcp');
+		o.description = _('Without this the local service records every visitor as ' +
+			'this router, because that is what connects to it. The service must be ' +
+			'configured to expect the header — it arrives where a request is ' +
+			'expected, so one that is not looking for it will refuse the connection. ' +
+			'For nginx: listen 80 proxy_protocol; set_real_ip_from <this router>; ' +
+			'real_ip_header proxy_protocol;');
+
 		o = s.option(form.Value, 'secret_key', _('Secret key'),
 			_('Visitors must present this to reach the tunnel.'));
 		o.depends('type', 'stcp');

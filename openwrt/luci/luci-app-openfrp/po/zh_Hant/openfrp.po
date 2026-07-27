@@ -118,6 +118,9 @@ msgstr "憑證在這裡簽發並推送到伺服器，伺服器會熱載入，不
 msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
 msgstr "透過該帳號簽發的憑證會保留，但在你把它們指向其他帳號之前無法續期。"
 
+msgid "Client IP"
+msgstr "用戶端 IP"
+
 msgid "Close"
 msgstr "關閉"
 
@@ -373,6 +376,9 @@ msgstr "無"
 msgid "None — TLS will not work until one is bound"
 msgstr "無 — 未綁定憑證前 TLS 無法運作"
 
+msgid "Not announced"
+msgstr "不告知"
+
 msgid "Not issued yet"
 msgstr "尚未簽發"
 
@@ -387,6 +393,12 @@ msgstr "每行一個。「*」只涵蓋一層，所以 *.aiqno.com 涵蓋 acgsho
 
 msgid "Overview"
 msgstr "概觀"
+
+msgid "PROXY protocol v1 (text)"
+msgstr "PROXY 協定 v1（文字）"
+
+msgid "PROXY protocol v2 (binary)"
+msgstr "PROXY 協定 v2（二進位）"
 
 msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Termination requires a certificate issued here and pushed to the server."
 msgstr "透傳會原樣轉發加密流量，憑證由內網服務自己持有。終止則需要在本機簽發憑證並推送到伺服器。"
@@ -615,6 +627,12 @@ msgstr "本路由器連線到哪裡，以及如何部署那台伺服器。"
 
 msgid "Where to find it"
 msgstr "在哪裡取得"
+
+msgid "Without this the local service records every visitor as this router, because that is what connects to it."
+msgstr "不開啟的話，內網服務會把每個訪客都記成本路由器，因為連上去的確實是它。"
+
+msgid "Without this the local service records every visitor as this router, because that is what connects to it. The service must be configured to expect the header — it arrives where a request is expected, so one that is not looking for it will refuse the connection. For nginx: listen 80 proxy_protocol; set_real_ip_from <this router>; real_ip_header proxy_protocol;"
+msgstr "不開啟的話，內網服務會把每個訪客都記成本路由器，因為連上去的確實是它。伺服器必須設定成預期這個標頭——它出現在本該是要求的位置，沒有預期的服務會直接拒絕連線。nginx 設定：listen 80 proxy_protocol; set_real_ip_from <本路由器>; real_ip_header proxy_protocol;"
 
 msgid "Zone"
 msgstr "網域"

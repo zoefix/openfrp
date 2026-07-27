@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"strings"
+	"strconv"
 	"time"
 )
 
@@ -79,7 +79,14 @@ type Transport struct {
 
 // Client is the configuration for the openfrpc daemon.
 type Client struct {
-	ServerAddr string `json:"server_addr"`
+	// Servers are the endpoints this router connects to, each with its own
+	// control connection. A tunnel names the one it belongs to.
+	Servers []Upstream `json:"servers,omitempty"`
+
+	// The fields below are the single-server shape this configuration had
+	// before it could hold more than one. They are still read — see
+	// Client.Upstreams — so an upgrade needs no migration.
+	ServerAddr string `json:"server_addr,omitempty"`
 	ServerPort int    `json:"server_port,omitempty"`
 	Token      string `json:"token,omitempty"`
 
@@ -110,7 +117,22 @@ func (c *Client) ApplyDefaults() {
 	if c.ServerPort == 0 {
 		c.ServerPort = DefaultBindPort
 	}
-	t := &c.Transport
+	c.Transport.ApplyDefaults()
+
+	for i := range c.Servers {
+		c.Servers[i].ApplyDefaults()
+	}
+	for i := range c.Tunnels {
+		c.Tunnels[i].applyDefaults()
+	}
+}
+
+// ApplyDefaults fills in the transport settings left unset.
+//
+// A method on Transport rather than inline in Client.ApplyDefaults because
+// every server carries its own copy: one may multiplex over a lossy link while
+// another does not, and the defaults have to be applied to each.
+func (t *Transport) ApplyDefaults() {
 	if t.Protocol == "" {
 		t.Protocol = ProtocolTCP
 	}
@@ -129,21 +151,10 @@ func (c *Client) ApplyDefaults() {
 	if t.DialTimeout == 0 {
 		t.DialTimeout = Duration(DefaultDialTimeout)
 	}
-	for i := range c.Tunnels {
-		c.Tunnels[i].applyDefaults()
-	}
 }
 
-// Validate reports the first configuration problem found.
-func (c *Client) Validate() error {
-	if strings.TrimSpace(c.ServerAddr) == "" {
-		return fmt.Errorf("server_addr must not be empty")
-	}
-	if err := validatePort(c.ServerPort); err != nil {
-		return fmt.Errorf("server_port: %w", err)
-	}
-
-	t := c.Transport
+// Validate reports the first problem with the transport settings.
+func (t Transport) Validate() error {
 	if !t.Protocol.Valid() {
 		return fmt.Errorf("transport.protocol: unknown value %q", t.Protocol)
 	}
@@ -161,9 +172,34 @@ func (c *Client) Validate() error {
 	if t.HeartbeatTimeout <= t.HeartbeatInterval {
 		return fmt.Errorf("transport.heartbeat_timeout must exceed heartbeat_interval")
 	}
+	return nil
+}
+
+// Validate reports the first configuration problem found.
+func (c *Client) Validate() error {
+	servers := c.Upstreams()
+	if len(servers) == 0 {
+		return fmt.Errorf("no servers are configured")
+	}
+
+	names := make(map[string]struct{}, len(servers))
+	for _, server := range servers {
+		if err := server.Validate(); err != nil {
+			return err
+		}
+		if _, dup := names[server.Name]; dup {
+			return fmt.Errorf("duplicate server name %q", server.Name)
+		}
+		names[server.Name] = struct{}{}
+	}
+
+	for _, tunnel := range c.OrphanTunnels() {
+		return fmt.Errorf("tunnel %q names server %q, which does not exist",
+			tunnel.Name, tunnel.Server)
+	}
 
 	seen := make(map[string]struct{}, len(c.Tunnels))
-	ports := make(map[int]string)
+	portsByServer := make(map[string]string)
 	for i := range c.Tunnels {
 		tun := &c.Tunnels[i]
 		if err := tun.Validate(); err != nil {
@@ -175,13 +211,16 @@ func (c *Client) Validate() error {
 		seen[tun.Name] = struct{}{}
 
 		// Port zero means "server allocates", so several tunnels may carry it
-		// without conflicting.
+		// without conflicting. The key includes the server: two tunnels on
+		// different servers may both bind 6022, and rejecting that would be
+		// wrong now that there can be more than one.
+		key := tun.Server + "/" + strconv.Itoa(tun.RemotePort)
 		if tun.Enabled && tun.Type.NeedsRemotePort() && tun.RemotePort != 0 {
-			if other, clash := ports[tun.RemotePort]; clash {
-				return fmt.Errorf("tunnels %q and %q both request remote_port %d",
-					other, tun.Name, tun.RemotePort)
+			if other, clash := portsByServer[key]; clash {
+				return fmt.Errorf("tunnels %q and %q both request remote_port %d "+
+					"on the same server", other, tun.Name, tun.RemotePort)
 			}
-			ports[tun.RemotePort] = tun.Name
+			portsByServer[key] = tun.Name
 		}
 	}
 	return nil

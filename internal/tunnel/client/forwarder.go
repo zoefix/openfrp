@@ -56,6 +56,27 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 		logger.Debug("tune local connection", "error", err)
 	}
 
+	// Announce the visitor before any payload. Without this the local service
+	// sees the connection coming from this router and logs every visitor as
+	// the same address.
+	//
+	// Written straight to the socket rather than through a wrapper, so the
+	// relay below still hands the kernel a raw *net.TCPConn and keeps the
+	// splice path. The header costs one small write per connection.
+	if tunnel.ProxyProtocol != "" {
+		source, err := netutil.ParseProxyAddr(start.SourceAddr)
+		if err != nil {
+			logger.Warn("cannot announce the visitor address",
+				"source", start.SourceAddr, "error", err)
+			return
+		}
+		if err := netutil.WriteProxyHeader(localConn, tunnel.ProxyProtocol,
+			source, localConn.RemoteAddr()); err != nil {
+			logger.Warn("announce visitor address", "error", err)
+			return
+		}
+	}
+
 	// AToB is work connection to local service: traffic arriving from the
 	// internet. BToA is the reply. Naming them from the tunnel's point of view
 	// keeps "in" meaning the same thing on both ends.

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/challenge"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
 )
@@ -133,7 +132,7 @@ type IssueRequest struct {
 	// Account carries the ACME account. Its key is created if absent.
 	Account *Account
 	// Solver answers the challenge. Required for DNS-01.
-	Solver challenge.Provider
+	Solver ChallengeSolver
 	// PreferredChain selects an issuer chain by root common name, for clients
 	// that still distrust a newer root.
 	PreferredChain string
@@ -207,7 +206,11 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 	}
 
 	if req.Solver != nil {
-		if err := client.Challenge.SetDNS01Provider(req.Solver); err != nil {
+		// The context is bound here rather than stored on the request, so a
+		// cancelled issuance stops the solver mid-propagation instead of
+		// leaving challenge records behind.
+		solver := legoSolver{ctx: ctx, inner: req.Solver}
+		if err := client.Challenge.SetDNS01Provider(solver); err != nil {
 			return nil, fmt.Errorf("cert: configure DNS challenge: %w", err)
 		}
 	}

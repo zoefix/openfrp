@@ -95,14 +95,7 @@ func (m Managed) Due(now time.Time) bool {
 // A function rather than a stored solver because credentials are looked up per
 // certificate, and because a solver holds per-issuance state that must not be
 // shared between orders.
-type SolverFactory func(ctx context.Context, managed Managed) (Solver, error)
-
-// Solver is the challenge interface the issuer needs. It matches lego's
-// challenge.Provider so our DNS solver satisfies both without an adapter.
-type Solver interface {
-	Present(domain, token, keyAuth string) error
-	CleanUp(domain, token, keyAuth string) error
-}
+type SolverFactory func(ctx context.Context, managed Managed) (ChallengeSolver, error)
 
 // Renewer keeps managed certificates current.
 type Renewer struct {
@@ -226,7 +219,7 @@ func (r *Renewer) renewOne(ctx context.Context, managed Managed) error {
 		return err
 	}
 
-	var solver Solver
+	var solver ChallengeSolver
 	if r.solvers != nil {
 		built, err := r.solvers(ctx, managed)
 		if err != nil {

@@ -81,21 +81,36 @@ func TestOpenRepairsPermissions(t *testing.T) {
 func TestMigrationsAreIdempotent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "openfrp.db")
 
+	// Asserting a fixed version number would just need editing every time a
+	// migration is added. The property that matters is that repeated opens
+	// converge: the same version, and no new rows applied.
+	var first, firstCount int
+
 	for i := range 3 {
 		db, err := storage.Open(path)
 		if err != nil {
 			t.Fatalf("open %d: %v", i+1, err)
 		}
 
-		var version int
+		var version, count int
 		if err := db.QueryRow(
-			`SELECT max(version) FROM schema_version`).Scan(&version); err != nil {
+			`SELECT max(version), count(*) FROM schema_version`).Scan(&version, &count); err != nil {
 			t.Fatalf("read version: %v", err)
 		}
-		if version != 1 {
-			t.Errorf("schema version is %d, want 1", version)
-		}
 		db.Close()
+
+		if version < 1 {
+			t.Fatalf("open %d applied no migrations", i+1)
+		}
+
+		if i == 0 {
+			first, firstCount = version, count
+			continue
+		}
+		if version != first || count != firstCount {
+			t.Errorf("open %d moved the schema from version %d (%d applied) to %d (%d applied)",
+				i+1, first, firstCount, version, count)
+		}
 	}
 }
 

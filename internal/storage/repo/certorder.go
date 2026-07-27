@@ -27,6 +27,19 @@ type Order struct {
 	// deleted, which is recoverable by pointing the order at another one.
 	AccountID int64
 
+	// Email identifies the ACME account that issued this, so a renewal reuses
+	// it rather than registering a new one against the CA's rate limit.
+	Email string
+
+	// AutoRenew is false for a certificate the operator renews by hand.
+	//
+	// A pointer so that "not specified" is distinguishable from "explicitly
+	// off", and unspecified means on. With a plain bool, Go's zero value
+	// silently overrode the column default and no certificate was ever due for
+	// renewal — a failure that shows up as an expired certificate months later
+	// and nowhere before that.
+	AutoRenew *bool
+
 	State     string
 	LastError string
 
@@ -48,8 +61,9 @@ type Orders struct {
 // NewOrders returns a repository over db.
 func NewOrders(db *sql.DB) *Orders { return &Orders{db: db} }
 
-const orderColumns = `id, domains, key_type, ca, account_id, state, last_error,
-	certificate, private_key, issued_at, expires_at, created_at, updated_at`
+const orderColumns = `id, domains, key_type, ca, account_id, email, auto_renew,
+	state, last_error, certificate, private_key, issued_at, expires_at,
+	created_at, updated_at`
 
 // List returns every order, newest first.
 func (r *Orders) List(ctx context.Context) ([]Order, error) {
@@ -88,11 +102,13 @@ func (r *Orders) Get(ctx context.Context, id int64) (Order, error) {
 //
 // Orders that have never been issued are excluded: they have no expiry to
 // compare, and retrying a failed first issuance on the renewal timer would
-// hammer the CA's rate limit.
+// hammer the CA's rate limit. Orders with auto-renew off are excluded because
+// the operator said so.
 func (r *Orders) DueForRenewal(ctx context.Context, cutoff int64) ([]Order, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT `+orderColumns+` FROM cert_order
-		WHERE state = ? AND expires_at IS NOT NULL AND expires_at <= ?
+		WHERE state = ? AND auto_renew = 1
+		  AND expires_at IS NOT NULL AND expires_at <= ?
 		ORDER BY expires_at`, StateIssued, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("repo: list renewals: %w", err)
@@ -119,13 +135,18 @@ func (r *Orders) Create(ctx context.Context, order Order) (Order, error) {
 	if order.State == "" {
 		order.State = StatePending
 	}
+	if order.AutoRenew == nil {
+		order.AutoRenew = new(bool)
+		*order.AutoRenew = true
+	}
 
 	row := r.db.QueryRowContext(ctx, `
-		INSERT INTO cert_order (domains, key_type, ca, account_id, state, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, unixepoch(), unixepoch())
+		INSERT INTO cert_order
+			(domains, key_type, ca, account_id, email, auto_renew, state, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())
 		RETURNING id, created_at, updated_at`,
 		string(domains), order.KeyType, order.CA,
-		nullableID(order.AccountID), order.State)
+		nullableID(order.AccountID), order.Email, *order.AutoRenew, order.State)
 
 	if err := row.Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt); err != nil {
 		return Order{}, fmt.Errorf("repo: create order: %w", err)
@@ -222,12 +243,14 @@ func scanOrder(src scanner) (Order, error) {
 		order     Order
 		domains   string
 		accountID sql.NullInt64
+		autoRenew bool
 		issuedAt  sql.NullInt64
 		expiresAt sql.NullInt64
 	)
 
 	if err := src.Scan(&order.ID, &domains, &order.KeyType, &order.CA,
-		&accountID, &order.State, &order.LastError,
+		&accountID, &order.Email, &autoRenew,
+		&order.State, &order.LastError,
 		&order.Certificate, &order.PrivateKey,
 		&issuedAt, &expiresAt, &order.CreatedAt, &order.UpdatedAt); err != nil {
 		return Order{}, err
@@ -237,6 +260,7 @@ func scanOrder(src scanner) (Order, error) {
 		return Order{}, fmt.Errorf("repo: order %d has unreadable domains: %w", order.ID, err)
 	}
 
+	order.AutoRenew = &autoRenew
 	order.AccountID = accountID.Int64
 	order.IssuedAt = issuedAt.Int64
 	order.ExpiresAt = expiresAt.Int64

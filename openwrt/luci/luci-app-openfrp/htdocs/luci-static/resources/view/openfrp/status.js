@@ -137,17 +137,45 @@ function badge(ok, okText, badText) {
 // reconnect, which outlives the thirty seconds rpcd allows.
 // hiddenLog is everything the operator has already dismissed.
 //
-// syslog is the whole router's, and clearing it would throw away every other
+// syslog is the whole router's, and emptying it would throw away every other
 // service's output to tidy one panel. So this hides rather than deletes: what
 // was on screen when the button was pressed stops being shown, and anything
 // logged afterwards appears as it arrives.
-var hiddenLog = '';
+//
+// Kept in the browser, because a clear that a page reload undoes is not a
+// clear — it is the panel disagreeing with itself about what was dismissed.
+// The browser is also the right place for it: nothing was deleted, so this is
+// one reader's view and not a change to the router.
+var hiddenLogKey = 'openfrp.log.dismissed';
+var hiddenLog = readHiddenLog();
+
+function readHiddenLog() {
+	try {
+		return window.localStorage.getItem(hiddenLogKey) || '';
+	} catch (e) {
+		// Private browsing, or storage turned off. The clear still works for
+		// as long as the page is open, which is better than not offering it.
+		return '';
+	}
+}
+
+function rememberHiddenLog(text) {
+	hiddenLog = text;
+	try {
+		if (text)
+			window.localStorage.setItem(hiddenLogKey, text);
+		else
+			window.localStorage.removeItem(hiddenLogKey);
+	} catch (e) {
+		/* Nothing to do: the value is still held for this page. */
+	}
+}
 
 function clearLogButton(logBox) {
 	return E('button', {
 		'class': 'btn',
 		'click': function () {
-			hiddenLog = logBox.textContent || '';
+			rememberHiddenLog(logBox.textContent || '');
 			dom.content(logBox, _('No log output yet.'));
 		}
 	}, _('Clear'));
@@ -160,7 +188,7 @@ function visibleLog(text) {
 	if (hiddenLog && text.indexOf(hiddenLog) === 0)
 		return text.slice(hiddenLog.length).replace(/^\n+/, '');
 	if (hiddenLog && text.indexOf(hiddenLog) < 0)
-		hiddenLog = '';
+		rememberHiddenLog('');
 	return text;
 }
 

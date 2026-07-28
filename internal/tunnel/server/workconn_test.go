@@ -212,3 +212,68 @@ func TestPoolGrowsWithDemandAndSettlesBack(t *testing.T) {
 		t.Errorf("pool target settled at %d, want the configured floor of 4", got)
 	}
 }
+
+// TestReplenishDoesNotReRequestConnectionsAlreadyComing is the regression
+// guard for a storm this code caused on a live server.
+//
+// Every visitor tops the pool up, and a dial takes a round trip to land. With
+// no account of what was already asked for, every visitor arriving inside
+// that window computed the same deficit and asked for it again — so a burst
+// against a shallow pool did not request the difference once, it requested it
+// per visitor until the client was dialling thousands of connections. On a
+// real 50 ms path that turned a pool that merely queued into 84,952 failures
+// in fifteen seconds.
+func TestReplenishDoesNotReRequestConnectionsAlreadyComing(t *testing.T) {
+	session := testSession(t, 8, 32)
+
+	// First visitor to find the pool short asks for the whole deficit.
+	session.replenishPool()
+	if got := session.poolInFlight.Load(); got != 8 {
+		t.Fatalf("in flight after the first replenish = %d, want 8", got)
+	}
+
+	// Every visitor behind it, inside the round trip, asks for nothing more.
+	for range 50 {
+		session.replenishPool()
+	}
+	if got := session.poolInFlight.Load(); got != 8 {
+		t.Errorf("in flight after 50 more visitors = %d, want it still 8 — "+
+			"the deficit is already on its way", got)
+	}
+
+	// As they arrive the count comes down, and the pool asks for no more
+	// than the room left.
+	for range 8 {
+		conn, _ := liveWorkConn(t)
+		session.AddWorkConn(conn)
+	}
+	if got := session.poolInFlight.Load(); got != 0 {
+		t.Errorf("in flight after all 8 arrived = %d, want 0", got)
+	}
+	session.replenishPool()
+	if got := session.poolInFlight.Load(); got != 0 {
+		t.Errorf("in flight with a full pool = %d, want 0", got)
+	}
+}
+
+// TestUnansweredRequestsAreReclaimed: a client whose dials fail answers
+// nothing, and the in-flight count must not strand the pool forever.
+func TestUnansweredRequestsAreReclaimed(t *testing.T) {
+	session := testSession(t, 8, 32)
+
+	session.replenishPool()
+	if session.poolInFlight.Load() == 0 {
+		t.Fatal("nothing was requested")
+	}
+
+	// Two sweeps with no arrivals between them: the first records the
+	// arrival count, the second sees it unchanged and gives up on them.
+	cursor := int64(0)
+	session.sweepInFlight(&cursor)
+	session.sweepInFlight(&cursor)
+
+	if got := session.poolInFlight.Load(); got != 0 {
+		t.Errorf("in flight after unanswered requests = %d, want it reclaimed "+
+			"to 0 so the pool can ask again", got)
+	}
+}

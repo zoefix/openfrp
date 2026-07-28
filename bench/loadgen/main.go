@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -354,7 +355,7 @@ func runColdStart(target string, duration, warmup time.Duration,
 			local := make([]time.Duration, 0, 4096)
 			defer func() { latencies[worker] = local }()
 
-			reply := make([]byte, 64)
+			reply := make([]byte, 128)
 			for {
 				select {
 				case <-stop:
@@ -377,15 +378,27 @@ func runColdStart(target string, duration, warmup time.Duration,
 					continue
 				}
 
-				// First byte, not the whole body: this measures the time to
-				// be served, not the size of what was served.
-				if _, err := conn.Read(reply); err != nil {
+				// The status line, not merely the first byte.
+				//
+				// Reading one byte and calling it a success measures how fast
+				// the far end can say no. An edge proxy answers its own error
+				// pages in microseconds while the tunnel behind it is stalled,
+				// so a run that was failing every request scored a p50 of half
+				// a millisecond and a hundredfold rise in throughput — the
+				// benchmark reporting the failure as the improvement.
+				n, err := conn.Read(reply)
+				if err != nil {
 					conn.Close()
 					errs.Add(1)
 					continue
 				}
 				elapsed := time.Since(started)
 				conn.Close()
+
+				if httpHost != "" && !bytes.Contains(reply[:n], []byte(" 200 ")) {
+					errs.Add(1)
+					continue
+				}
 
 				if measure.Load() {
 					local = append(local, elapsed)

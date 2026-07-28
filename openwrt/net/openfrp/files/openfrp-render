@@ -126,6 +126,26 @@ SERVER_COUNT=0
 add_server() {
 	local section="$1"
 	local addr port token protocol mux pool_count tls_enable client_name
+	local kind tunnel_id
+
+	config_get kind "$section" kind
+
+	# A Cloudflare tunnel has no address and no token: cloudflared connects
+	# outward from here and Cloudflare routes hostnames back down it. It is
+	# still a server in the configuration, because tunnels point at it by name
+	# and the daemon has to know the name exists.
+	if [ "$kind" = "cloudflare" ]; then
+		config_get tunnel_id "$section" tunnel_id
+		[ -n "$tunnel_id" ] || return 0
+
+		SERVER_COUNT=$((SERVER_COUNT + 1))
+		json_add_object ""
+		json_add_string name "$section"
+		json_add_string kind cloudflare
+		json_add_string tunnel_id "$tunnel_id"
+		json_close_object
+		return 0
+	fi
 
 	config_get addr "$section" addr
 	[ -n "$addr" ] || return 0

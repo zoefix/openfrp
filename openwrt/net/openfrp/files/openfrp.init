@@ -16,6 +16,8 @@ PROG=/usr/bin/openfrpc
 RENDER=/usr/libexec/openfrp/render
 CONF=/var/etc/openfrp.json
 RUNDIR=/var/run/openfrp
+CLOUDFLARED=/usr/lib/openfrp/cloudflared
+CFDIR=/etc/openfrp/cloudflared
 
 boot() {
 	# The config lives on tmpfs, so it has to be regenerated every boot.
@@ -70,6 +72,55 @@ start_service() {
 	procd_set_param respawn 3600 5 5
 
 	procd_set_param pidfile "$RUNDIR/openfrpc.pid"
+	procd_close_instance
+
+	config_foreach start_cloudflared server
+}
+
+# start_cloudflared runs one cloudflared for a Cloudflare tunnel server.
+#
+# A separate process because it is a separate product: cloudflared speaks
+# Cloudflare's protocol to their edge, and this daemon speaks its own to an
+# openfrps. Neither can carry the other's traffic, so a router publishing both
+# ways runs both.
+start_cloudflared() {
+	local section="$1"
+	local kind tunnel_id
+
+	config_get kind "$section" kind
+	[ "$kind" = "cloudflare" ] || return 0
+
+	config_get tunnel_id "$section" tunnel_id
+	if [ -z "$tunnel_id" ]; then
+		echo "openfrp: $section has no Cloudflare tunnel yet, skipping" >&2
+		return 0
+	fi
+
+	if [ ! -x "$CLOUDFLARED" ]; then
+		echo "openfrp: $section needs cloudflared, which is not installed" >&2
+		return 0
+	fi
+
+	# Rendering the ingress and routing the hostnames happens here rather than
+	# at setup: a domain added to a tunnel afterwards needs its own DNS record,
+	# and cloudflared needs to be told where the new hostname goes. Failure is
+	# reported and not fatal — a name that could not be routed should not stop
+	# the names that could.
+	if ! "$PROG" cftunnel apply -server "$section" -config "$CONF" \
+		-binary "$CLOUDFLARED" -dir "$CFDIR" >/dev/null 2>&1; then
+		echo "openfrp: $section could not be applied to Cloudflare" >&2
+	fi
+
+	procd_open_instance "cloudflared-$section"
+	procd_set_param command "$CLOUDFLARED" \
+		--config "$CFDIR/config.yml" \
+		--no-autoupdate \
+		tunnel run "$tunnel_id"
+	procd_set_param file "$CFDIR/config.yml"
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param respawn 3600 5 5
+	procd_set_param pidfile "$RUNDIR/cloudflared-$section.pid"
 	procd_close_instance
 }
 

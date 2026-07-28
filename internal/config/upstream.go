@@ -16,6 +16,16 @@ type Upstream struct {
 	// what a tunnel points at. It is local — the server never sees it.
 	Name string `json:"name"`
 
+	// Kind is how this server is reached. Empty means an openfrps, which is
+	// what every server was before there was more than one kind.
+	Kind string `json:"kind,omitempty"`
+
+	// TunnelID names the Cloudflare tunnel, for a server of that kind. There
+	// is no address or token to go with it: cloudflared connects outward from
+	// this router and Cloudflare routes hostnames back down that connection,
+	// so there is nothing here to dial and nothing to authenticate to.
+	TunnelID string `json:"tunnel_id,omitempty"`
+
 	Addr  string `json:"addr"`
 	Port  int    `json:"port,omitempty"`
 	Token string `json:"token,omitempty"`
@@ -26,6 +36,13 @@ type Upstream struct {
 
 	Transport Transport `json:"transport,omitempty"`
 }
+
+// KindCloudflare is a server published through a Cloudflare tunnel.
+const KindCloudflare = "cloudflare"
+
+// IsCloudflare reports whether this is a Cloudflare tunnel rather than an
+// openfrps.
+func (u Upstream) IsCloudflare() bool { return u.Kind == KindCloudflare }
 
 // ApplyDefaults fills in what was left out.
 func (u *Upstream) ApplyDefaults() {
@@ -40,6 +57,18 @@ func (u *Upstream) Validate() error {
 	if strings.TrimSpace(u.Name) == "" {
 		return fmt.Errorf("config: a server needs a name")
 	}
+
+	// A Cloudflare tunnel has nothing to dial. Requiring an address of it
+	// would be requiring a fact that does not exist, so what is checked is the
+	// thing that does: whether the tunnel has been created yet.
+	if u.IsCloudflare() {
+		if strings.TrimSpace(u.TunnelID) == "" {
+			return fmt.Errorf("config: server %q has no Cloudflare tunnel yet; "+
+				"finish setting it up", u.Name)
+		}
+		return nil
+	}
+
 	if strings.TrimSpace(u.Addr) == "" {
 		return fmt.Errorf("config: server %q has no address", u.Name)
 	}

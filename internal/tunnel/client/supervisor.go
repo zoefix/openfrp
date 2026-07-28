@@ -96,6 +96,15 @@ func (s *Supervisor) Run(ctx context.Context) error {
 	)
 
 	for _, server := range servers {
+		// A Cloudflare tunnel is served by cloudflared, not by this daemon.
+		// There is no openfrps to log in to and no control connection to hold,
+		// so opening one would be dialling an address that does not exist.
+		if server.IsCloudflare() {
+			s.logger.Info("server is published by cloudflared",
+				"server", server.Name, "tunnel", server.TunnelID)
+			continue
+		}
+
 		scoped, err := s.scopedConfig(server)
 		if err != nil {
 			s.logger.Error("server is not usable", "server", server.Name, "error", err)

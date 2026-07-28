@@ -161,6 +161,51 @@ case "$KIND" in
 		finish failed
 		;;
 
+	cf_setup)
+		# Cloudflare tunnel provisioning. A job rather than an rpcd call
+		# because the middle of it is a person opening a link in a browser,
+		# which takes as long as it takes.
+		if ! command -v openfrpc >/dev/null 2>&1; then
+			log "openfrpc is not installed"
+			finish failed
+		fi
+
+		section="$(printf '%s' "$ARGS" | jsonfilter -e '@.server' 2>/dev/null)"
+		case "$section" in
+			''|*[!A-Za-z0-9_]*) log "no valid server section was supplied"; finish failed ;;
+		esac
+
+		name="$(printf '%s' "$ARGS" | jsonfilter -e '@.name' 2>/dev/null)"
+		[ -n "$name" ] || name="openfrp-$section"
+
+		log "==> setting up a Cloudflare tunnel for $section"
+		if openfrpc cftunnel setup -name "$name" >> "$LOG" 2>&1; then
+			# The tunnel id is the whole result: without it the section names a
+			# tunnel that does not exist, and cloudflared has nothing to run.
+			line="$(grep '"result"' "$LOG" | tail -n 1)"
+			tunnel_id="$(printf '%s' "$line" | jsonfilter -e '@.result.tunnel_id' 2>/dev/null)"
+
+			if [ -z "$tunnel_id" ]; then
+				log "==> the tunnel was set up but its id could not be read"
+				finish failed
+			fi
+
+			uci -q set "openfrp.$section.kind=cloudflare"
+			uci -q set "openfrp.$section.tunnel_id=$tunnel_id"
+			uci -q set "openfrp.$section.tunnel_name=$name"
+			uci -q commit openfrp
+			log "==> recorded tunnel $tunnel_id"
+
+			if /etc/init.d/openfrp enabled 2>/dev/null; then
+				/etc/init.d/openfrp reload >/dev/null 2>&1
+				log "==> reloaded so cloudflared picks it up"
+			fi
+			finish succeeded
+		fi
+		log "==> Cloudflare setup failed"
+		finish failed
+		;;
+
 	restart)
 		log "==> restarting openfrp"
 		if /etc/init.d/openfrp restart >> "$LOG" 2>&1; then

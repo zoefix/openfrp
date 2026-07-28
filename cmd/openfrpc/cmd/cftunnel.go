@@ -39,9 +39,17 @@ func runCFTunnel(ctx context.Context, args []string) error {
 		server = fs.String("server", "", "the server section these tunnels name")
 		cfg    = fs.String("config", "/var/etc/openfrp.json", "rendered client configuration")
 	)
-	fs.Parse(args)
+	// The action comes before its flags, as the other subcommands spell it.
+	// Parsing the whole slice would stop at "setup" and read no flags at all,
+	// which is how a -name that was clearly given arrived empty.
+	if len(args) == 0 {
+		return fmt.Errorf("cftunnel: expected setup, apply or status")
+	}
+	action := args[0]
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
 
-	action := fs.Arg(0)
 	cli := cloudflare.CLI{Binary: *binary, Dir: *dir}
 
 	switch action {

@@ -797,3 +797,15 @@ msgstr "トンネル未作成 — 「セットアップ」を押してくださ�
 
 msgid "Certificate %s (missing)"
 msgstr "証明書 %s（存在しません）"
+
+msgid "Name under the domain"
+msgstr "ドメイン下の名前"
+
+msgid "One label only: letters, digits and dashes."
+msgstr "ラベル一つだけ：英数字とハイフン。"
+
+msgid "Published as this, followed by .%s. Leave empty for %s itself."
+msgstr "この名前に .%s を付けて公開されます。空にすると %s 自体になります。"
+
+msgid "This server has no domain yet — set it up again."
+msgstr "このサーバーにはまだドメインがありません — 再度セットアップしてください。"

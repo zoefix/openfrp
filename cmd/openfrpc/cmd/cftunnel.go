@@ -120,12 +120,27 @@ func cfSetup(ctx context.Context, cli cloudflare.CLI, name string) error {
 			tunnel.Name, tunnel.ID, credentials)
 	}
 
-	// The result line is what the job worker reads to record the tunnel id
+	// Which domain the operator chose, read back from the credential rather
+	// than asked for again. They made the choice in Cloudflare's own dialog,
+	// and retyping it is a chance to get it wrong in a way that produces
+	// hostnames resolving nowhere.
+	zone := ""
+	if credential, err := cli.ReadCredential(); err == nil {
+		if name, err := credential.ZoneName(ctx); err == nil {
+			zone = name
+			progress("publishing under %s", zone)
+		} else {
+			progress("could not read which domain was authorised: %v", err)
+		}
+	}
+
+	// The result line is what the job worker reads to record the tunnel
 	// against the server section. Everything above it is for a person.
 	return emitJSON(map[string]any{
 		"result": map[string]string{
 			"tunnel_id":   tunnel.ID,
 			"tunnel_name": tunnel.Name,
+			"zone":        zone,
 			"binary":      cli.Binary,
 			"dir":         cli.Dir,
 		},
@@ -183,11 +198,21 @@ func cfApply(ctx context.Context, cli cloudflare.CLI, configPath, server string)
 		progress("%s routes to this tunnel", rule.Hostname)
 	}
 
+	// A hostname that used to be published and no longer is leaves a CNAME
+	// pointing into a tunnel that will not serve it, so the name answers with
+	// Cloudflare's own error instead of not resolving. Removing a tunnel has
+	// to remove its name too.
+	withdrawn := cli.Withdraw(ctx, upstream.Name, rules, func(line string) {
+		progress("%s", line)
+	})
+
 	if len(failures) > 0 {
 		return fmt.Errorf("cftunnel: %s", strings.Join(failures, "; "))
 	}
 	return emitJSON(map[string]any{
-		"result": map[string]any{"config": path, "hostnames": len(rules)},
+		"result": map[string]any{
+			"config": path, "hostnames": len(rules), "withdrawn": withdrawn,
+		},
 	})
 }
 

@@ -351,6 +351,35 @@ function openfrpServers() {
 	return allowed;
 }
 
+// cloudflareServers lists the values of the server field that mean Cloudflare.
+function cloudflareServers() {
+	var allowed = [];
+	var first = null;
+
+	uci.sections('openfrp', 'server', function (server) {
+		if (first === null)
+			first = server;
+		if (server.kind === 'cloudflare')
+			allowed.push(server['.name']);
+	});
+
+	if (first && first.kind === 'cloudflare')
+		allowed.push('');
+	return allowed;
+}
+
+// zoneOf is the domain a Cloudflare server publishes under.
+function zoneOf(section_id) {
+	var owner = uci.get('openfrp', section_id, 'server');
+	if (!owner) {
+		uci.sections('openfrp', 'server', function (server) {
+			if (!owner)
+				owner = server['.name'];
+		});
+	}
+	return owner ? (uci.get('openfrp', owner, 'zone') || '') : '';
+}
+
 // certificateCovers reports whether one of a certificate's names serves a
 // tunnel's domain.
 //
@@ -429,6 +458,7 @@ return view.extend({
 		// Which values of the server field mean an OpenFrp server. Computed
 		// once here and handed to every option that only applies to one.
 		var openfrp = openfrpServers();
+		var cloudflare = cloudflareServers();
 
 		m = new form.Map('openfrp', _('Tunnels'),
 			_('Each tunnel exposes one local service through the server.') + ' ' +
@@ -544,6 +574,32 @@ return view.extend({
 		o.depends('type', 'https');
 		o.placeholder = '*.aaa.com';
 		o.validate = validateDomainPattern;
+		limitToOpenFrp(o, openfrp);
+
+		// A Cloudflare tunnel names a prefix. The suffix is the domain chosen
+		// while authorising, which is already known — asking for it again per
+		// tunnel is asking someone to retype a decision, and a typo there
+		// publishes a name that resolves nowhere.
+		o = s.option(form.Value, 'cf_prefix', _('Name under the domain'));
+		o.placeholder = 'nas';
+		cloudflare.forEach(function (server) {
+			o.depends({ type: 'http', server: server });
+		});
+		o.validate = function (section_id, value) {
+			if (value && !/^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/.test(value))
+				return _('One label only: letters, digits and dashes.');
+			return true;
+		};
+		o.renderWidget = function (section_id) {
+			// The suffix is shown beside the field rather than described, so
+			// what will be published is on screen while it is being typed.
+			var zone = zoneOf(section_id);
+			this.description = zone
+				? _('Published as this, followed by .%s. Leave empty for %s itself.')
+					.format(zone, zone)
+				: _('This server has no domain yet — set it up again.');
+			return form.Value.prototype.renderWidget.apply(this, arguments);
+		};
 
 		o = s.option(form.Button, '_certificate', _('Certificate'));
 		o.modalonly = false;

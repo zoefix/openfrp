@@ -107,6 +107,33 @@ add_tunnel() {
 	# UCI_CONFIG_DIR, which is what makes this script testable against a
 	# throwaway config, and it avoids a subprocess per tunnel. A list option
 	# comes back space separated, which is enough to test for presence.
+	# A tunnel on a Cloudflare server names a prefix, not a whole domain: the
+	# suffix is the zone the operator chose while authorising, and retyping it
+	# per tunnel is a chance to publish a name that resolves nowhere.
+	local owner owner_kind zone prefix
+	owner="$server"
+	[ -n "$owner" ] || owner="$FIRST_SERVER"
+	config_get owner_kind "$owner" kind
+
+	if [ "$owner_kind" = "cloudflare" ]; then
+		config_get zone "$owner" zone
+		config_get prefix "$section" cf_prefix
+
+		if [ -n "$zone" ]; then
+			json_add_array domains
+			case "$prefix" in
+				''|'@') json_add_string "" "$zone" ;;
+				*)      json_add_string "" "$prefix.$zone" ;;
+			esac
+			json_close_array
+		else
+			echo "openfrp: tunnel '$section' is on $owner, which has no domain yet" >&2
+		fi
+
+		json_close_object
+		return 0
+	fi
+
 	local domains
 	config_get domains "$section" domains
 	if [ -n "$domains" ]; then
@@ -123,10 +150,14 @@ add_tunnel() {
 # nowhere to connect.
 SERVER_COUNT=0
 
+# FIRST_SERVER is the section a tunnel means when it names none. Recorded while
+# the servers are emitted, which happens before any tunnel is.
+FIRST_SERVER=""
+
 add_server() {
 	local section="$1"
 	local addr port token protocol mux pool_count tls_enable client_name
-	local kind tunnel_id
+	local kind tunnel_id zone
 
 	config_get kind "$section" kind
 
@@ -139,10 +170,13 @@ add_server() {
 		[ -n "$tunnel_id" ] || return 0
 
 		SERVER_COUNT=$((SERVER_COUNT + 1))
+		[ -n "$FIRST_SERVER" ] || FIRST_SERVER="$section"
 		json_add_object ""
 		json_add_string name "$section"
 		json_add_string kind cloudflare
 		json_add_string tunnel_id "$tunnel_id"
+		config_get zone "$section" zone
+		add_string zone "$zone"
 		json_close_object
 		return 0
 	fi
@@ -159,6 +193,7 @@ add_server() {
 	config_get client_name "$section" client_name
 
 	SERVER_COUNT=$((SERVER_COUNT + 1))
+	[ -n "$FIRST_SERVER" ] || FIRST_SERVER="$section"
 
 	json_add_object ""
 	# The section name is the identity a tunnel points at. It is local to this

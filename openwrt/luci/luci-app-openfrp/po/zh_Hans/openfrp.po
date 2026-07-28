@@ -797,3 +797,15 @@ msgstr "还没有隧道 — 点“设置”"
 
 msgid "Certificate %s (missing)"
 msgstr "证书 %s（已不存在）"
+
+msgid "Name under the domain"
+msgstr "域名下的名称"
+
+msgid "One label only: letters, digits and dashes."
+msgstr "只能是一段：字母、数字和短横线。"
+
+msgid "Published as this, followed by .%s. Leave empty for %s itself."
+msgstr "发布为此名称加上 .%s。留空则使用 %s 本身。"
+
+msgid "This server has no domain yet — set it up again."
+msgstr "这台服务器还没有域名 — 请重新设置。"

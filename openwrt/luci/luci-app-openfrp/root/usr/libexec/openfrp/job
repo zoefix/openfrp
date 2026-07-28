@@ -190,9 +190,14 @@ case "$KIND" in
 				finish failed
 			fi
 
+			zone="$(printf '%s' "$line" | jsonfilter -e '@.result.zone' 2>/dev/null)"
+
 			uci -q set "openfrp.$section.kind=cloudflare"
 			uci -q set "openfrp.$section.tunnel_id=$tunnel_id"
 			uci -q set "openfrp.$section.tunnel_name=$name"
+			# The domain the operator picked while authorising. Tunnels supply
+			# only a prefix, and this is what it is a prefix of.
+			[ -n "$zone" ] && uci -q set "openfrp.$section.zone=$zone"
 			uci -q commit openfrp
 			log "==> recorded tunnel $tunnel_id"
 

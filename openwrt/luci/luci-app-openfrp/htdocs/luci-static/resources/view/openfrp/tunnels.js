@@ -301,21 +301,54 @@ function publishedByCloudflare(section_id) {
 	return owner ? uci.get('openfrp', owner, 'kind') === 'cloudflare' : false;
 }
 
-// hideOnCloudflare stops an option appearing for a tunnel Cloudflare carries.
+// limitToOpenFrp hides an option unless the tunnel names an OpenFrp server.
+//
+// Expressed as a dependency rather than a check at render time, because the
+// server is chosen after the form is drawn — a check that ran once, while the
+// field was still empty, decided every option was applicable and then never
+// looked again. That is why a Cloudflare tunnel was still being offered a
+// remote port and the PROXY protocol.
 //
 // Cloudflare terminates TLS at its edge, publishes hostnames rather than
-// ports, and gives the visitor's address in a header. So a certificate, a TLS
-// mode, a remote port and the PROXY protocol are all settings that would be
-// accepted, saved, and then do nothing — which is worse than not offering
-// them, because the operator has no way to find out.
-function hideOnCloudflare(option) {
-	var base = option.render;
-	option.render = function (index, section_id) {
-		if (publishedByCloudflare(section_id))
-			return E([]);
-		return base.apply(this, arguments);
-	};
+// ports, and passes the visitor's address in CF-Connecting-IP without being
+// asked. So a certificate, a TLS mode, a remote port and the PROXY protocol
+// are settings it would accept, save, and then ignore.
+function limitToOpenFrp(option, allowed) {
+	// Dependencies are ANDed within one entry and ORed across entries, so an
+	// option that already has some is multiplied by the servers it may appear
+	// for rather than having one appended to it.
+	var existing = (option.deps && option.deps.length) ? option.deps : [{}];
+	option.deps = [];
+
+	existing.forEach(function (dep) {
+		allowed.forEach(function (server) {
+			var combined = Object.assign({}, dep);
+			combined.server = server;
+			option.deps.push(combined);
+		});
+	});
 	return option;
+}
+
+// openfrpServers lists the values of the server field that are not Cloudflare.
+//
+// The empty value means the first server, which is the rule the daemon
+// applies, so it belongs on the list only when that first one is an OpenFrp
+// server.
+function openfrpServers() {
+	var allowed = [];
+	var first = null;
+
+	uci.sections('openfrp', 'server', function (server) {
+		if (first === null)
+			first = server;
+		if (server.kind !== 'cloudflare')
+			allowed.push(server['.name']);
+	});
+
+	if (first && first.kind !== 'cloudflare')
+		allowed.push('');
+	return allowed;
 }
 
 // certificateCovers reports whether one of a certificate's names serves a
@@ -393,6 +426,10 @@ return view.extend({
 		// for it again; it is the same person every time.
 		var lastEmail = (certificates[0] || {}).email || '';
 
+		// Which values of the server field mean an OpenFrp server. Computed
+		// once here and handed to every option that only applies to one.
+		var openfrp = openfrpServers();
+
 		m = new form.Map('openfrp', _('Tunnels'),
 			_('Each tunnel exposes one local service through the server.') + ' ' +
 			_('A "*" label matches exactly one level and may appear at any depth: ' +
@@ -412,54 +449,6 @@ return view.extend({
 		o = s.option(form.Flag, 'enabled', _('Enabled'));
 		o.editable = true;
 		o.default = '0';
-
-		o = s.option(form.Button, '_certificate', _('Certificate'));
-		o.modalonly = false;
-		// A grid cell is plain text unless the option says it is editable, so
-		// without this the column renders the button's value instead of the
-		// button — which is to say, nothing.
-		o.editable = true;
-		o.inputtitle = _('Request a certificate');
-		o.inputstyle = 'apply';
-		// No depends. A dependency is resolved against the other options'
-		// widgets, and in a grid row only an editable option has one — the
-		// rest are plain text — so a dependency on the type could never be
-		// satisfied here and the button silently never appeared. The whole
-		// condition is decided below, against the configuration itself.
-		o.cfgvalue = function (section_id) {
-			// Only offered where it is the missing piece: an HTTPS tunnel that
-			// terminates TLS and has nothing bound cannot serve a request.
-			var type = uci.get('openfrp', section_id, 'type');
-			var https = uci.get('openfrp', section_id, 'https') === '1' ||
-				type === 'https';
-			var mode = uci.get('openfrp', section_id, 'tls_mode') || 'terminate';
-			var bound = uci.get('openfrp', section_id, 'cert_id');
-
-			if (type !== 'http' && type !== 'https')
-				return false;
-			// Cloudflare issues and holds the certificate for its own edge.
-			if (publishedByCloudflare(section_id))
-				return false;
-			if (!https || mode !== 'terminate' || bound)
-				return false;
-			return '';
-		};
-		// The column is a control, not a setting. Being editable puts it in
-		// front of the parser, which would otherwise write the button's own
-		// value out as a tunnel option named _certificate.
-		o.parse = function () {
-			return Promise.resolve();
-		};
-		o.onclick = function (ev, section_id) {
-			var domains = L.toArray(uci.get('openfrp', section_id, 'domains'));
-			if (!domains.length) {
-				ui.addNotification(null, E('p', {},
-					_('Add a domain to this tunnel first.')), 'warning');
-				return false;
-			}
-			requestCertificate(self, section_id, domains, accounts, lastEmail);
-			return false;
-		};
 
 		o = s.option(form.Value, 'name', _('Name'));
 		o.rmempty = false;
@@ -519,7 +508,7 @@ return view.extend({
 			  'HTTP as well.'));
 		o.depends('type', 'http');
 		o.default = '0';
-		hideOnCloudflare(o);
+		limitToOpenFrp(o, openfrp);
 		o.cfgvalue = function (section_id) {
 			// Tested against what a stored flag looks like rather than against
 			// null: an option that was never written reads back as undefined,
@@ -547,7 +536,7 @@ return view.extend({
 		o.datatype = 'port';
 		o.depends('type', 'tcp');
 		o.depends('type', 'udp');
-		hideOnCloudflare(o);
+		limitToOpenFrp(o, openfrp);
 
 		o = s.option(form.DynamicList, 'domains', _('Domains'),
 			_('Patterns routed to this tunnel over the shared HTTP and HTTPS ports.'));
@@ -556,9 +545,72 @@ return view.extend({
 		o.placeholder = '*.aaa.com';
 		o.validate = validateDomainPattern;
 
+		o = s.option(form.Button, '_certificate', _('Certificate'));
+		o.modalonly = false;
+		// A grid cell is plain text unless the option says it is editable, so
+		// without this the column renders the button's value instead of the
+		// button — which is to say, nothing.
+		o.editable = true;
+		o.inputtitle = _('Request a certificate');
+		o.inputstyle = 'apply';
+		// No depends. A dependency is resolved against the other options'
+		// widgets, and in a grid row only an editable option has one — the
+		// rest are plain text — so a dependency on the type could never be
+		// satisfied here and the button silently never appeared. The whole
+		// condition is decided below, against the configuration itself.
+		o.cfgvalue = function (section_id) {
+			// Only offered where it is the missing piece: an HTTPS tunnel that
+			// terminates TLS and has nothing bound cannot serve a request.
+			var type = uci.get('openfrp', section_id, 'type');
+			var https = uci.get('openfrp', section_id, 'https') === '1' ||
+				type === 'https';
+			var mode = uci.get('openfrp', section_id, 'tls_mode') || 'terminate';
+			var bound = uci.get('openfrp', section_id, 'cert_id');
+
+			if (type !== 'http' && type !== 'https')
+				return false;
+			// Cloudflare issues and holds the certificate for its own edge.
+			if (publishedByCloudflare(section_id))
+				return false;
+			if (!https || mode !== 'terminate' || bound)
+				return false;
+			return '';
+		};
+		// The column is a control, not a setting. Being editable puts it in
+		// front of the parser, which would otherwise write the button's own
+		// value out as a tunnel option named _certificate.
+		o.parse = function () {
+			return Promise.resolve();
+		};
+		// A bound certificate is shown by name. The button only has something
+		// to offer when there is nothing bound, and rendering a dash in every
+		// other row left a column headed Certificate that never named one.
+		o.renderWidget = function (section_id, option_index, cfgvalue) {
+			var bound = uci.get('openfrp', section_id, 'cert_id');
+			if (bound) {
+				var match = certificates.filter(function (order) {
+					return String(order.id) === String(bound);
+				})[0];
+				return E('span', {},
+					match ? match.domains.join(', ')
+						: _('Certificate %s (missing)').format(bound));
+			}
+			return form.Button.prototype.renderWidget.apply(this, arguments);
+		};
+		o.onclick = function (ev, section_id) {
+			var domains = L.toArray(uci.get('openfrp', section_id, 'domains'));
+			if (!domains.length) {
+				ui.addNotification(null, E('p', {},
+					_('Add a domain to this tunnel first.')), 'warning');
+				return false;
+			}
+			requestCertificate(self, section_id, domains, accounts, lastEmail);
+			return false;
+		};
+
 		o = s.option(form.ListValue, 'tls_mode', _('TLS handling'));
 		o.depends({ type: 'http', https: '1' });
-		hideOnCloudflare(o);
+		limitToOpenFrp(o, openfrp);
 		o.value('passthrough', _('Passthrough — the remote server does not decrypt'));
 		o.value('terminate', _('Decrypted by the remote server'));
 		o.default = 'passthrough';
@@ -572,7 +624,7 @@ return view.extend({
 			  'connection. Only a bound tunnel has its certificate pushed.'));
 		o.depends({ type: 'http', https: '1', tls_mode: 'terminate' });
 		o.modalonly = true;
-		hideOnCloudflare(o);
+		limitToOpenFrp(o, openfrp);
 
 		// The choices depend on the tunnel, so they are built per section
 		// rather than once. Offering a certificate that does not cover this
@@ -622,7 +674,6 @@ return view.extend({
 
 		o = s.option(form.ListValue, 'proxy_protocol', _('Client IP'));
 		o.modalonly = true;
-		hideOnCloudflare(o);
 		o.value('', _('Not announced'));
 		o.value('v1', _('PROXY protocol v1 (text)'));
 		o.value('v2', _('PROXY protocol v2 (binary)'));
@@ -630,6 +681,10 @@ return view.extend({
 		o.depends('type', 'http');
 		o.depends('type', 'https');
 		o.depends('type', 'stcp');
+		// After the dependencies above, not before: this multiplies the ones
+		// that exist, and any added afterwards would carry no server
+		// constraint at all.
+		limitToOpenFrp(o, openfrp);
 
 		// No angle brackets in the placeholders: a description is inserted as
 		// markup, so <port> would be parsed as a tag and vanish, leaving a

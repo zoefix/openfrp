@@ -794,3 +794,6 @@ msgstr "セットアップ"
 
 msgid "No tunnel yet — press Set up"
 msgstr "トンネル未作成 — 「セットアップ」を押してください"
+
+msgid "Certificate %s (missing)"
+msgstr "証明書 %s（存在しません）"

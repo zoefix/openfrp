@@ -794,3 +794,6 @@ msgstr "设置"
 
 msgid "No tunnel yet — press Set up"
 msgstr "还没有隧道 — 点“设置”"
+
+msgid "Certificate %s (missing)"
+msgstr "证书 %s（已不存在）"

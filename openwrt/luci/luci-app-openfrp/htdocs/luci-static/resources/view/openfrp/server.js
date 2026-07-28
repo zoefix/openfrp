@@ -299,9 +299,16 @@ function deployFields(section) {
 	var hostInput = input({ 'placeholder': '203.0.113.10' }, stored('ssh_host'));
 	var portInput = input({ 'type': 'number' }, stored('ssh_port', '22'));
 	var userInput = input({}, stored('ssh_user', 'root'));
+
+	// The stored password is filled in rather than hinted at, so the field
+	// shows what will actually be used and a second deployment needs nothing
+	// typed. This costs no exposure: LuCI hands the whole openfrp config to
+	// this page on load, so the value was already here — it was merely being
+	// withheld from the one field whose job is to show it.
+	var storedPassword = stored('ssh_pass');
 	var passwordInput = input({
 		'type': 'password', 'class': 'cbi-input-password', 'autocomplete': 'off'
-	});
+	}, storedPassword);
 	var keyInput = input({ 'placeholder': '/etc/openfrp/id_ed25519' }, stored('ssh_key_path'));
 	var controlPort = input({ 'type': 'number' }, stored('port', '7000'));
 
@@ -311,20 +318,27 @@ function deployFields(section) {
 	]);
 	authSelect.value = stored('ssh_auth', 'password');
 
-	// Whether one is on file, not what it is. The stored password is handed to
-	// the deployment by the job worker, which reads it on the router; sending
-	// it out to this page so the page could send it back is the one trip a
-	// stored credential should never make.
-	var hasStoredPassword = !!stored('ssh_pass');
-	if (hasStoredPassword)
-		passwordInput.setAttribute('placeholder', _('saved — leave blank to reuse'));
+	// Masked by default and revealable, which is the point of filling it in:
+	// an operator who has forgotten the password of a server they provisioned
+	// months ago can read it back here rather than from a shell.
+	var revealButton = E('button', {
+		'class': 'btn',
+		'style': 'margin-left:0.5em;white-space:nowrap',
+		'click': function (ev) {
+			ev.preventDefault();
+			var masked = passwordInput.getAttribute('type') === 'password';
+			passwordInput.setAttribute('type', masked ? 'text' : 'password');
+			ev.currentTarget.textContent = masked ? _('Hide') : _('Show');
+		}
+	}, _('Show'));
 
-	var passwordRow = row(_('SSH password'), passwordInput,
-		hasStoredPassword
-			? _('Saved on this router. Leave blank to reuse it, or type a new ' +
-				'one to replace it.')
-			: _('Saved on this router, so an update can deploy without being ' +
-				'asked for it. It is stored in plain text, readable by root.'));
+	var passwordField = E('div',
+		{ 'style': 'display:flex;align-items:center' },
+		[passwordInput, revealButton]);
+
+	var passwordRow = row(_('SSH password'), passwordField,
+		_('Saved on this router, so an update can deploy without being asked ' +
+			'for it. It is stored in plain text, readable by root.'));
 	var keyRow = row(_('Private key'), keyInput,
 		_('Path to a key on this router.'));
 
@@ -367,8 +381,10 @@ function deployFields(section) {
 				ui.addNotification(null, E('p', {}, _('Enter the SSH host.')), 'warning');
 				return;
 			}
-			if (authSelect.value === 'password' &&
-				!passwordInput.value && !hasStoredPassword) {
+			// The field is now the whole truth: it arrives holding whatever is
+			// stored, so empty means there is no password rather than "reuse
+			// the one you cannot see".
+			if (authSelect.value === 'password' && !passwordInput.value) {
 				ui.addNotification(null, E('p', {}, _('Enter the SSH password.')), 'warning');
 				return;
 			}
@@ -412,7 +428,12 @@ function deployFields(section) {
 				// job worker reads from UCI on the router. It has to know how
 				// to do that anyway for a deployment nobody started, and doing
 				// it in one place means the two paths cannot disagree.
-				if (authSelect.value === 'password' && passwordInput.value)
+				//
+				// An unchanged password is deliberately not sent: the worker
+				// already reads it from UCI, and sending it would put it in
+				// the job's argument file for no gain.
+				if (authSelect.value === 'password' &&
+					passwordInput.value && passwordInput.value !== storedPassword)
 					args.password = passwordInput.value;
 				else if (authSelect.value === 'key' && keyInput.value)
 					args.key_path = keyInput.value;
@@ -420,8 +441,6 @@ function deployFields(section) {
 				ui.hideModal();
 
 				callJobStart('deploy', JSON.stringify(args)).then(function (res) {
-					passwordInput.value = '';
-
 					if (!res || res.error || !res.id) {
 						ui.addNotification(null, E('p', {},
 							_('Could not start the deployment: %s')

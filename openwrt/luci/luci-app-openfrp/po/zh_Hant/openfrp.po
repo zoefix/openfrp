@@ -348,6 +348,9 @@ msgstr "失敗 — 請查看上面的輸出。"
 msgid "Finished successfully."
 msgstr "已成功完成。"
 
+msgid "Hide"
+msgstr "隱藏"
+
 msgid "History"
 msgstr "歷史"
 
@@ -645,10 +648,6 @@ msgstr "儲存並簽發"
 msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
 msgstr "儲存在本路由器上，這樣更新時無需再詢問即可部署。以明文儲存，root 可讀。"
 
-
-msgid "Saved on this router. Leave blank to reuse it, or type a new one to replace it."
-msgstr "已儲存在本路由器上。留空則沿用，輸入新的則替換。"
-
 msgid "Saved — leave blank to keep"
 msgstr "已儲存 — 留空則沿用"
 
@@ -684,6 +683,9 @@ msgstr "正在設定 Cloudflare Tunnel"
 
 msgid "Shared secret. Stored in plaintext on this router."
 msgstr "共用金鑰。以明文儲存在本路由器上。"
+
+msgid "Show"
+msgstr "顯示"
 
 msgid "Starting…"
 msgstr "正在啟動…"
@@ -841,9 +843,6 @@ msgstr "未連接"
 msgid "port %s"
 msgstr "連接埠 %s"
 
-msgid "saved — leave blank to reuse"
-msgstr "已儲存 —— 留空即沿用"
-
 msgid "server-allocated"
 msgstr "由伺服器分配"
 
@@ -855,3 +854,4 @@ msgstr "未知"
 
 msgid "unnamed"
 msgstr "未命名"
+

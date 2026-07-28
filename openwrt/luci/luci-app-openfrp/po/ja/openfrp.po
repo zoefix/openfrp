@@ -348,6 +348,9 @@ msgstr "失敗しました — 上の出力を確認してください。"
 msgid "Finished successfully."
 msgstr "正常に完了しました。"
 
+msgid "Hide"
+msgstr "非表示"
+
 msgid "History"
 msgstr "履歴"
 
@@ -645,10 +648,6 @@ msgstr "保存して発行"
 msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
 msgstr "このルーターに保存され、更新時に尋ねられることなくデプロイできます。平文で保存され、root が読み取れます。"
 
-
-msgid "Saved on this router. Leave blank to reuse it, or type a new one to replace it."
-msgstr "このルーターに保存されています。空欄のままなら再利用し、新しいものを入力すると置き換えます。"
-
 msgid "Saved — leave blank to keep"
 msgstr "保存済み — 空欄なら維持"
 
@@ -684,6 +683,9 @@ msgstr "Cloudflare Tunnel を設定中"
 
 msgid "Shared secret. Stored in plaintext on this router."
 msgstr "共有シークレットです。このルーターに平文で保存されます。"
+
+msgid "Show"
+msgstr "表示"
 
 msgid "Starting…"
 msgstr "開始しています…"
@@ -841,9 +843,6 @@ msgstr "未接続"
 msgid "port %s"
 msgstr "ポート %s"
 
-msgid "saved — leave blank to reuse"
-msgstr "保存済み — 空欄なら再利用"
-
 msgid "server-allocated"
 msgstr "サーバー割り当て"
 
@@ -855,3 +854,4 @@ msgstr "不明"
 
 msgid "unnamed"
 msgstr "名称未設定"
+

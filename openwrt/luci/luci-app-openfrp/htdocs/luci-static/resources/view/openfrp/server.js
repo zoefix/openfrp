@@ -601,6 +601,18 @@ return view.extend({
 				}));
 		};
 
+		// A Cloudflare row has nothing to edit. It has no address, no control
+		// port and no token, and the one thing it does hold — the tunnel — is
+		// made by Set up rather than typed in. The dialog would open on a form
+		// of fields that do not apply to it, every one of them saveable and
+		// none of them read by anything.
+		s.renderRowActions = function (section_id, more_label, trEl) {
+			var label = uci.get('openfrp', section_id, 'kind') === 'cloudflare'
+				? null : _('Edit');
+			return form.TableSection.prototype.renderRowActions.call(
+				this, section_id, label, trEl);
+		};
+
 		s.modaltitle = function (section_id) {
 			return _('Server') + ' » ' + section_id;
 		};

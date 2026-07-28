@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strings"
 )
 
 // h2cPreface is the opening of a cleartext HTTP/2 connection sent with prior
@@ -57,29 +56,38 @@ func SniffHTTP(r io.Reader) (HTTPInfo, error) {
 			"carries no Host header and cannot be routed by this listener")
 	}
 
-	lines := strings.Split(string(raw[:headerEnd]), "\r\n")
-	if len(lines) == 0 || lines[0] == "" {
+	// The head is parsed in place. The obvious alternative — one big
+	// string(raw) plus a Split — copies the entire head and allocates a slice
+	// per request, on a path that runs for every connection the vhost ports
+	// accept. Only the three values that outlive the buffer (method, path,
+	// host) are copied out.
+	rest := raw[:headerEnd]
+
+	line, rest := cutCRLF(rest)
+	if len(line) == 0 {
 		return info, fmt.Errorf("vhost: empty request line")
 	}
 
 	// Request line: METHOD SP PATH SP VERSION
-	if parts := strings.Fields(lines[0]); len(parts) >= 2 {
-		info.Method = parts[0]
-		info.Path = parts[1]
-	} else {
-		return info, fmt.Errorf("vhost: malformed request line %q", lines[0])
+	method, afterMethod, ok := bytes.Cut(line, []byte(" "))
+	path, _, ok2 := bytes.Cut(afterMethod, []byte(" "))
+	if !ok || !ok2 || len(method) == 0 || len(path) == 0 {
+		return info, fmt.Errorf("vhost: malformed request line %q", line)
 	}
+	info.Method = string(method)
+	info.Path = string(path)
 
-	for _, line := range lines[1:] {
-		name, value, found := strings.Cut(line, ":")
+	for len(rest) > 0 {
+		line, rest = cutCRLF(rest)
+		name, value, found := bytes.Cut(line, []byte(":"))
 		if !found {
 			continue
 		}
-		if !strings.EqualFold(strings.TrimSpace(name), "host") {
+		if !asciiEqualFold(bytes.TrimSpace(name), "host") {
 			continue
 		}
 
-		host, err := NormaliseHost(strings.TrimSpace(value))
+		host, err := NormaliseHost(string(bytes.TrimSpace(value)))
 		if err != nil {
 			return info, fmt.Errorf("vhost: %w", err)
 		}
@@ -89,4 +97,30 @@ func SniffHTTP(r io.Reader) (HTTPInfo, error) {
 
 	// HTTP/1.1 requires Host; HTTP/1.0 does not, and we cannot route without it.
 	return info, ErrNoHost
+}
+
+// cutCRLF splits off the first \r\n-terminated line.
+func cutCRLF(b []byte) (line, rest []byte) {
+	if idx := bytes.Index(b, []byte("\r\n")); idx >= 0 {
+		return b[:idx], b[idx+2:]
+	}
+	return b, nil
+}
+
+// asciiEqualFold reports whether b equals the lower-case ASCII string want,
+// ignoring case, without allocating.
+func asciiEqualFold(b []byte, want string) bool {
+	if len(b) != len(want) {
+		return false
+	}
+	for i := range b {
+		c := b[i]
+		if 'A' <= c && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != want[i] {
+			return false
+		}
+	}
+	return true
 }

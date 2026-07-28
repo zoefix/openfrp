@@ -9,3 +9,7 @@ const reusePortSupported = false
 func setReusePort(uintptr) error {
 	return errors.New("netutil: SO_REUSEPORT is unavailable on this platform")
 }
+
+const deferAcceptSupported = false
+
+func setDeferAccept(uintptr, int) error { return nil }

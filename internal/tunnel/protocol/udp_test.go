@@ -107,3 +107,102 @@ func TestUDPTruncatedFrameIsAnError(t *testing.T) {
 		}
 	}
 }
+
+// TestUDPReadIntoMatchesRead proves the aliasing reader and the allocating
+// reader decode identically, including the zero-length datagram case.
+func TestUDPReadIntoMatchesRead(t *testing.T) {
+	cases := []UDPPacket{
+		{Addr: "192.0.2.7:53", Payload: []byte("query")},
+		{Addr: "[2001:db8::1]:9999", Payload: bytes.Repeat([]byte{0xAB}, MaxUDPPayload)},
+		{Addr: "198.51.100.1:1", Payload: []byte{}},
+		{Addr: "", Payload: []byte("no address")},
+	}
+
+	scratch := make([]byte, MaxUDPFrame)
+	for _, want := range cases {
+		var buf bytes.Buffer
+		if err := WriteUDPPacket(&buf, want); err != nil {
+			t.Fatalf("write %q: %v", want.Addr, err)
+		}
+
+		addr, payload, err := ReadUDPPacketInto(bytes.NewReader(buf.Bytes()), scratch)
+		if err != nil {
+			t.Fatalf("read into %q: %v", want.Addr, err)
+		}
+		if string(addr) != want.Addr {
+			t.Errorf("addr = %q, want %q", addr, want.Addr)
+		}
+		if !bytes.Equal(payload, want.Payload) {
+			t.Errorf("payload mismatch for %q: got %d bytes, want %d",
+				want.Addr, len(payload), len(want.Payload))
+		}
+	}
+}
+
+// TestUDPReadIntoRejectsSmallScratch: a short scratch buffer must be refused
+// up front, not discovered as an index panic mid-read.
+func TestUDPReadIntoRejectsSmallScratch(t *testing.T) {
+	var buf bytes.Buffer
+	if err := WriteUDPPacket(&buf, UDPPacket{Addr: "a:1", Payload: []byte("x")}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, _, err := ReadUDPPacketInto(&buf, make([]byte, 100)); err == nil {
+		t.Fatal("small scratch was accepted")
+	}
+}
+
+// TestUDPAppendRoundTrip: the append-style framer must produce exactly what
+// the readers expect, extending dst in place.
+func TestUDPAppendRoundTrip(t *testing.T) {
+	frame := make([]byte, 0, MaxUDPFrame)
+	frame, err := AppendUDPPacket(frame, "203.0.113.9:4242", []byte("hello"))
+	if err != nil {
+		t.Fatalf("append: %v", err)
+	}
+
+	packet, err := ReadUDPPacket(bytes.NewReader(frame))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if packet.Addr != "203.0.113.9:4242" || string(packet.Payload) != "hello" {
+		t.Errorf("round trip = %q/%q", packet.Addr, packet.Payload)
+	}
+}
+
+// TestUDPSteadyStateAllocations pins the whole point of the Into/Append pair:
+// the per-packet paths must not allocate. A regression here is invisible to
+// every correctness test and taxes every datagram, so it is asserted exactly.
+func TestUDPSteadyStateAllocations(t *testing.T) {
+	payload := bytes.Repeat([]byte{0x42}, 512)
+	addr := "192.0.2.55:60000"
+
+	var wire bytes.Buffer
+	if err := WriteUDPPacket(&wire, UDPPacket{Addr: addr, Payload: payload}); err != nil {
+		t.Fatalf("prime: %v", err)
+	}
+	frameBytes := append([]byte(nil), wire.Bytes()...)
+
+	scratch := make([]byte, MaxUDPFrame)
+	reader := bytes.NewReader(frameBytes)
+
+	readAllocs := testing.AllocsPerRun(200, func() {
+		reader.Reset(frameBytes)
+		if _, _, err := ReadUDPPacketInto(reader, scratch); err != nil {
+			t.Fatalf("read: %v", err)
+		}
+	})
+	if readAllocs > 0 {
+		t.Errorf("ReadUDPPacketInto allocates %.1f times per packet, want 0", readAllocs)
+	}
+
+	frame := make([]byte, 0, MaxUDPFrame)
+	appendAllocs := testing.AllocsPerRun(200, func() {
+		var err error
+		if _, err = AppendUDPPacket(frame[:0], addr, payload); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+	})
+	if appendAllocs > 0 {
+		t.Errorf("AppendUDPPacket allocates %.1f times per packet, want 0", appendAllocs)
+	}
+}

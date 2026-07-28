@@ -133,6 +133,10 @@ func (s *Server) Listen(ctx context.Context) error {
 	ln, err := netutil.Listen(ctx, "tcp", addr, netutil.ListenOptions{
 		ReusePort: s.cfg.AcceptLoops != 1,
 		KeepAlive: 30 * time.Second,
+		// Every legitimate connection here opens with our preamble, so accept
+		// can wait for it: one wakeup saved per connection, and a scanner that
+		// connects silently never costs a goroutine.
+		DeferAccept: 5 * time.Second,
 	}, s.cfg.AcceptLoops)
 	if err != nil {
 		return fmt.Errorf("server: %w", err)
@@ -211,22 +215,25 @@ func (s *Server) Serve(ctx context.Context) error {
 	defer s.wg.Wait()
 	defer s.registry.CloseAll()
 
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
-				s.logger.Info("control listener stopped")
-				return nil
-			}
-			return fmt.Errorf("server: accept: %w", err)
-		}
-
+	// The control listener carries one connection per tunnel handoff at steady
+	// state — every work connection lands here — so it accepts in parallel for
+	// the same reason the proxy listeners do.
+	err := netutil.Serve(ln, func(conn net.Conn) {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
 			s.handleConn(ctx, conn)
 		}()
+	})
+	if err != nil {
+		if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
+			s.logger.Info("control listener stopped")
+			return nil
+		}
+		return fmt.Errorf("server: accept: %w", err)
 	}
+	s.logger.Info("control listener stopped")
+	return nil
 }
 
 // handleConn reads the greeting and dispatches on the declared mode.

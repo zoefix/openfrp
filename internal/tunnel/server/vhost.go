@@ -52,6 +52,9 @@ func (v *vhostListener) listen(ctx context.Context) error {
 	ln, err := netutil.Listen(ctx, "tcp", addr, netutil.ListenOptions{
 		ReusePort: v.reusePort,
 		KeepAlive: 30 * time.Second,
+		// HTTP and TLS are both client-first, so accept can wait for the
+		// request bytes — the sniffer needs them immediately anyway.
+		DeferAccept: 5 * time.Second,
 	}, v.acceptLoops)
 	if err != nil {
 		return fmt.Errorf("server: %s vhost listener: %w", v.scheme, err)
@@ -85,21 +88,22 @@ func (v *vhostListener) serve(ctx context.Context) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
-				return nil
-			}
-			return fmt.Errorf("server: %s vhost accept: %w", v.scheme, err)
-		}
-
+	// One accept loop per underlying SO_REUSEPORT listener; handlers spawn
+	// straight off the accept goroutine with no intermediary.
+	err := netutil.Serve(ln, func(conn net.Conn) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			v.handle(ctx, conn)
 		}()
+	})
+	if err != nil {
+		if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
+			return nil
+		}
+		return fmt.Errorf("server: %s vhost accept: %w", v.scheme, err)
 	}
+	return nil
 }
 
 // handle identifies, routes and relays one inbound connection.
@@ -116,6 +120,19 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	source := userConn.RemoteAddr().String()
 
 	host, path, consumed, err := v.sniff(userConn)
+
+	// The sniffed head lives in a pooled buffer. It is finished with the
+	// moment it has been replayed to the tunnel — long before the relay ends —
+	// and returning it then lets it serve the next arriving connection. The
+	// termination path opts out by clearing the flag: its TLS wrapper may
+	// keep serving surplus sniffed bytes for the life of the connection.
+	consumedPooled := true
+	defer func() {
+		if consumedPooled {
+			vhost.PutConsumed(consumed)
+		}
+	}()
+
 	if err != nil {
 		v.logger.Debug("could not identify connection",
 			"scheme", string(v.scheme), "source", source, "error", err)
@@ -169,6 +186,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	// splice(2) for this connection — a tls.Conn is not a *net.TCPConn — which
 	// is exactly why passthrough remains the default and this is opt-in.
 	if v.scheme == vhost.SchemeHTTPS && terminationRoute(route) {
+		consumedPooled = false
 		v.terminate(ctx, userConn, workConn, consumed, route, host, source)
 		return
 	}
@@ -184,6 +202,10 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 		}
 	}
 
+	// Replayed in full: hand the buffer back before settling in to relay.
+	consumedPooled = false
+	vhost.PutConsumed(consumed)
+
 	// The transfer may be long lived, so the sniff deadline has to go.
 	if err := userConn.SetDeadline(time.Time{}); err != nil {
 		return
@@ -192,14 +214,18 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	transferred := netutil.Relay(userConn, workConn)
 	v.record(route.ProxyName, transferred)
 
-	v.logger.Debug("vhost connection closed",
-		"scheme", string(v.scheme),
-		"host", host,
-		"proxy", route.ProxyName,
-		"source", source,
-		"to_client", transferred.AToB,
-		"to_user", transferred.BToA,
-		"spliced", transferred.Spliced)
+	// Guarded: per-connection, and the attribute boxing allocates even with
+	// debug logging off.
+	if v.logger.Enabled(ctx, slog.LevelDebug) {
+		v.logger.Debug("vhost connection closed",
+			"scheme", string(v.scheme),
+			"host", host,
+			"proxy", route.ProxyName,
+			"source", source,
+			"to_client", transferred.AToB,
+			"to_user", transferred.BToA,
+			"spliced", transferred.Spliced)
+	}
 }
 
 // record accounts for one completed transfer.

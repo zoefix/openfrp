@@ -134,7 +134,7 @@ func TestSniffHTTPRejectsOversizedHead(t *testing.T) {
 // buildClientHello produces a genuine ClientHello by driving crypto/tls, so
 // the parser is tested against what a real client emits rather than against a
 // hand-rolled fixture that might share our own misreading of the spec.
-func buildClientHello(t *testing.T, serverName string) []byte {
+func buildClientHello(t testing.TB, serverName string) []byte {
 	t.Helper()
 
 	client, server := net.Pipe()
@@ -251,4 +251,75 @@ func TestSniffTLSWithoutSNIIsNotAnError(t *testing.T) {
 	if info.ServerName != "" {
 		t.Errorf("ServerName = %q, want empty", info.ServerName)
 	}
+}
+
+// BenchmarkSniffHTTP pins the per-connection cost of identifying a request.
+// This runs once for every connection the HTTP vhost port accepts, so its
+// allocation count is a connections-per-second budget item.
+func BenchmarkSniffHTTP(b *testing.B) {
+	head := []byte("GET /some/path HTTP/1.1\r\n" +
+		"Host: bench.example.com\r\n" +
+		"User-Agent: bench/1.0\r\n" +
+		"Accept: */*\r\n" +
+		"Connection: keep-alive\r\n\r\n")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		info, err := SniffHTTP(bytes.NewReader(head))
+		if err != nil {
+			b.Fatalf("sniff: %v", err)
+		}
+		if info.Host != "bench.example.com" {
+			b.Fatalf("host = %q", info.Host)
+		}
+		PutConsumed(info.Consumed)
+	}
+}
+
+// BenchmarkSniffTLS is the TLS twin: it runs once per HTTPS connection.
+func BenchmarkSniffTLS(b *testing.B) {
+	hello := buildClientHello(b, "bench.example.com")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		info, err := SniffTLS(bytes.NewReader(hello))
+		if err != nil {
+			b.Fatalf("sniff: %v", err)
+		}
+		if info.ServerName != "bench.example.com" {
+			b.Fatalf("sni = %q", info.ServerName)
+		}
+		PutConsumed(info.Consumed)
+	}
+}
+
+// TestSniffSurvivesBufferReuse: a pooled buffer carries one connection's head
+// and then another's; the second parse must see only its own bytes.
+func TestSniffSurvivesBufferReuse(t *testing.T) {
+	first := []byte("GET /aaaaaaaaaaaaaaaaaaaaaaaaaaaa HTTP/1.1\r\n" +
+		"Host: first.example.com\r\n\r\n")
+	second := []byte("GET /b HTTP/1.1\r\nHost: second.example.com\r\n\r\n")
+
+	info, err := SniffHTTP(bytes.NewReader(first))
+	if err != nil {
+		t.Fatalf("first sniff: %v", err)
+	}
+	if info.Host != "first.example.com" {
+		t.Fatalf("first host = %q", info.Host)
+	}
+	PutConsumed(info.Consumed)
+
+	info, err = SniffHTTP(bytes.NewReader(second))
+	if err != nil {
+		t.Fatalf("second sniff: %v", err)
+	}
+	if info.Host != "second.example.com" {
+		t.Errorf("second host = %q, want second.example.com", info.Host)
+	}
+	if string(info.Consumed) != string(second) {
+		t.Errorf("consumed = %q, want the second request only", info.Consumed)
+	}
+	PutConsumed(info.Consumed)
 }

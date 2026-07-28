@@ -22,7 +22,7 @@ import (
 // freePort reserves an ephemeral port and releases it, so the caller can bind
 // it deliberately. Vhost ports cannot be requested as zero — zero means the
 // listener is disabled — so the port has to be chosen up front.
-func freePort(t *testing.T) int {
+func freePort(t testing.TB) int {
 	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

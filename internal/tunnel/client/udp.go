@@ -50,27 +50,28 @@ func (s *session) forwardUDP(ctx context.Context, workConn net.Conn,
 		workConn.Close()
 	}()
 
+	scratch := make([]byte, protocol.MaxUDPFrame)
 	for {
-		packet, err := protocol.ReadUDPPacket(workConn)
+		addr, payload, err := protocol.ReadUDPPacketInto(workConn, scratch)
 		if err != nil {
 			return
 		}
 
-		conn, err := sockets.get(packet.Addr)
+		conn, err := sockets.get(addr)
 		if err != nil {
 			logger.Debug("open local udp socket", "error", err)
 			continue
 		}
-		if _, err := conn.Write(packet.Payload); err != nil {
+		if _, err := conn.Write(payload); err != nil {
 			logger.Debug("write to local service", "error", err)
-			sockets.drop(packet.Addr)
+			sockets.drop(string(addr))
 			continue
 		}
 
 		// UDP never reaches the kernel fast path, so it is recorded as
 		// buffered — which is honest, and keeps the spliced fraction on the
 		// status page meaning what it claims to.
-		s.client.traffic.RecordTransfer(proxyName, int64(len(packet.Payload)), 0, false)
+		s.client.traffic.RecordTransfer(proxyName, int64(len(payload)), 0, false)
 	}
 }
 
@@ -93,11 +94,17 @@ type udpSockets struct {
 	}
 }
 
-func (s *udpSockets) get(source string) (*net.UDPConn, error) {
+// get returns the local socket for a source, dialling one on first sight.
+//
+// The source arrives as bytes aliasing the read scratch buffer. On the hit
+// path — every packet after a source's first — the map lookup uses those
+// bytes directly, which Go performs without materialising a string. Only a
+// genuinely new source pays for the string copy it needs to keep.
+func (s *udpSockets) get(source []byte) (*net.UDPConn, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if conn, ok := s.conns[source]; ok {
+	if conn, ok := s.conns[string(source)]; ok {
 		conn.SetReadDeadline(time.Now().Add(localUDPTimeout))
 		return conn, nil
 	}
@@ -107,11 +114,13 @@ func (s *udpSockets) get(source string) (*net.UDPConn, error) {
 		return nil, err
 	}
 	conn.SetReadDeadline(time.Now().Add(localUDPTimeout))
-	s.conns[source] = conn
+
+	owned := string(source)
+	s.conns[owned] = conn
 
 	// Each socket reads its own replies and tags them with the source they
 	// belong to, so the server can fan them back out correctly.
-	go s.pump(source, conn)
+	go s.pump(owned, conn)
 
 	return conn, nil
 }

@@ -6,7 +6,6 @@ package netutil
 import (
 	"io"
 	"net"
-	"sync"
 	"sync/atomic"
 )
 
@@ -80,19 +79,18 @@ func Relay(a, b net.Conn) RelayStats {
 		bufferedRelays.Add(1)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
+	// One direction runs on the calling goroutine. The caller was going to
+	// block in Wait anyway, so spawning a second goroutine bought nothing but
+	// a stack — and at tens of thousands of concurrent relays, those stacks
+	// are the difference between fitting in a small router's memory and not.
+	done := make(chan struct{})
 	go func() {
-		defer wg.Done()
+		defer close(done)
 		stats.AToB = copyAndHalfClose(b, a)
 	}()
-	go func() {
-		defer wg.Done()
-		stats.BToA = copyAndHalfClose(a, b)
-	}()
+	stats.BToA = copyAndHalfClose(a, b)
+	<-done
 
-	wg.Wait()
 	return stats
 }
 

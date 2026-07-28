@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
@@ -33,6 +34,16 @@ type Session struct {
 	workConns chan net.Conn
 	// poolTarget is how many connections the client said it would keep warm.
 	poolTarget int
+
+	// reqPending accumulates work-connection requests between writes, and
+	// reqKick wakes the requester goroutine that flushes them. One control
+	// message per accumulation instead of one per user connection: under a
+	// burst of arrivals the previous shape serialised every handler on the
+	// codec's write mutex and spent a syscall per connection saying "one
+	// more, please" — this batches everything that arrived while the last
+	// write was in flight into a single message.
+	reqPending atomic.Int64
+	reqKick    chan struct{}
 
 	proxiesMu sync.RWMutex
 	proxies   map[string]*runningProxy
@@ -85,7 +96,7 @@ func newSession(opts SessionOptions) *Session {
 		capacity = 1
 	}
 
-	return &Session{
+	s := &Session{
 		runID:       opts.RunID,
 		name:        opts.Name,
 		ctrlConn:    opts.Conn,
@@ -93,6 +104,7 @@ func newSession(opts SessionOptions) *Session {
 		logger:      opts.Logger,
 		workConns:   make(chan net.Conn, capacity),
 		poolTarget:  opts.PoolTarget,
+		reqKick:     make(chan struct{}, 1),
 		proxies:     make(map[string]*runningProxy),
 		done:        make(chan struct{}),
 		bindAddr:    opts.BindAddr,
@@ -105,6 +117,11 @@ func newSession(opts SessionOptions) *Session {
 		vhostHTTPPort:  opts.VhostHTTPPort,
 		vhostHTTPSPort: opts.VhostHTTPSPort,
 	}
+
+	// Stopped by Close via the done channel.
+	go s.workConnRequester()
+
+	return s
 }
 
 // RunID identifies the session.
@@ -122,7 +139,11 @@ func (s *Session) AddWorkConn(conn net.Conn) {
 	case <-s.done:
 		conn.Close()
 	case s.workConns <- conn:
-		s.logger.Debug("work connection pooled", "pooled", len(s.workConns))
+		// Guarded: one work connection arrives per tunnelled connection, and
+		// the attribute boxing allocates even with debug logging off.
+		if s.logger.Enabled(context.Background(), slog.LevelDebug) {
+			s.logger.Debug("work connection pooled", "pooled", len(s.workConns))
+		}
 	default:
 		s.logger.Warn("work connection pool full, dropping connection",
 			"capacity", cap(s.workConns))
@@ -255,14 +276,50 @@ func (s *Session) replenishPool() {
 	}
 }
 
-// requestWorkConns asks the client to open n more work connections. Failure is
-// only logged: the control loop will notice a dead connection on its own.
+// requestWorkConns asks the client to open n more work connections.
+//
+// The request is accumulated rather than written: the requester goroutine
+// flushes whatever has gathered into one control message. Callers on the user
+// connection path therefore never block on the codec's write mutex.
 func (s *Session) requestWorkConns(n int) {
 	if n <= 0 {
 		return
 	}
-	if err := s.codec.Write(&protocol.ReqWorkConn{Count: n}); err != nil {
-		s.logger.Debug("request work connections", "count", n, "error", err)
+	s.reqPending.Add(int64(n))
+	select {
+	case s.reqKick <- struct{}{}:
+	default:
+		// The requester is already awake and will pick this up in its next
+		// swap; a second kick would only make it spin once on zero.
+	}
+}
+
+// workConnRequester turns accumulated requests into control messages, one
+// message per batch. Failure is only logged: the control loop will notice a
+// dead connection on its own.
+func (s *Session) workConnRequester() {
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-s.reqKick:
+		}
+
+		n := s.reqPending.Swap(0)
+		if n <= 0 {
+			continue
+		}
+		// The pool can never hold more than its capacity, so asking for more
+		// than that only makes the client dial connections the pool will
+		// refuse. Anything clamped away is re-requested by the next
+		// replenish if it turns out to be needed.
+		if limit := int64(cap(s.workConns)); n > limit {
+			n = limit
+		}
+
+		if err := s.codec.Write(&protocol.ReqWorkConn{Count: int(n)}); err != nil {
+			s.logger.Debug("request work connections", "count", n, "error", err)
+		}
 	}
 }
 

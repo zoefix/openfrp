@@ -77,6 +77,17 @@ type ListenOptions struct {
 
 	// KeepAlive is applied to accepted connections by the runtime.
 	KeepAlive time.Duration
+
+	// DeferAccept sets TCP_DEFER_ACCEPT (Linux; silently ignored elsewhere)
+	// so accept fires only when the first payload bytes have arrived.
+	//
+	// Only for listeners whose protocol is strictly client-first: the vhost
+	// ports (an HTTP request or a ClientHello opens every connection) and the
+	// control port (our preamble does). Never for a plain tcp proxy, where
+	// the tunnelled protocol may be server-first — an ssh client waits for
+	// the server's banner, and deferring accept would deadlock it against
+	// the kernel until this timeout expired.
+	DeferAccept time.Duration
 }
 
 // ReusePortSupported reports whether SO_REUSEPORT is available here.
@@ -86,11 +97,25 @@ func ReusePortSupported() bool { return reusePortSupported }
 func NewListenConfig(opts ListenOptions) net.ListenConfig {
 	cfg := net.ListenConfig{KeepAlive: opts.KeepAlive}
 
-	if opts.ReusePort {
+	deferSecs := 0
+	if opts.DeferAccept > 0 && deferAcceptSupported {
+		// Round up: a sub-second request must not truncate to "kernel
+		// default", which is what zero means to the option.
+		deferSecs = int((opts.DeferAccept + time.Second - 1) / time.Second)
+	}
+
+	if opts.ReusePort || deferSecs > 0 {
 		cfg.Control = func(_, _ string, rc syscall.RawConn) error {
 			var sockErr error
 			if err := rc.Control(func(fd uintptr) {
-				sockErr = setReusePort(fd)
+				if opts.ReusePort {
+					if sockErr = setReusePort(fd); sockErr != nil {
+						return
+					}
+				}
+				if deferSecs > 0 {
+					sockErr = setDeferAccept(fd, deferSecs)
+				}
 			}); err != nil {
 				return err
 			}

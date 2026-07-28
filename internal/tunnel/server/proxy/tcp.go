@@ -115,7 +115,7 @@ func (p *tcpProxy) Run(ctx context.Context) error {
 		p.mu.Unlock()
 	}
 
-	// Close the listener on cancellation so the blocking Accept returns.
+	// Close the listener on cancellation so the blocking accepts return.
 	go func() {
 		<-ctx.Done()
 		p.Close()
@@ -124,21 +124,23 @@ func (p *tcpProxy) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	for {
-		userConn, err := ln.Accept()
-		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
-				return nil
-			}
-			return fmt.Errorf("proxy %q: accept: %w", p.name, err)
-		}
-
+	// One accept loop per underlying SO_REUSEPORT listener, each spawning
+	// handlers directly. The dispatch below must stay minimal: it runs on the
+	// accept goroutine.
+	err := netutil.Serve(ln, func(userConn net.Conn) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			p.handle(ctx, userConn)
 		}()
+	})
+	if err != nil {
+		if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
+			return nil
+		}
+		return fmt.Errorf("proxy %q: accept: %w", p.name, err)
 	}
+	return nil
 }
 
 // handle joins one user connection to a work connection.
@@ -165,11 +167,15 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 			transferred.AToB, transferred.BToA, transferred.Spliced)
 	}
 
-	p.logger.Debug("connection closed",
-		"source", source,
-		"to_client", transferred.AToB,
-		"to_user", transferred.BToA,
-		"spliced", transferred.Spliced)
+	// Guarded: this runs per connection, and the ...any boxing of the
+	// attributes below allocates even when debug logging is off.
+	if p.logger.Enabled(ctx, slog.LevelDebug) {
+		p.logger.Debug("connection closed",
+			"source", source,
+			"to_client", transferred.AToB,
+			"to_user", transferred.BToA,
+			"spliced", transferred.Spliced)
+	}
 }
 
 func (p *tcpProxy) Close() error {

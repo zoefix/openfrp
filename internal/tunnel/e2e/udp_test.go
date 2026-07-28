@@ -17,7 +17,7 @@ import (
 
 // startUDPEcho runs a UDP echo service that prefixes replies, so a test can
 // tell a real reply from an accidental loopback.
-func startUDPEcho(t *testing.T) (host string, port int) {
+func startUDPEcho(t testing.TB) (host string, port int) {
 	t.Helper()
 
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
@@ -43,7 +43,7 @@ func startUDPEcho(t *testing.T) (host string, port int) {
 }
 
 // startUDPTunnel brings up a server and client with one UDP tunnel.
-func startUDPTunnel(t *testing.T) int {
+func startUDPTunnel(t testing.TB) int {
 	t.Helper()
 
 	localHost, localPort := startUDPEcho(t)

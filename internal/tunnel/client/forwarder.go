@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"strconv"
 	"time"
@@ -85,9 +86,13 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 	s.client.traffic.RecordTransfer(start.ProxyName,
 		transferred.AToB, transferred.BToA, transferred.Spliced)
 
-	logger.Debug("transfer complete",
-		"target", target,
-		"to_local", transferred.AToB,
-		"to_remote", transferred.BToA,
-		"spliced", transferred.Spliced)
+	// Guarded: per-connection, and the attribute boxing allocates even with
+	// debug logging off.
+	if logger.Enabled(ctx, slog.LevelDebug) {
+		logger.Debug("transfer complete",
+			"target", target,
+			"to_local", transferred.AToB,
+			"to_remote", transferred.BToA,
+			"spliced", transferred.Spliced)
+	}
 }

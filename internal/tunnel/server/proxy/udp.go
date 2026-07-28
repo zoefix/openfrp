@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"time"
@@ -139,28 +140,40 @@ func (p *udpProxy) Run(ctx context.Context) error {
 }
 
 // serveOnce runs one work connection until it fails.
+//
+// Both directions run allocation-free at steady state: reads land in reused
+// buffers, the frame writer appends into a pooled buffer, and the source
+// address string — the one thing the wire format needs that a packet does not
+// carry — is built once per source and cached, not once per packet.
 func (p *udpProxy) serveOnce(ctx context.Context, conn *net.UDPConn) error {
 	// Wait for the first datagram before spending a work connection, so an
 	// unused UDP tunnel holds nothing open.
 	buf := make([]byte, protocol.MaxUDPPayload)
-	n, from, err := conn.ReadFromUDP(buf)
+	n, from, err := conn.ReadFromUDPAddrPort(buf)
 	if err != nil {
 		return err
 	}
 
-	workConn, err := p.source.GetWorkConn(ctx, p.name, from.String())
+	sessions := newUDPSessions()
+	firstAddr := sessions.remember(from)
+
+	workConn, err := p.source.GetWorkConn(ctx, p.name, firstAddr)
 	if err != nil {
 		return fmt.Errorf("no work connection: %w", err)
 	}
 	defer workConn.Close()
 
-	sessions := &udpSessions{addrs: map[string]*net.UDPAddr{}}
-	sessions.remember(from)
+	frame := make([]byte, 0, protocol.MaxUDPFrame)
+	writeInbound := func(addr string, payload []byte) error {
+		framed, err := protocol.AppendUDPPacket(frame[:0], addr, payload)
+		if err != nil {
+			return err
+		}
+		_, err = workConn.Write(framed)
+		return err
+	}
 
-	if err := protocol.WriteUDPPacket(workConn, protocol.UDPPacket{
-		Addr:    from.String(),
-		Payload: buf[:n],
-	}); err != nil {
+	if err := writeInbound(firstAddr, buf[:n]); err != nil {
 		return err
 	}
 
@@ -172,20 +185,21 @@ func (p *udpProxy) serveOnce(ctx context.Context, conn *net.UDPConn) error {
 		defer wg.Done()
 		defer workConn.Close()
 
+		scratch := make([]byte, protocol.MaxUDPFrame)
 		for {
-			packet, err := protocol.ReadUDPPacket(workConn)
+			addr, payload, err := protocol.ReadUDPPacketInto(workConn, scratch)
 			if err != nil {
 				return
 			}
-			target := sessions.lookup(packet.Addr)
-			if target == nil {
+			target, ok := sessions.lookup(addr)
+			if !ok {
 				// The source expired or was never seen. Dropping is correct:
 				// there is nowhere to send it, and UDP permits loss.
 				p.logger.Debug("dropping reply for an unknown source",
-					"addr", packet.Addr)
+					"addr", string(addr))
 				continue
 			}
-			if _, err := conn.WriteToUDP(packet.Payload, target); err != nil {
+			if _, err := conn.WriteToUDPAddrPort(payload, target); err != nil {
 				return
 			}
 		}
@@ -193,19 +207,14 @@ func (p *udpProxy) serveOnce(ctx context.Context, conn *net.UDPConn) error {
 
 	// Inbound datagrams, forwarded over the work connection.
 	for {
-		n, from, err := conn.ReadFromUDP(buf)
+		n, from, err := conn.ReadFromUDPAddrPort(buf)
 		if err != nil {
 			workConn.Close()
 			wg.Wait()
 			return err
 		}
 
-		sessions.remember(from)
-
-		if err := protocol.WriteUDPPacket(workConn, protocol.UDPPacket{
-			Addr:    from.String(),
-			Payload: buf[:n],
-		}); err != nil {
+		if err := writeInbound(sessions.remember(from), buf[:n]); err != nil {
 			wg.Wait()
 			return err
 		}
@@ -225,42 +234,80 @@ func (p *udpProxy) Close() error {
 	return err
 }
 
-// udpSessions maps a source address string back to the address to reply to,
-// expiring entries that have gone quiet.
+// udpSessions maps a source back to the address to reply to, expiring entries
+// that have gone quiet.
+//
+// Each source is held once, under two keys: its netip.AddrPort — comparable,
+// allocation-free, exactly what ReadFromUDPAddrPort hands us — and the string
+// form the wire format carries, built once when the source first appears. The
+// per-packet paths then never convert an address again: inbound packets find
+// their cached string by AddrPort, and replies find their AddrPort by the
+// string bytes, which a map lookup keyed by string can do without copying.
 type udpSessions struct {
-	mu    sync.Mutex
-	addrs map[string]*net.UDPAddr
-	seen  map[string]time.Time
+	mu     sync.Mutex
+	byAddr map[netip.AddrPort]*udpPeer
+	byStr  map[string]*udpPeer
 }
 
-func (s *udpSessions) remember(addr *net.UDPAddr) {
+type udpPeer struct {
+	addr netip.AddrPort
+	str  string
+	last time.Time
+}
+
+func newUDPSessions() *udpSessions {
+	return &udpSessions{
+		byAddr: map[netip.AddrPort]*udpPeer{},
+		byStr:  map[string]*udpPeer{},
+	}
+}
+
+// remember records a packet from addr and returns the cached wire string.
+func (s *udpSessions) remember(addr netip.AddrPort) string {
+	// A dual-stack socket reports IPv4 senders as ::ffff: mappings; unmap so
+	// one host is one entry regardless of which socket family carried it.
+	if addr.Addr().Is4In6() {
+		addr = netip.AddrPortFrom(addr.Addr().Unmap(), addr.Port())
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.seen == nil {
-		s.seen = map[string]time.Time{}
+	if peer, ok := s.byAddr[addr]; ok {
+		peer.last = time.Now()
+		return peer.str
 	}
-	key := addr.String()
-	s.addrs[key] = addr
-	s.seen[key] = time.Now()
+
+	peer := &udpPeer{addr: addr, str: addr.String(), last: time.Now()}
+	s.byAddr[addr] = peer
+	s.byStr[peer.str] = peer
 
 	// Sweep opportunistically rather than on a timer: the table only grows
-	// when packets arrive, so that is the only moment it needs pruning.
-	if len(s.addrs) > 64 {
+	// when a new source arrives, so that is the only moment it needs pruning.
+	if len(s.byAddr) > 64 {
 		cutoff := time.Now().Add(-udpSessionTimeout)
-		for candidate, last := range s.seen {
-			if last.Before(cutoff) {
-				delete(s.addrs, candidate)
-				delete(s.seen, candidate)
+		for _, candidate := range s.byAddr {
+			if candidate.last.Before(cutoff) {
+				delete(s.byAddr, candidate.addr)
+				delete(s.byStr, candidate.str)
 			}
 		}
 	}
+	return peer.str
 }
 
-func (s *udpSessions) lookup(key string) *net.UDPAddr {
+// lookup resolves the wire-format address bytes of a reply to its socket
+// address. The []byte key deliberately avoids a string conversion; the map
+// lookup itself is what makes that allocation-free.
+func (s *udpSessions) lookup(key []byte) (netip.AddrPort, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.addrs[key]
+
+	peer, ok := s.byStr[string(key)]
+	if !ok {
+		return netip.AddrPort{}, false
+	}
+	return peer.addr, true
 }
 
 var _ binder = (*udpProxy)(nil)

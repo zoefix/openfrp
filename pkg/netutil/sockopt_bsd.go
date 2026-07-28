@@ -16,3 +16,10 @@ const reusePortSupported = true
 func setReusePort(fd uintptr) error {
 	return syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, soReusePort, 1)
 }
+
+// TCP_DEFER_ACCEPT is Linux-only; the BSD accept filters are a different
+// mechanism with different semantics, so this is a silent no-op here and the
+// listener behaves classically.
+const deferAcceptSupported = false
+
+func setDeferAccept(uintptr, int) error { return nil }

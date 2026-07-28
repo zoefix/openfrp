@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 )
 
 // Head size limits. Anything legitimate fits far inside these; the limits are
@@ -37,6 +38,37 @@ type sniffResult struct {
 	Consumed []byte
 }
 
+// headBufSize is the starting capacity of a pooled sniff buffer. It covers a
+// typical HTTP request head and a typical ClientHello — post-quantum key
+// shares included — so most connections never grow it.
+const headBufSize = 4096
+
+// headBufPool recycles sniff buffers across connections. The sniffed head is
+// needed only until it has been replayed to the other side, which happens
+// long before the relay ends; returning the buffer then lets it serve another
+// arriving connection instead of sitting as garbage.
+var headBufPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 0, headBufSize)
+		return &b
+	},
+}
+
+// PutConsumed returns a Consumed buffer to the sniff pool.
+//
+// Callers do this once the head has been fully replayed and nothing aliases
+// it any more. Skipping the call is always safe — the buffer just falls to
+// the garbage collector — which is exactly what the edge-termination path
+// does, since its TLS wrapper may keep serving surplus sniffed bytes for the
+// life of the connection.
+func PutConsumed(buf []byte) {
+	if cap(buf) < headBufSize {
+		return
+	}
+	b := buf[:0]
+	headBufPool.Put(&b)
+}
+
 // headReader accumulates bytes from r, remembering everything it has read.
 type headReader struct {
 	r   io.Reader
@@ -45,7 +77,7 @@ type headReader struct {
 }
 
 func newHeadReader(r io.Reader, max int) *headReader {
-	return &headReader{r: r, buf: make([]byte, 0, 1024), max: max}
+	return &headReader{r: r, buf: (*headBufPool.Get().(*[]byte))[:0], max: max}
 }
 
 // ensure reads until at least n bytes are buffered.
@@ -57,7 +89,9 @@ func (h *headReader) ensure(n int) error {
 		if cap(h.buf) < n {
 			grown := make([]byte, len(h.buf), max(n, cap(h.buf)*2))
 			copy(grown, h.buf)
+			old := h.buf
 			h.buf = grown
+			PutConsumed(old)
 		}
 		read, err := h.r.Read(h.buf[len(h.buf):cap(h.buf)])
 		h.buf = h.buf[:len(h.buf)+read]
@@ -79,7 +113,9 @@ func (h *headReader) readMore() error {
 	if len(h.buf) == cap(h.buf) {
 		grown := make([]byte, len(h.buf), min(max(cap(h.buf)*2, 1024), h.max))
 		copy(grown, h.buf)
+		old := h.buf
 		h.buf = grown
+		PutConsumed(old)
 	}
 	read, err := h.r.Read(h.buf[len(h.buf):cap(h.buf)])
 	h.buf = h.buf[:len(h.buf)+read]

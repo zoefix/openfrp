@@ -35,7 +35,7 @@ type harness struct {
 }
 
 // startEchoService stands in for the LAN service behind the router.
-func startEchoService(t *testing.T) string {
+func startEchoService(t testing.TB) string {
 	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -61,7 +61,7 @@ func startEchoService(t *testing.T) string {
 }
 
 // start brings up a server and a client wired to one tcp tunnel.
-func start(t *testing.T, mux bool) *harness {
+func start(t testing.TB, mux bool) *harness {
 	t.Helper()
 
 	localAddr := startEchoService(t)
@@ -77,10 +77,11 @@ func start(t *testing.T, mux bool) *harness {
 	}
 
 	serverCfg := &config.Server{
-		BindAddr:    "127.0.0.1",
-		BindPort:    0, // let the kernel choose
-		Token:       testToken,
-		AcceptLoops: 1,
+		BindAddr: "127.0.0.1",
+		BindPort: 0, // let the kernel choose
+		Token:    testToken,
+		// AcceptLoops stays at the default (one per CPU, SO_REUSEPORT) so
+		// these tests and benchmarks exercise the accept path production runs.
 	}
 	serverCfg.ApplyDefaults()
 	// ApplyDefaults would substitute the standard port for zero, so restore
@@ -164,7 +165,7 @@ func start(t *testing.T, mux bool) *harness {
 }
 
 // proxyPort waits for the tunnel to be published and returns its public port.
-func (h *harness) proxyPort(t *testing.T, name string) int {
+func (h *harness) proxyPort(t testing.TB, name string) int {
 	t.Helper()
 
 	deadline := time.Now().Add(10 * time.Second)
@@ -182,7 +183,7 @@ func (h *harness) proxyPort(t *testing.T, name string) int {
 }
 
 // dialTunnel opens a connection to the published tunnel.
-func (h *harness) dialTunnel(t *testing.T, port int) net.Conn {
+func (h *harness) dialTunnel(t testing.TB, port int) net.Conn {
 	t.Helper()
 
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))

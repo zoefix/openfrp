@@ -260,7 +260,11 @@ func (s *session) controlLoop(ctx context.Context) error {
 			// loop iteration.
 
 		case *protocol.ReqWorkConn:
-			count := max(m.Count, 1)
+			// The server batches its requests, so Count above one is routine.
+			// The ceiling guards against a corrupt or hostile value spawning
+			// an unbounded number of dials; anything clamped away is simply
+			// re-requested once the server notices its pool is still short.
+			count := min(max(m.Count, 1), 4*config.DefaultMaxPoolCount)
 			for range count {
 				s.wg.Add(1)
 				go func() {

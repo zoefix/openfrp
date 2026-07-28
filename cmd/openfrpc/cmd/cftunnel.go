@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -166,8 +165,8 @@ func cfApply(ctx context.Context, cli cloudflare.CLI, configPath, server string)
 			"HTTP, nothing else", name)
 	}
 
-	credentials := filepath.Join(cli.Dir, upstream.TunnelID+".json")
-	path, err := cli.WriteConfig(upstream.TunnelID, credentials, rules)
+	path, err := cli.WriteConfig(upstream.TunnelID,
+		cli.CredentialsPath(upstream.TunnelID), rules)
 	if err != nil {
 		return err
 	}

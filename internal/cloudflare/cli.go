@@ -39,10 +39,29 @@ type CLI struct {
 	// Binary is the cloudflared executable.
 	Binary string
 
-	// Dir is what cloudflared treats as its home: the login credential and the
-	// per-tunnel credentials files live here. Kept off the default, which on
-	// OpenWrt is a home directory that may not exist.
+	// Dir is what cloudflared treats as its home. Kept off the default,
+	// which on OpenWrt is a home directory that may not exist.
+	//
+	// The files themselves land one level below, in the .cloudflared that
+	// cloudflared makes under any home it is given — see configDir.
 	Dir string
+}
+
+// configDir is where cloudflared actually keeps things.
+//
+// It puts the login credential and every per-tunnel credentials file in
+// $HOME/.cloudflared, and its login writes there regardless of what
+// TUNNEL_ORIGIN_CERT says. Looking for them beside the home instead found
+// nothing, and reported a login that had plainly succeeded — the message even
+// printed the path — as having left no credential.
+func (c CLI) configDir() string { return filepath.Join(c.Dir, ".cloudflared") }
+
+// CertPath is the credential a completed authorisation leaves behind.
+func (c CLI) CertPath() string { return filepath.Join(c.configDir(), certFile) }
+
+// CredentialsPath is where the credentials for one tunnel are written.
+func (c CLI) CredentialsPath(tunnelID string) string {
+	return filepath.Join(c.configDir(), tunnelID+".json")
 }
 
 // LoginTimeout bounds the wait for someone to authorise in a browser.
@@ -60,7 +79,7 @@ var loginURL = regexp.MustCompile(`https://dash\.cloudflare\.com/argotunnel\S*`)
 
 // LoggedIn reports whether an authorisation is already on disk.
 func (c CLI) LoggedIn() bool {
-	info, err := os.Stat(filepath.Join(c.Dir, certFile))
+	info, err := os.Stat(c.CertPath())
 	return err == nil && info.Size() > 0
 }
 
@@ -113,7 +132,7 @@ func (c CLI) Login(ctx context.Context, onURL func(string), progress func(string
 
 	if !c.LoggedIn() {
 		return fmt.Errorf("cloudflare: the authorisation finished without leaving a credential at %s",
-			filepath.Join(c.Dir, certFile))
+			c.CertPath())
 	}
 	return nil
 }
@@ -170,10 +189,10 @@ func (c CLI) Create(ctx context.Context, name string) (NamedTunnel, string, erro
 	}
 
 	id := match[1]
-	// cloudflared names the credentials file after the tunnel id, in its home.
-	// Reading it back from the output would be more faithful, but the message
-	// wraps the path in a sentence and the path may contain spaces.
-	return NamedTunnel{ID: id, Name: name}, filepath.Join(c.Dir, id+".json"), nil
+	// cloudflared names the credentials file after the tunnel id. Reading it
+	// back from the output would be more faithful, but the message wraps the
+	// path in a sentence and the path may contain spaces.
+	return NamedTunnel{ID: id, Name: name}, c.CredentialsPath(id), nil
 }
 
 // Delete removes a tunnel, along with any connections it still holds.
@@ -212,7 +231,7 @@ func (c CLI) command(ctx context.Context, args ...string) *exec.Cmd {
 	// OpenWrt may not exist at all.
 	cmd.Env = append(os.Environ(),
 		"HOME="+c.Dir,
-		"TUNNEL_ORIGIN_CERT="+filepath.Join(c.Dir, certFile))
+		"TUNNEL_ORIGIN_CERT="+c.CertPath())
 	return cmd
 }
 

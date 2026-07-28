@@ -60,6 +60,12 @@ func TestCreateSaysWhenTheIDCannotBeRead(t *testing.T) {
 	}
 }
 
+// The credential lands in the .cloudflared that cloudflared makes under any
+// home it is given. An earlier version of this test wrote it beside the home
+// instead, which is where the code was looking — so both agreed with each
+// other and neither agreed with cloudflared, and a login that had plainly
+// succeeded was reported as leaving nothing behind.
+//
 // The URL has to reach the operator while the command is still running: it
 // does not exit until somebody has opened it.
 func TestLoginReportsTheURLBeforeItFinishes(t *testing.T) {
@@ -69,8 +75,8 @@ echo ""
 echo "https://dash.cloudflare.com/argotunnel?aud=&callback=https%3A%2F%2Flogin.example%2Fabc"
 echo ""
 echo "Leave cloudflared running to download the cert automatically."
-mkdir -p "$HOME"
-echo "certificate" > "$HOME/cert.pem"
+mkdir -p "$HOME/.cloudflared"
+echo "certificate" > "$HOME/.cloudflared/cert.pem"
 `)
 
 	var got string
@@ -152,7 +158,7 @@ func TestTheHomeDirectoryIsPinned(t *testing.T) {
 	if !strings.Contains(out, "HOME="+cli.Dir) {
 		t.Errorf("home was not pinned: %s", out)
 	}
-	if !strings.Contains(out, "CERT="+filepath.Join(cli.Dir, "cert.pem")) {
+	if !strings.Contains(out, "CERT="+filepath.Join(cli.Dir, ".cloudflared", "cert.pem")) {
 		t.Errorf("the credential path was not pinned: %s", out)
 	}
 }
@@ -175,5 +181,29 @@ exit 1
 	}
 	if !strings.Contains(err.Error(), "the actual reason") {
 		t.Errorf("the reason was cut off: %v", err)
+	}
+}
+
+// The credential is looked for where cloudflared puts it, which is not beside
+// the home it was given.
+func TestTheCredentialIsLookedForWhereCloudflaredWritesIt(t *testing.T) {
+	cli := fakeCloudflared(t, `true`)
+
+	if got := cli.CertPath(); got != filepath.Join(cli.Dir, ".cloudflared", "cert.pem") {
+		t.Errorf("looking for the credential at %q", got)
+	}
+	if got := cli.CredentialsPath("abc"); got != filepath.Join(cli.Dir, ".cloudflared", "abc.json") {
+		t.Errorf("looking for tunnel credentials at %q", got)
+	}
+
+	// A file beside the home is not the credential, however plausible it looks.
+	if err := os.MkdirAll(cli.Dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cli.Dir, "cert.pem"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if cli.LoggedIn() {
+		t.Error("a file in the wrong place was accepted as the credential")
 	}
 }

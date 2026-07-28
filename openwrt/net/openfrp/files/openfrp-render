@@ -23,6 +23,15 @@ set -e
 
 OUT="${1:-/var/etc/openfrp.json}"
 
+# say records a complaint in syslog as well as on stderr.
+#
+# This script runs from the init script, whose stderr is not somewhere anybody
+# reads. A skipped tunnel that says so only there is a tunnel that vanished.
+say() {
+	command -v logger >/dev/null 2>&1 && logger -t openfrp -p daemon.err "$1"
+	echo "openfrp: $1" >&2
+}
+
 # add_string emits key only when the value is non-empty, so unset options fall
 # through to the daemon's own defaults instead of being pinned to "".
 add_string() {
@@ -76,7 +85,7 @@ add_tunnel() {
 	# A tunnel without a name or a local port cannot be published, and the
 	# daemon would refuse the whole config over it. Skip it and say so.
 	if [ -z "$name" ] || [ -z "$local_port" ]; then
-		echo "openfrp: skipping tunnel '$section': name and local_port are required" >&2
+		say "skipping tunnel '$section': name and local_port are required"
 		return 0
 	fi
 
@@ -127,7 +136,7 @@ add_tunnel() {
 			esac
 			json_close_array
 		else
-			echo "openfrp: tunnel '$section' is on $owner, which has no domain yet" >&2
+			say "tunnel '$section' is on $owner, which has no domain yet"
 		fi
 
 		json_close_object
@@ -232,7 +241,7 @@ main() {
 	json_close_array
 
 	if [ "$SERVER_COUNT" -eq 0 ]; then
-		echo "openfrp: no server is configured" >&2
+		say "no server is configured"
 		return 1
 	fi
 

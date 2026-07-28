@@ -19,6 +19,21 @@ RUNDIR=/var/run/openfrp
 CLOUDFLARED=/usr/lib/openfrp/cloudflared
 CFDIR=/etc/openfrp/cloudflared
 
+# say records a diagnostic where it can be found afterwards.
+#
+# stderr alone was not enough. procd runs this script for a reload triggered by
+# a configuration apply, and its stderr goes nowhere anybody looks — a refusal
+# to start left no trace at all, so the whole service could be down for half an
+# hour with the interface reporting that the apply had succeeded. syslog is
+# where the rest of this project's output already goes, and is what the status
+# page reads.
+#
+# Still echoed as well, so running the script by hand shows it on the terminal.
+say() {
+	logger -t openfrp -p daemon.err "$1"
+	echo "openfrp: $1" >&2
+}
+
 boot() {
 	# The config lives on tmpfs, so it has to be regenerated every boot.
 	start "$@"
@@ -32,22 +47,32 @@ start_service() {
 	config_get log_level global log_level "info"
 
 	if [ "$enabled" != "1" ]; then
-		echo "openfrp: disabled in /etc/config/openfrp" >&2
+		say "disabled in /etc/config/openfrp"
 		return 0
 	fi
 
 	mkdir -p "$RUNDIR"
 
-	if ! "$RENDER" "$CONF"; then
-		echo "openfrp: refusing to start, configuration is incomplete" >&2
+	# The renderer's own complaints are captured rather than left on a stderr
+	# nobody reads: they name the tunnel or the setting at fault, which is the
+	# whole of the diagnosis.
+	local rendered
+	if ! rendered="$("$RENDER" "$CONF" 2>&1)"; then
+		[ -n "$rendered" ] && say "$rendered"
+		say "refusing to start, the configuration could not be rendered"
 		return 1
 	fi
+	[ -n "$rendered" ] && say "$rendered"
 
 	# Validate before handing the config to procd. Without this a bad setting
 	# becomes a respawn loop that has to be dug out of syslog; with it the
 	# reason is printed once, here, next to the change that caused it.
-	if ! "$PROG" validate -c "$CONF" -q; then
-		echo "openfrp: refusing to start, configuration is invalid" >&2
+	# The reason is captured, not discarded. Validation has always named the
+	# field or setting at fault; it named it on a stderr that goes nowhere on
+	# this path, so the whole diagnosis was produced and then thrown away.
+	local invalid
+	if ! invalid="$("$PROG" validate -c "$CONF" -q 2>&1)"; then
+		say "refusing to start: $invalid"
 		return 1
 	fi
 
@@ -92,12 +117,12 @@ start_cloudflared() {
 
 	config_get tunnel_id "$section" tunnel_id
 	if [ -z "$tunnel_id" ]; then
-		echo "openfrp: $section has no Cloudflare tunnel yet, skipping" >&2
+		say "$section has no Cloudflare tunnel yet, skipping"
 		return 0
 	fi
 
 	if [ ! -x "$CLOUDFLARED" ]; then
-		echo "openfrp: $section needs cloudflared, which is not installed" >&2
+		say "$section needs cloudflared, which is not installed"
 		return 0
 	fi
 
@@ -106,9 +131,10 @@ start_cloudflared() {
 	# and cloudflared needs to be told where the new hostname goes. Failure is
 	# reported and not fatal — a name that could not be routed should not stop
 	# the names that could.
-	if ! "$PROG" cftunnel apply -server "$section" -config "$CONF" \
-		-binary "$CLOUDFLARED" -dir "$CFDIR" >/dev/null 2>&1; then
-		echo "openfrp: $section could not be applied to Cloudflare" >&2
+	local applied
+	if ! applied="$("$PROG" cftunnel apply -server "$section" -config "$CONF" \
+		-binary "$CLOUDFLARED" -dir "$CFDIR" 2>&1)"; then
+		say "$section could not be published to Cloudflare: $applied"
 	fi
 
 	procd_open_instance "cloudflared-$section"

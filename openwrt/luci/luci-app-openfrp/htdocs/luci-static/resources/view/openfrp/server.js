@@ -25,10 +25,23 @@
  * job_status. Navigating away does not interrupt it.
  */
 
+var callStatus = rpc.declare({
+	object: 'luci.openfrp', method: 'status', expect: {}
+});
+
 var callJobStart = rpc.declare({
 	object: 'luci.openfrp', method: 'job_start',
 	params: ['kind', 'args'], expect: {}
 });
+
+/*
+ * The daemon's live view of each server, fetched once per page load. The
+ * version column reads it: which openfrps actually answered the login, and
+ * whether the control connection is up right now. A config form does not
+ * poll — the figure is from when the page was opened, which is what the rest
+ * of the page's facts are too.
+ */
+var liveStatus = null;
 
 var callJobStatus = rpc.declare({
 	object: 'luci.openfrp', method: 'job_status',
@@ -553,15 +566,24 @@ function stylesheet() {
 
 return view.extend({
 	load: function () {
-		return uci.load('openfrp');
+		return Promise.all([
+			uci.load('openfrp'),
+			callStatus().then(function (status) { liveStatus = status; },
+				function () { liveStatus = null; })
+		]);
 	},
 
 	// reload re-reads UCI and re-renders, which is what the deploy job needs:
-	// it writes the token and fingerprint itself.
+	// it writes the token and fingerprint itself. The live status comes along
+	// so a just-deployed server's version appears with its token.
 	reload: function () {
 		var self = this;
 		uci.unload('openfrp');
-		return uci.load('openfrp').then(function () {
+		return Promise.all([
+			uci.load('openfrp'),
+			callStatus().then(function (status) { liveStatus = status; },
+				function () { liveStatus = null; })
+		]).then(function () {
 			return self.render().then(function (node) {
 				var container = document.querySelector('#view');
 				if (container)
@@ -667,6 +689,33 @@ return view.extend({
 					count++;
 			});
 			return String(count);
+		};
+
+		o = s.option(form.DummyValue, '_version', _('Version'));
+		o.modalonly = false;
+		o.cfgvalue = function (section_id) {
+			// cloudflared owns a Cloudflare server's connection; this daemon
+			// has no login to learn a version from.
+			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare')
+				return '—';
+
+			var info = liveStatus && liveStatus.servers &&
+				liveStatus.servers[section_id];
+
+			if (!info) {
+				// The daemon is not running, predates the field, or has no
+				// client for this server. Only the first is worth words.
+				return (liveStatus && liveStatus.running)
+					? _('not connected') : '—';
+			}
+			if (!info.version)
+				return info.connected ? _('connected') : _('not connected');
+
+			// The version the server announced at login. Kept after a drop,
+			// annotated so a stale figure cannot pass for a live connection.
+			return info.connected
+				? info.version
+				: '%s (%s)'.format(info.version, _('not connected'));
 		};
 
 		o = s.option(form.DummyValue, '_deploy', _('Provisioning'));

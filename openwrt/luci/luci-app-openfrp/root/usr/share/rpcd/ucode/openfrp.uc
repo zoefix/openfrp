@@ -91,6 +91,31 @@ function serviceRunning() {
 	return trim(out ?? '') == '0';
 }
 
+// binaryVersion reports the installed client's version, for when the daemon
+// is not running to report its own.
+//
+// Cached against the binary's mtime: rpcd keeps this module loaded, and
+// executing a binary per status poll to learn a string that changes only on
+// upgrade would be the most expensive line in the cheapest call. The mtime
+// key is what lets an upgrade show up without an rpcd restart.
+let versionCache = null;
+
+function binaryVersion() {
+	const info = stat(CLIENT);
+	if (!info)
+		return '';
+	if (versionCache && versionCache.mtime == info.mtime)
+		return versionCache.version;
+
+	// Output shape: "openfrpc <version> (<date>) <os>/<arch> <go>".
+	const out = runCommand(CLIENT + ' version 2>/dev/null');
+	const fields = split(trim(out ?? ''), ' ');
+	const version = length(fields) > 1 ? fields[1] : '';
+
+	versionCache = { mtime: info.mtime, version: version };
+	return version;
+}
+
 function jobPath(id, suffix) {
 	// Job ids are generated here, but they still arrive back from the client,
 	// so refuse anything that could escape the directory.
@@ -249,9 +274,19 @@ const methods = {
 			for (let tunnel in tunnels)
 				tunnel.traffic = traffic.tunnels?.[tunnel.name];
 
+			const running = serviceRunning();
+
 			const result = {
 				enabled: uci.get('openfrp', 'global', 'enabled') == '1',
-				running: serviceRunning(),
+				running: running,
+				// The running daemon reports its own version; otherwise ask
+				// the installed binary, so an upgrade shows before the next
+				// start and a stale stats file cannot report a dead daemon's.
+				client_version: (running && traffic.client_version)
+					? traffic.client_version : binaryVersion(),
+				// Per-server control-connection state, keyed by section name.
+				// Empty when the daemon is down or predates this field.
+				servers: running ? (traffic.servers ?? {}) : {},
 				traffic: {
 					// updated_at lets the page tell live counters from a file
 					// left behind by a daemon that has since stopped.

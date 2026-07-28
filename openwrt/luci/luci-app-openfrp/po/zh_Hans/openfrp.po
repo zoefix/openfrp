@@ -7,11 +7,22 @@ msgstr ""
 "Language: zh_Hans\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-msgid "\"*\" is only allowed as the leftmost label"
-msgstr "\"*\" 只能作为最左边的标签"
+msgid ""
+"The local service otherwise records every visitor as this "
+"router.\n\nConfigure the service first: until both ends agree, every "
+"request fails.\n\nnginx, on the port this tunnel points at:\n    listen "
+"PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    "
+"real_ip_header proxy_protocol;"
+msgstr "不开启的话，内网服务会把每个访客都记成本路由器。\n\n先配好服务再开这个：两边没对上之前，所有请求都会失败。\n\nnginx，在本隧道指向的端口上：\n    listen 端口 proxy_protocol;\n    set_real_ip_from 本路由器的内网地址;\n    real_ip_header proxy_protocol;"
 
-msgid "\"*\" must be a whole label, not part of one"
-msgstr "\"*\" 必须独占一个标签，不能只占标签的一部分"
+msgid ""
+"No server of your own is needed. cloudflared runs here and connects out "
+"to Cloudflare, which routes your domains back down that connection.\n\nA "
+"tunnel published this way serves HTTP only, Cloudflare terminates TLS "
+"at its edge, and the visitor address arrives in a header — so "
+"certificates, TLS handling, remote ports and the PROXY protocol do not "
+"apply to it."
+msgstr "不需要你自己的服务器。cloudflared 跑在本路由器上，向外连到 Cloudflare，由它把你的域名路由回这条连接。\n\n这种方式发布的隧道只支持 HTTP，TLS 由 Cloudflare 在边缘终止，访客地址通过头部传入 —— 所以证书、TLS 处理方式、远程端口和 PROXY 协议对它都不适用。"
 
 msgid "%d days left"
 msgstr "剩余 %d 天"
@@ -42,6 +53,9 @@ msgstr "%s 需要账号绑定"
 
 msgid "%s needs external account binding credentials."
 msgstr "%s 需要外部账号绑定（EAB）凭据。"
+
+msgid "A Cloudflare tunnel publishes hostnames over HTTP. Point this tunnel at a server of your own for %s."
+msgstr "Cloudflare Tunnel 只能以 HTTP 发布域名。要用 %s，请把本隧道指向你自己的服务器。"
 
 msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
 msgstr "\"*\" 标签只匹配一层，可以出现在任意深度：*.aaa.com 匹配 www.aaa.com，但不匹配 x.bb.aaa.com。精确域名优先于泛域名，层级更深的泛域名优先于更浅的。"
@@ -115,6 +129,9 @@ msgstr "正在请 %s 校验凭据…"
 msgid "Authentication"
 msgstr "认证方式"
 
+msgid "Authorise"
+msgstr "授权"
+
 msgid "Authority"
 msgstr "证书颁发机构"
 
@@ -130,6 +147,9 @@ msgstr "取消"
 msgid "Certificate"
 msgstr "证书"
 
+msgid "Certificate %s (missing)"
+msgstr "证书 %s（已不存在）"
+
 msgid "Certificate management is unavailable."
 msgstr "证书管理不可用。"
 
@@ -142,11 +162,20 @@ msgstr "证书在这里签发并推送到服务端，服务端会热加载，不
 msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
 msgstr "通过该账号签发的证书会保留，但在你把它们指向其他账号之前无法续期。"
 
+msgid "Clear"
+msgstr "清空"
+
 msgid "Client IP"
 msgstr "客户端 IP"
 
+msgid "Client version"
+msgstr "客户端版本"
+
 msgid "Close"
 msgstr "关闭"
+
+msgid "Cloudflare Tunnel"
+msgstr "Cloudflare Tunnel"
 
 msgid "Connection pool — independent congestion windows, kernel zero-copy"
 msgstr "连接池 — 各自独立的拥塞窗口，内核零拷贝"
@@ -168,6 +197,9 @@ msgstr "无法连接到 OpenFrp 后端。"
 
 msgid "Could not start the deployment: %s"
 msgstr "无法启动部署：%s"
+
+msgid "Could not start the setup: %s"
+msgstr "无法开始设置：%s"
 
 msgid "Could not start: %s"
 msgstr "无法启动：%s"
@@ -195,6 +227,9 @@ msgstr "仅 DNS"
 
 msgid "DNS only — answer with this address"
 msgstr "仅 DNS — 直接返回该地址"
+
+msgid "Decrypted by the remote server"
+msgstr "由远端服务器解密"
 
 msgid "Delete"
 msgstr "删除"
@@ -229,8 +264,14 @@ msgstr "由本机部署"
 msgid "Deploying server"
 msgstr "正在部署服务端"
 
+msgid "Deployment did not finish — no token yet"
+msgstr "部署未完成 — 还没有令牌"
+
 msgid "Detects the distribution and init system, removes any previous installation, installs the server, opens the firewall and verifies the result."
 msgstr "自动识别发行版与 init 系统，清理已有安装，安装服务端，放行防火墙并验证结果。"
+
+msgid "Did not come back up — see the log below."
+msgstr "没能重新启动 — 请看下方日志。"
 
 msgid "Disabled"
 msgstr "已禁用"
@@ -249,6 +290,9 @@ msgstr "EAB HMAC 密钥"
 
 msgid "EAB key ID"
 msgstr "EAB Key ID"
+
+msgid "Each is published with .%s after it. Use @ for %s itself."
+msgstr "每个都会加上 .%s 发布。用 @ 表示 %s 本身。"
 
 msgid "Each tunnel exposes one local service through the server."
 msgstr "每条隧道通过服务端暴露一个内网服务。"
@@ -331,6 +375,15 @@ msgstr "签发"
 msgid "Issued and bound to this tunnel. Save and apply to use it."
 msgstr "已签发并绑定到本隧道。保存并应用后生效。"
 
+msgid "Issued and bound, but applying it failed: %s"
+msgstr "已签发并绑定,但应用失败:%s"
+
+msgid "Issued, bound, and deployed to the server."
+msgstr "已签发、已绑定,并已部署到服务端。"
+
+msgid "Issued. Deploying it to the server…"
+msgstr "已签发,正在部署到服务端…"
+
 msgid "Issuing certificate"
 msgstr "正在签发证书"
 
@@ -397,6 +450,12 @@ msgstr "多路复用 — 共享拥塞窗口，无法使用内核零拷贝"
 msgid "Name"
 msgstr "名称"
 
+msgid "Name under the domain"
+msgstr "域名下的名称"
+
+msgid "Names under the domain"
+msgstr "域名下的名称"
+
 msgid "No DNS accounts are configured. Add one on the DNS page first — a wildcard certificate cannot be issued without it."
 msgstr "尚未配置 DNS 账号。请先在 DNS 页面添加一个 —— 没有它无法签发泛域名证书。"
 
@@ -415,6 +474,15 @@ msgstr "还没有证书。"
 msgid "No log output yet."
 msgstr "暂无日志输出。"
 
+msgid "No server at all. Cloudflare carries the traffic, and you authorise this router by opening a link."
+msgstr "根本不需要服务器。流量由 Cloudflare 承担，你只需要点开一个链接给本路由器授权。"
+
+msgid "No token — this server cannot be reached"
+msgstr "没有令牌 — 无法连接此服务器"
+
+msgid "No tunnel yet — press Set up"
+msgstr "还没有隧道 — 点“设置”"
+
 msgid "No tunnels are configured yet."
 msgstr "尚未配置任何隧道。"
 
@@ -426,6 +494,9 @@ msgstr "无 — 使用 HTTP 文件验证"
 
 msgid "Not announced"
 msgstr "不告知"
+
+msgid "Not authorised yet"
+msgstr "尚未授权"
 
 msgid "Not deployed from here"
 msgstr "非本机部署"
@@ -439,8 +510,14 @@ msgstr "该证书还没有任何记录。"
 msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
 msgstr "与 frp 不同，此项默认关闭。多路复用会让所有隧道共用一个拥塞窗口，一个丢包就会拖住全部隧道，而且无法走内核零拷贝。只有当套接字数量比吞吐更重要时才启用。"
 
+msgid "One label only: letters, digits and dashes."
+msgstr "只能是一段：字母、数字和短横线。"
+
 msgid "One per line. A \"*\" covers exactly one level, so *.aiqno.com covers acgshop.aiqno.com but not a.b.aiqno.com."
 msgstr "每行一个。\"*\" 只覆盖一层，所以 *.aiqno.com 覆盖 acgshop.aiqno.com，但不覆盖 a.b.aiqno.com。"
+
+msgid "Only certificates covering every domain of this tunnel are listed. Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
+msgstr "只列出能覆盖本隧道全部域名的证书。推送到服务端热加载，不会断开任何连接。只有绑定了证书的隧道才会推送。"
 
 msgid "Overview"
 msgstr "概览"
@@ -450,6 +527,12 @@ msgstr "PROXY 协议 v1（文本）"
 
 msgid "PROXY protocol v2 (binary)"
 msgstr "PROXY 协议 v2（二进制）"
+
+msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
+msgstr "透传会原样转发加密流量，证书由内网服务自己持有。由远端服务器解密则需要在本机签发证书并推送过去。"
+
+msgid "Passthrough — the remote server does not decrypt"
+msgstr "透传 — 远端服务器不解密"
 
 msgid "Password"
 msgstr "密码"
@@ -474,6 +557,9 @@ msgstr "已代理"
 
 msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量经服务商中转"
+
+msgid "Published as this, followed by .%s. Leave empty for %s itself."
+msgstr "发布为此名称加上 .%s。留空则使用 %s 本身。"
 
 msgid "Recent log"
 msgstr "最近日志"
@@ -520,6 +606,18 @@ msgstr "正在申请…"
 msgid "Resolution"
 msgstr "解析方式"
 
+msgid "Restart"
+msgstr "重启"
+
+msgid "Restart the client? Every connection in progress is dropped."
+msgstr "重启客户端？所有进行中的连接都会断开。"
+
+msgid "Restarted."
+msgstr "已重启。"
+
+msgid "Restarting…"
+msgstr "正在重启…"
+
 msgid "Running"
 msgstr "运行中"
 
@@ -543,6 +641,13 @@ msgstr "保存"
 
 msgid "Save and issue"
 msgstr "保存并签发"
+
+msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
+msgstr "保存在本路由器上，这样更新时无需再询问即可部署。以明文存储，root 可读。"
+
+
+msgid "Saved on this router. Leave blank to reuse it, or type a new one to replace it."
+msgstr "已保存在本路由器上。留空则沿用，输入新的则替换。"
 
 msgid "Saved — leave blank to keep"
 msgstr "已保存 — 留空则沿用"
@@ -570,6 +675,12 @@ msgstr "服务器"
 
 msgid "Service"
 msgstr "服务"
+
+msgid "Set up"
+msgstr "设置"
+
+msgid "Setting up a Cloudflare tunnel"
+msgstr "正在设置 Cloudflare Tunnel"
 
 msgid "Shared secret. Stored in plaintext on this router."
 msgstr "共享密钥。以明文保存在本路由器上。"
@@ -631,6 +742,9 @@ msgstr "服务端配置的共享密钥。"
 msgid "This account manages no zones."
 msgstr "该账号下没有域名。"
 
+msgid "This server has no domain yet — set it up again."
+msgstr "这台服务器还没有域名 — 请重新设置。"
+
 msgid "This takes a few minutes: the authority has to see the DNS record propagate before it will issue."
 msgstr "这需要几分钟：证书颁发机构必须先看到 DNS 记录生效才会签发。"
 
@@ -648,6 +762,9 @@ msgstr "传输方式"
 
 msgid "Tunnel"
 msgstr "隧道"
+
+msgid "Tunnel %s"
+msgstr "隧道 %s"
 
 msgid "Tunnels"
 msgstr "隧道"
@@ -670,6 +787,9 @@ msgstr "当上面的文件不存在时使用。{arch} 与 {os} 会替换为实�
 msgid "Value"
 msgstr "记录值"
 
+msgid "Version"
+msgstr "版本"
+
 msgid "Visitors must present this to reach the tunnel."
 msgstr "访问者必须提供此密钥才能连接到该隧道。"
 
@@ -691,6 +811,18 @@ msgstr "域名"
 msgid "Zones"
 msgstr "域名列表"
 
+msgid "\"*\" is only allowed as the leftmost label"
+msgstr "\"*\" 只能作为最左边的标签"
+
+msgid "\"*\" must be a whole label, not part of one"
+msgstr "\"*\" 必须独占一个标签，不能只占标签的一部分"
+
+msgid "connected"
+msgstr "已连接"
+
+msgid "does not cover this tunnel"
+msgstr "不覆盖本隧道"
+
 msgid "no address"
 msgstr "无地址"
 
@@ -703,8 +835,14 @@ msgstr "未存储"
 msgid "not configured"
 msgstr "未配置"
 
+msgid "not connected"
+msgstr "未连接"
+
 msgid "port %s"
 msgstr "端口 %s"
+
+msgid "saved — leave blank to reuse"
+msgstr "已保存 —— 留空即沿用"
 
 msgid "server-allocated"
 msgstr "由服务端分配"
@@ -712,130 +850,8 @@ msgstr "由服务端分配"
 msgid "the request failed"
 msgstr "请求失败"
 
+msgid "unknown"
+msgstr "未知"
+
 msgid "unnamed"
 msgstr "未命名"
-
-msgid "Deployment did not finish — no token yet"
-msgstr "部署未完成 — 还没有令牌"
-
-msgid "No token — this server cannot be reached"
-msgstr "没有令牌 — 无法连接此服务器"
-
-msgid "Issued. Deploying it to the server…"
-msgstr "已签发,正在部署到服务端…"
-
-msgid "Issued, bound, and deployed to the server."
-msgstr "已签发、已绑定,并已部署到服务端。"
-
-msgid "Issued and bound, but applying it failed: %s"
-msgstr "已签发并绑定,但应用失败:%s"
-
-msgid ""
-"The local service otherwise records every visitor as this "
-"router.\n\nConfigure the service first: until both ends agree, every "
-"request fails.\n\nnginx, on the port this tunnel points at:\n    listen "
-"PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    "
-"real_ip_header proxy_protocol;"
-msgstr "不开启的话，内网服务会把每个访客都记成本路由器。\n\n先配好服务再开这个：两边没对上之前，所有请求都会失败。\n\nnginx，在本隧道指向的端口上：\n    listen 端口 proxy_protocol;\n    set_real_ip_from 本路由器的内网地址;\n    real_ip_header proxy_protocol;"
-
-msgid "Decrypted by the remote server"
-msgstr "由远端服务器解密"
-
-msgid "Passthrough — the remote server does not decrypt"
-msgstr "透传 — 远端服务器不解密"
-
-msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
-msgstr "透传会原样转发加密流量，证书由内网服务自己持有。由远端服务器解密则需要在本机签发证书并推送过去。"
-
-msgid "Only certificates covering every domain of this tunnel are listed. Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
-msgstr "只列出能覆盖本隧道全部域名的证书。推送到服务端热加载，不会断开任何连接。只有绑定了证书的隧道才会推送。"
-
-msgid "does not cover this tunnel"
-msgstr "不覆盖本隧道"
-
-msgid "Authorise"
-msgstr "授权"
-
-msgid "Cloudflare Tunnel"
-msgstr "Cloudflare Tunnel"
-
-msgid "Could not start the setup: %s"
-msgstr "无法开始设置：%s"
-
-msgid "No server at all. Cloudflare carries the traffic, and you authorise this router by opening a link."
-msgstr "根本不需要服务器。流量由 Cloudflare 承担，你只需要点开一个链接给本路由器授权。"
-
-msgid "Not authorised yet"
-msgstr "尚未授权"
-
-msgid "Setting up a Cloudflare tunnel"
-msgstr "正在设置 Cloudflare Tunnel"
-
-msgid "Tunnel %s"
-msgstr "隧道 %s"
-
-msgid "A Cloudflare tunnel publishes hostnames over HTTP. Point this tunnel at a server of your own for %s."
-msgstr "Cloudflare Tunnel 只能以 HTTP 发布域名。要用 %s，请把本隧道指向你自己的服务器。"
-
-msgid ""
-"No server of your own is needed. cloudflared runs here and connects out "
-"to Cloudflare, which routes your domains back down that connection.\n\nA "
-"tunnel published this way serves HTTP only, Cloudflare terminates TLS "
-"at its edge, and the visitor address arrives in a header — so "
-"certificates, TLS handling, remote ports and the PROXY protocol do not "
-"apply to it."
-msgstr "不需要你自己的服务器。cloudflared 跑在本路由器上，向外连到 Cloudflare，由它把你的域名路由回这条连接。\n\n这种方式发布的隧道只支持 HTTP，TLS 由 Cloudflare 在边缘终止，访客地址通过头部传入 —— 所以证书、TLS 处理方式、远程端口和 PROXY 协议对它都不适用。"
-
-msgid "Set up"
-msgstr "设置"
-
-msgid "No tunnel yet — press Set up"
-msgstr "还没有隧道 — 点“设置”"
-
-msgid "Certificate %s (missing)"
-msgstr "证书 %s（已不存在）"
-
-msgid "Name under the domain"
-msgstr "域名下的名称"
-
-msgid "One label only: letters, digits and dashes."
-msgstr "只能是一段：字母、数字和短横线。"
-
-msgid "Published as this, followed by .%s. Leave empty for %s itself."
-msgstr "发布为此名称加上 .%s。留空则使用 %s 本身。"
-
-msgid "This server has no domain yet — set it up again."
-msgstr "这台服务器还没有域名 — 请重新设置。"
-
-msgid "Restart"
-msgstr "重启"
-
-msgid "Restarting…"
-msgstr "正在重启…"
-
-msgid "Restarted."
-msgstr "已重启。"
-
-msgid "Did not come back up — see the log below."
-msgstr "没能重新启动 — 请看下方日志。"
-
-msgid "Restart the client? Every connection in progress is dropped."
-msgstr "重启客户端？所有进行中的连接都会断开。"
-
-msgid "Names under the domain"
-msgstr "域名下的名称"
-
-msgid "Each is published with .%s after it. Use @ for %s itself."
-msgstr "每个都会加上 .%s 发布。用 @ 表示 %s 本身。"
-
-msgid "Clear"
-msgstr "清空"
-
-msgid "saved — leave blank to reuse"
-msgstr "已保存 —— 留空即沿用"
-
-msgid "Saved on this router. Leave blank to reuse it, or type a new one to replace it."
-msgstr "已保存在本路由器上。留空则沿用，输入新的则替换。"
-
-msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
-msgstr "保存在本路由器上，这样更新时无需再询问即可部署。以明文存储，root 可读。"

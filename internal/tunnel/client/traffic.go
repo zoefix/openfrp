@@ -44,9 +44,26 @@ type TrafficSnapshot struct {
 	UpdatedAt int64 `json:"updated_at"`
 	Uptime    int64 `json:"uptime_seconds"`
 
+	// ClientVersion is this daemon's own version, so the status page reports
+	// what is actually running rather than what happens to be installed.
+	ClientVersion string `json:"client_version,omitempty"`
+
+	// Servers is keyed by the configured server name and carries each control
+	// connection's state. Cloudflare servers have no entry: cloudflared holds
+	// that connection, not this daemon.
+	Servers map[string]ServerSnapshot `json:"servers,omitempty"`
+
 	// Tunnels is keyed by tunnel name.
 	Tunnels map[string]TrafficCounters `json:"tunnels"`
 	Total   TrafficCounters            `json:"total"`
+}
+
+// ServerSnapshot is one server's control-connection state.
+type ServerSnapshot struct {
+	Connected bool `json:"connected"`
+	// Version is what the server announced at the most recent login. It
+	// outlives a disconnect on purpose: last-known beats blank.
+	Version string `json:"version,omitempty"`
 }
 
 // TrafficCounters is one tunnel's totals since the daemon started.
@@ -96,10 +113,15 @@ func (c *Client) publishTraffic(ctx context.Context) {
 // document and report a parse error where it should report traffic.
 func (c *Client) writeTraffic(path string) {
 	snapshot := TrafficSnapshot{
-		UpdatedAt: time.Now().Unix(),
-		Uptime:    int64(c.traffic.Uptime().Seconds()),
-		Tunnels:   map[string]TrafficCounters{},
-		Total:     countersOf(c.traffic.Total()),
+		UpdatedAt:     time.Now().Unix(),
+		Uptime:        int64(c.traffic.Uptime().Seconds()),
+		ClientVersion: c.version,
+		Tunnels:       map[string]TrafficCounters{},
+		Total:         countersOf(c.traffic.Total()),
+	}
+
+	if c.serverStates != nil {
+		snapshot.Servers = c.serverStates()
 	}
 
 	for _, tunnel := range c.traffic.All() {

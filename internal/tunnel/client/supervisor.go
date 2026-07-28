@@ -220,8 +220,24 @@ func (s *Supervisor) publisher() *Client {
 	defer s.mu.Unlock()
 
 	return &Client{
-		logger:    s.logger,
-		traffic:   s.traffic,
-		statsPath: s.statsPath,
+		logger:       s.logger,
+		version:      s.version,
+		traffic:      s.traffic,
+		statsPath:    s.statsPath,
+		serverStates: s.serverStates,
 	}
+}
+
+// serverStates snapshots every server's control-connection state for the
+// published document.
+func (s *Supervisor) serverStates() map[string]ServerSnapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	out := make(map[string]ServerSnapshot, len(s.clients))
+	for name, client := range s.clients {
+		version, connected := client.ServerState()
+		out[name] = ServerSnapshot{Connected: connected, Version: version}
+	}
+	return out
 }

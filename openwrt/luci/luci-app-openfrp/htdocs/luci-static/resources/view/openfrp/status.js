@@ -281,6 +281,12 @@ function overviewChildren(status, speed) {
 			serviceState,
 			E('span', { 'style': 'margin-left:1em' }, restartButton())
 		])),
+		// What is running, not what is installed: the daemon reports its own
+		// version while it is up, and the backend falls back to asking the
+		// binary only when it is not.
+		infoRow(_('Client version'), status.client_version
+			? E('code', {}, status.client_version)
+			: E('em', {}, _('unknown'))),
 		infoRow(_('Total traffic'), traffic)
 	];
 

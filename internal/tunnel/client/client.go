@@ -42,6 +42,18 @@ type Client struct {
 	mu    sync.Mutex
 	runID string
 
+	// connected and serverVersion describe the control connection, for the
+	// status page. The version is whatever the server announced at login and
+	// deliberately survives a disconnect: "last seen 0.2.0, not connected"
+	// tells the operator more than a blank.
+	connected     bool
+	serverVersion string
+
+	// serverStates, when set, contributes every server's state to the
+	// published snapshot. The supervisor sets it on the one client that
+	// publishes for all of them.
+	serverStates func() map[string]ServerSnapshot
+
 	// certs resolves the certificate a tunnel is bound to. Optional: without
 	// it, tunnels terminating TLS rely on whatever the server already holds.
 	certs CertSource
@@ -163,12 +175,30 @@ func (c *Client) runOnce(ctx context.Context) error {
 		return err
 	}
 
+	c.mu.Lock()
+	c.connected = true
+	c.serverVersion = session.serverVersion
+	c.mu.Unlock()
+	defer func() {
+		c.mu.Lock()
+		c.connected = false
+		c.mu.Unlock()
+	}()
+
 	c.logger.Info("connected",
 		"server", c.dialer.Addr,
 		"run_id", session.runID,
 		"server_version", session.serverVersion)
 
 	return session.serve(ctx)
+}
+
+// ServerState reports whether the control connection is up, and the version
+// the server announced at the most recent login.
+func (c *Client) ServerState() (version string, connected bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.serverVersion, c.connected
 }
 
 // login performs the handshake and returns a live session.

@@ -210,6 +210,18 @@ case "$KIND" in
 
 		ARGS="$(fill_from_uci "$ARGS")" || finish failed
 
+		# Commit before deploying, not only after.
+		#
+		# The page stages the SSH details it was given and leaves them
+		# staged; only the write-back at the end of a *successful* run
+		# committed them. So a deployment that failed — the wrong port, a
+		# host that was not up yet — left the password it had just been
+		# given in /tmp, where a reboot would take it, and the operator
+		# retyped it for the retry. The credential is the operator's, not
+		# the deployment's, and it should outlive the attempt that carried
+		# it.
+		uci -q commit openfrp
+
 		log "==> starting server deployment"
 		# -stdin is what makes the JSON on stdin count. Without it the flag
 		# defaults win and every credential piped in here is discarded in

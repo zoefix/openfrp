@@ -210,6 +210,66 @@ function existingFields() {
 	};
 }
 
+// cloudflareFields publishes through a Cloudflare tunnel instead of a server.
+//
+// Nothing is asked for beyond a name. Authorisation is cloudflared's own: it
+// prints a link, the operator opens it wherever they are and picks the domain,
+// and Cloudflare hands back a credential scoped to that. The alternative was an
+// API token assembled out of the right permission boxes, which fails as a bare
+// "Authentication error" when the set is wrong — and the wrong set is the
+// normal outcome of guessing at it.
+function cloudflareFields() {
+	var nameInput = input({ 'placeholder': 'cloudflare' });
+
+	return {
+		node: E('div', {}, [
+			row(_('Name'), nameInput,
+				_('Local to this router — a tunnel points at it.')),
+			E('div', { 'class': 'cbi-value-description' },
+				_('No server of your own is needed. cloudflared runs here and ' +
+				  'connects out to Cloudflare, which routes your domains back ' +
+				  'down that connection.\n\n' +
+				  'A tunnel published this way serves HTTP only, Cloudflare ' +
+				  'terminates TLS at its edge, and the visitor address arrives ' +
+				  'in a header — so certificates, TLS handling, remote ports and ' +
+				  'the PROXY protocol do not apply to it.'))
+		]),
+
+		focus: function () { nameInput.focus(); },
+
+		submit: function (view) {
+			var name = uniqueSectionName(sectionName(nameInput.value || 'cloudflare'));
+
+			// Created before the job runs, so the worker has somewhere to
+			// write the tunnel id it makes.
+			uci.add('openfrp', 'server', name);
+			uci.set('openfrp', name, 'kind', 'cloudflare');
+
+			uci.save().then(function () {
+				ui.hideModal();
+
+				callJobStart('cf_setup', JSON.stringify({
+					server: name,
+					name: 'openfrp-' + name
+				})).then(function (res) {
+					if (!res || res.error || !res.id) {
+						ui.addNotification(null, E('p', {},
+							_('Could not start the setup: %s')
+								.format((res && res.error) || _('no response'))), 'error');
+						return;
+					}
+
+					showJobModal(_('Setting up a Cloudflare tunnel'), res.id,
+						function (ok) {
+							if (ok)
+								view.reload();
+						});
+				});
+			});
+		}
+	};
+}
+
 // deployFields provisions a server over SSH.
 //
 // section is null when adding, or the name of an existing server being
@@ -372,19 +432,26 @@ function addDialog(view) {
 	var existing = existingFields();
 	var deploy = deployFields(null);
 
+	var cloudflare = cloudflareFields();
+
+	var groups = {
+		deploy: { fields: deploy, action: _('Install') },
+		existing: { fields: existing, action: _('Add') },
+		cloudflare: { fields: cloudflare, action: _('Authorise') }
+	};
+
 	var confirm = button('', 'cbi-button-positive', function () {
-		(mode === 'deploy' ? deploy : existing).submit(view);
+		groups[mode].fields.submit(view);
 	});
 
 	function refresh() {
-		var deploying = mode === 'deploy';
+		Object.keys(groups).forEach(function (key) {
+			groups[key].fields.node.style.display = key === mode ? '' : 'none';
+		});
+		dom.content(confirm, groups[mode].action);
 
-		deploy.node.style.display = deploying ? '' : 'none';
-		existing.node.style.display = deploying ? 'none' : '';
-		dom.content(confirm, deploying ? _('Install') : _('Add'));
-
-		if (deploying)
-			deploy.focus();
+		if (groups[mode].fields.focus)
+			groups[mode].fields.focus();
 	}
 
 	var choices = [
@@ -397,7 +464,13 @@ function addDialog(view) {
 		radio('openfrp-add-mode', 'existing', false,
 			_('An existing server'),
 			_('You already have one running. Enter its address and token.'),
-			function () { mode = 'existing'; refresh(); })
+			function () { mode = 'existing'; refresh(); }),
+
+		radio('openfrp-add-mode', 'cloudflare', false,
+			_('Cloudflare Tunnel'),
+			_('No server at all. Cloudflare carries the traffic, and you ' +
+			  'authorise this router by opening a link.'),
+			function () { mode = 'cloudflare'; refresh(); })
 	];
 
 	ui.showModal(_('Add a server'), [
@@ -407,6 +480,7 @@ function addDialog(view) {
 		E('hr'),
 		deploy.node,
 		existing.node,
+		cloudflare.node,
 
 		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
 			button(_('Cancel'), '', ui.hideModal), ' ', confirm
@@ -414,6 +488,29 @@ function addDialog(view) {
 	]);
 
 	refresh();
+}
+
+// cloudflareSetup re-runs the authorisation and tunnel creation for a row.
+//
+// Idempotent by design: an install already present, an authorisation already
+// held, a tunnel already made. Running it again is what happens after a first
+// attempt failed halfway, which is exactly when starting over would hurt most.
+function cloudflareSetup(view, section) {
+	callJobStart('cf_setup', JSON.stringify({
+		server: section,
+		name: uci.get('openfrp', section, 'tunnel_name') || ('openfrp-' + section)
+	})).then(function (res) {
+		if (!res || res.error || !res.id) {
+			ui.addNotification(null, E('p', {},
+				_('Could not start the setup: %s')
+					.format((res && res.error) || _('no response'))), 'error');
+			return;
+		}
+		showJobModal(_('Setting up a Cloudflare tunnel'), res.id, function (ok) {
+			if (ok)
+				view.reload();
+		});
+	});
 }
 
 // deployDialog redeploys an existing server, where there is no choice to make.
@@ -511,6 +608,14 @@ return view.extend({
 		o = s.option(form.Value, 'addr', _('Address'));
 		o.datatype = 'or(host,ipaddr)';
 		o.rmempty = false;
+		// A Cloudflare row has no address to show and never will: cloudflared
+		// dials outward, so there is nothing here to dial. Left alone the cell
+		// is blank, which reads as a server whose address was forgotten.
+		o.textvalue = function (section_id) {
+			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare')
+				return _('Cloudflare Tunnel');
+			return uci.get('openfrp', section_id, 'addr') || '';
+		};
 
 		o = s.option(form.Value, 'port', _('Control port'));
 		o.datatype = 'port';
@@ -539,6 +644,12 @@ return view.extend({
 		o = s.option(form.DummyValue, '_deploy', _('Provisioning'));
 		o.modalonly = false;
 		o.cfgvalue = function (section_id) {
+			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare') {
+				var tunnel = uci.get('openfrp', section_id, 'tunnel_id');
+				return tunnel ? _('Tunnel %s').format(tunnel)
+					: _('Not authorised yet');
+			}
+
 			// A server with SSH details but no token is a deployment that
 			// started and never finished: the section is created up front so
 			// the worker has somewhere to write the token, and a failure
@@ -564,6 +675,13 @@ return view.extend({
 		o.inputtitle = _('Deploy over SSH');
 		o.inputstyle = 'apply';
 		o.onclick = function (ev, section_id) {
+			// A Cloudflare row has nothing to deploy over SSH. The same button
+			// re-runs its setup, which is idempotent and is what repairs an
+			// authorisation that was never finished.
+			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare') {
+				cloudflareSetup(self, section_id);
+				return false;
+			}
 			deployDialog(self, section_id);
 			return false;
 		};

@@ -285,6 +285,39 @@ function validateDomainPattern(section_id, value) {
 	return true;
 }
 
+// publishedByCloudflare reports whether a tunnel is carried by Cloudflare.
+//
+// A tunnel that names no server belongs to the first one, which is the rule
+// the daemon applies, so the same rule has to be applied here or the form
+// would offer settings for a server the tunnel does not use.
+function publishedByCloudflare(section_id) {
+	var owner = uci.get('openfrp', section_id, 'server');
+	if (!owner) {
+		uci.sections('openfrp', 'server', function (server) {
+			if (!owner)
+				owner = server['.name'];
+		});
+	}
+	return owner ? uci.get('openfrp', owner, 'kind') === 'cloudflare' : false;
+}
+
+// hideOnCloudflare stops an option appearing for a tunnel Cloudflare carries.
+//
+// Cloudflare terminates TLS at its edge, publishes hostnames rather than
+// ports, and gives the visitor's address in a header. So a certificate, a TLS
+// mode, a remote port and the PROXY protocol are all settings that would be
+// accepted, saved, and then do nothing — which is worse than not offering
+// them, because the operator has no way to find out.
+function hideOnCloudflare(option) {
+	var base = option.render;
+	option.render = function (index, section_id) {
+		if (publishedByCloudflare(section_id))
+			return E([]);
+		return base.apply(this, arguments);
+	};
+	return option;
+}
+
 // certificateCovers reports whether one of a certificate's names serves a
 // tunnel's domain.
 //
@@ -404,6 +437,9 @@ return view.extend({
 
 			if (type !== 'http' && type !== 'https')
 				return false;
+			// Cloudflare issues and holds the certificate for its own edge.
+			if (publishedByCloudflare(section_id))
+				return false;
 			if (!https || mode !== 'terminate' || bound)
 				return false;
 			return '';
@@ -465,6 +501,13 @@ return view.extend({
 		o.value('http', 'HTTP');
 		o.value('stcp', _('Secret TCP'));
 		o.default = 'tcp';
+		o.validate = function (section_id, value) {
+			if (value !== 'http' && value !== 'https' &&
+			    publishedByCloudflare(section_id))
+				return _('A Cloudflare tunnel publishes hostnames over HTTP. ' +
+					'Point this tunnel at a server of your own for %s.').format(value);
+			return true;
+		};
 		o.cfgvalue = function (section_id) {
 			// An existing https tunnel reads back as http with HTTPS on.
 			var stored = uci.get('openfrp', section_id, 'type');
@@ -476,6 +519,7 @@ return view.extend({
 			  'HTTP as well.'));
 		o.depends('type', 'http');
 		o.default = '0';
+		hideOnCloudflare(o);
 		o.cfgvalue = function (section_id) {
 			// Tested against what a stored flag looks like rather than against
 			// null: an option that was never written reads back as undefined,
@@ -503,6 +547,7 @@ return view.extend({
 		o.datatype = 'port';
 		o.depends('type', 'tcp');
 		o.depends('type', 'udp');
+		hideOnCloudflare(o);
 
 		o = s.option(form.DynamicList, 'domains', _('Domains'),
 			_('Patterns routed to this tunnel over the shared HTTP and HTTPS ports.'));
@@ -513,6 +558,7 @@ return view.extend({
 
 		o = s.option(form.ListValue, 'tls_mode', _('TLS handling'));
 		o.depends({ type: 'http', https: '1' });
+		hideOnCloudflare(o);
 		o.value('passthrough', _('Passthrough — the remote server does not decrypt'));
 		o.value('terminate', _('Decrypted by the remote server'));
 		o.default = 'passthrough';
@@ -526,6 +572,7 @@ return view.extend({
 			  'connection. Only a bound tunnel has its certificate pushed.'));
 		o.depends({ type: 'http', https: '1', tls_mode: 'terminate' });
 		o.modalonly = true;
+		hideOnCloudflare(o);
 
 		// The choices depend on the tunnel, so they are built per section
 		// rather than once. Offering a certificate that does not cover this
@@ -575,6 +622,7 @@ return view.extend({
 
 		o = s.option(form.ListValue, 'proxy_protocol', _('Client IP'));
 		o.modalonly = true;
+		hideOnCloudflare(o);
 		o.value('', _('Not announced'));
 		o.value('v1', _('PROXY protocol v1 (text)'));
 		o.value('v2', _('PROXY protocol v2 (binary)'));

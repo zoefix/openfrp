@@ -755,3 +755,36 @@ msgstr "只列出能覆盖本隧道全部域名的证书。推送到服务端热
 
 msgid "does not cover this tunnel"
 msgstr "不覆盖本隧道"
+
+msgid "Authorise"
+msgstr "授权"
+
+msgid "Cloudflare Tunnel"
+msgstr "Cloudflare Tunnel"
+
+msgid "Could not start the setup: %s"
+msgstr "无法开始设置：%s"
+
+msgid "No server at all. Cloudflare carries the traffic, and you authorise this router by opening a link."
+msgstr "根本不需要服务器。流量由 Cloudflare 承担，你只需要点开一个链接给本路由器授权。"
+
+msgid "Not authorised yet"
+msgstr "尚未授权"
+
+msgid "Setting up a Cloudflare tunnel"
+msgstr "正在设置 Cloudflare Tunnel"
+
+msgid "Tunnel %s"
+msgstr "隧道 %s"
+
+msgid "A Cloudflare tunnel publishes hostnames over HTTP. Point this tunnel at a server of your own for %s."
+msgstr "Cloudflare Tunnel 只能以 HTTP 发布域名。要用 %s，请把本隧道指向你自己的服务器。"
+
+msgid ""
+"No server of your own is needed. cloudflared runs here and connects out "
+"to Cloudflare, which routes your domains back down that connection.\n\nA "
+"tunnel published this way serves HTTP only, Cloudflare terminates TLS "
+"at its edge, and the visitor address arrives in a header — so "
+"certificates, TLS handling, remote ports and the PROXY protocol do not "
+"apply to it."
+msgstr "不需要你自己的服务器。cloudflared 跑在本路由器上，向外连到 Cloudflare，由它把你的域名路由回这条连接。\n\n这种方式发布的隧道只支持 HTTP，TLS 由 Cloudflare 在边缘终止，访客地址通过头部传入 —— 所以证书、TLS 处理方式、远程端口和 PROXY 协议对它都不适用。"

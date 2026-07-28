@@ -135,6 +135,35 @@ function badge(ok, okText, badText) {
 // what clears a session the server still believes in. It runs as a job rather
 // than an rpcd call because the daemon has to stop, republish every tunnel and
 // reconnect, which outlives the thirty seconds rpcd allows.
+// hiddenLog is everything the operator has already dismissed.
+//
+// syslog is the whole router's, and clearing it would throw away every other
+// service's output to tidy one panel. So this hides rather than deletes: what
+// was on screen when the button was pressed stops being shown, and anything
+// logged afterwards appears as it arrives.
+var hiddenLog = '';
+
+function clearLogButton(logBox) {
+	return E('button', {
+		'class': 'btn',
+		'click': function () {
+			hiddenLog = logBox.textContent || '';
+			dom.content(logBox, _('No log output yet.'));
+		}
+	}, _('Clear'));
+}
+
+// visibleLog drops the part that was dismissed, while it is still the start of
+// what syslog returns. Once the ring buffer has moved past it there is nothing
+// left to hide, and it stops trying.
+function visibleLog(text) {
+	if (hiddenLog && text.indexOf(hiddenLog) === 0)
+		return text.slice(hiddenLog.length).replace(/^\n+/, '');
+	if (hiddenLog && text.indexOf(hiddenLog) < 0)
+		hiddenLog = '';
+	return text;
+}
+
 var restartControl = null;
 
 function restartButton() {
@@ -348,8 +377,9 @@ return view.extend({
 				dom.content(overview, overviewChildren(fresh[0], speed));
 				dom.content(tunnels, tunnelsChildren(fresh[0].tunnels, speed));
 				remember(fresh[0]);
-				if (fresh[1] !== logBox.textContent)
-					dom.content(logBox, fresh[1] || _('No log output yet.'));
+				var log = visibleLog(fresh[1] || '');
+				if (log !== logBox.textContent)
+					dom.content(logBox, log || _('No log output yet.'));
 			});
 		}, 5);
 
@@ -359,9 +389,9 @@ return view.extend({
 			overview,
 			tunnels,
 			E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('Recent log')),
-				E('p', { 'class': 'cbi-section-descr' },
-					_('The daemon writes to syslog through procd.')),
+				E('div', {
+					'style': 'display:flex;align-items:baseline;justify-content:space-between'
+				}, [E('h3', {}, _('Recent log')), clearLogButton(logBox)]),
 				logBox
 			])
 		]);

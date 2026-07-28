@@ -830,3 +830,6 @@ msgstr "域名下的名称"
 
 msgid "Each is published with .%s after it. Use @ for %s itself."
 msgstr "每个都会加上 .%s 发布。用 @ 表示 %s 本身。"
+
+msgid "Clear"
+msgstr "清空"

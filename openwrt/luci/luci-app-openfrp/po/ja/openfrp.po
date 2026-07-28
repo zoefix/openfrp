@@ -830,3 +830,6 @@ msgstr "ドメイン下の名前"
 
 msgid "Each is published with .%s after it. Use @ for %s itself."
 msgstr "それぞれ .%s を付けて公開されます。%s 自体には @ を使います。"
+
+msgid "Clear"
+msgstr "クリア"

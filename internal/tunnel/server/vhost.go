@@ -42,6 +42,10 @@ type vhostListener struct {
 	acceptLoops int
 	reusePort   bool
 
+	// listenOpts is remembered so accepted connections can be tuned to match
+	// on platforms that do not inherit the listener's options.
+	listenOpts netutil.ListenOptions
+
 	mu       sync.Mutex
 	listener net.Listener
 }
@@ -49,13 +53,15 @@ type vhostListener struct {
 func (v *vhostListener) listen(ctx context.Context) error {
 	addr := net.JoinHostPort(v.bindAddr, strconv.Itoa(v.port))
 
-	ln, err := netutil.Listen(ctx, "tcp", addr, netutil.ListenOptions{
+	v.listenOpts = netutil.ListenOptions{
 		ReusePort: v.reusePort,
 		KeepAlive: 30 * time.Second,
 		// HTTP and TLS are both client-first, so accept can wait for the
 		// request bytes — the sniffer needs them immediately anyway.
 		DeferAccept: 5 * time.Second,
-	}, v.acceptLoops)
+	}
+
+	ln, err := netutil.Listen(ctx, "tcp", addr, v.listenOpts, v.acceptLoops)
 	if err != nil {
 		return fmt.Errorf("server: %s vhost listener: %w", v.scheme, err)
 	}
@@ -110,7 +116,9 @@ func (v *vhostListener) serve(ctx context.Context) error {
 func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	defer userConn.Close()
 
-	if err := netutil.TuneConn(userConn, netutil.DefaultTCPOptions()); err != nil {
+	// Free on Linux: the listener was tuned at bind time and this connection
+	// was cloned from it.
+	if err := netutil.TuneAccepted(userConn, v.listenOpts); err != nil {
 		v.logger.Debug("tune vhost connection", "error", err)
 	}
 	if err := userConn.SetDeadline(time.Now().Add(vhostSniffTimeout)); err != nil {

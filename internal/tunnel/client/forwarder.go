@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/zoefix/openfrp/internal/config"
@@ -20,11 +19,25 @@ const localDialTimeout = 10 * time.Second
 // forward connects to the tunnel's local target and relays until either side
 // closes.
 func (s *session) forward(ctx context.Context, workConn net.Conn, start *protocol.StartWorkConn) {
-	logger := s.logger.With("tunnel", start.ProxyName, "source", start.SourceAddr)
+	// The logger is built where it is used, not up front.
+	//
+	// slog.Logger.With allocates a clone whether or not anything is ever
+	// logged through it, and this function runs once per visitor connection.
+	// It was the largest single allocation site on this path, and on a
+	// production log level every byte of it went to records that were
+	// immediately discarded. Memoised, so an error path that logs twice still
+	// only clones once.
+	var built *slog.Logger
+	logger := func() *slog.Logger {
+		if built == nil {
+			built = s.logger.With("tunnel", start.ProxyName, "source", start.SourceAddr)
+		}
+		return built
+	}
 
 	tunnel, ok := s.tunnel(start.ProxyName)
 	if !ok {
-		logger.Warn("work connection assigned to an unknown tunnel")
+		logger().Warn("work connection assigned to an unknown tunnel")
 		return
 	}
 
@@ -39,22 +52,30 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 	// accounts per packet rather than returning a total: it has several exit
 	// paths and a reply goroutine that outlives the call.
 	if tunnel.Type == config.TunnelUDP {
-		s.forwardUDP(ctx, workConn, tunnel, start.ProxyName, logger)
+		s.forwardUDP(ctx, workConn, tunnel, start.ProxyName, logger())
 		return
 	}
 
-	target := net.JoinHostPort(tunnel.LocalIP, strconv.Itoa(tunnel.LocalPort))
+	// Joined once when the tunnel was published, not per connection: this ran
+	// a JoinHostPort and an Itoa for every visitor to produce a string that
+	// never changes.
+	target := s.target(start.ProxyName)
 
 	dialer := &net.Dialer{Timeout: localDialTimeout}
 	localConn, err := dialer.DialContext(ctx, "tcp", target)
 	if err != nil {
-		logger.Warn("dial local service", "target", target, "error", err)
+		logger().Warn("dial local service", "target", target, "error", err)
 		return
 	}
 	defer localConn.Close()
 
-	if err := netutil.TuneConn(localConn, netutil.DefaultTCPOptions()); err != nil {
-		logger.Debug("tune local connection", "error", err)
+	// NoDelay only. Keepalives are for detecting a peer that vanished without
+	// closing, which is a hazard on the internet-facing hops; this socket is
+	// on the LAN and lives exactly as long as the visitor connection it
+	// serves, whose own end is what tears it down. Two setsockopt syscalls
+	// per connection to guard against a case that cannot arise.
+	if err := netutil.TuneConn(localConn, netutil.TCPOptions{NoDelay: true}); err != nil {
+		logger().Debug("tune local connection", "error", err)
 	}
 
 	// Announce the visitor before any payload. Without this the local service
@@ -67,13 +88,13 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 	if tunnel.ProxyProtocol != "" {
 		source, err := netutil.ParseProxyAddr(start.SourceAddr)
 		if err != nil {
-			logger.Warn("cannot announce the visitor address",
+			logger().Warn("cannot announce the visitor address",
 				"source", start.SourceAddr, "error", err)
 			return
 		}
 		if err := netutil.WriteProxyHeader(localConn, tunnel.ProxyProtocol,
 			source, localConn.RemoteAddr()); err != nil {
-			logger.Warn("announce visitor address", "error", err)
+			logger().Warn("announce visitor address", "error", err)
 			return
 		}
 	}
@@ -88,8 +109,8 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 
 	// Guarded: per-connection, and the attribute boxing allocates even with
 	// debug logging off.
-	if logger.Enabled(ctx, slog.LevelDebug) {
-		logger.Debug("transfer complete",
+	if s.logger.Enabled(ctx, slog.LevelDebug) {
+		logger().Debug("transfer complete",
 			"target", target,
 			"to_local", transferred.AToB,
 			"to_remote", transferred.BToA,

@@ -13,3 +13,7 @@ func setReusePort(uintptr) error {
 const deferAcceptSupported = false
 
 func setDeferAccept(uintptr, int) error { return nil }
+
+const acceptedInheritsOptions = false
+
+func tuneListenerFD(uintptr, TCPOptions) error { return nil }

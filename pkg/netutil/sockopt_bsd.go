@@ -23,3 +23,10 @@ func setReusePort(fd uintptr) error {
 const deferAcceptSupported = false
 
 func setDeferAccept(uintptr, int) error { return nil }
+
+// The BSDs are not credited with option inheritance. Only Linux has been
+// measured, and claiming it elsewhere would trade a few syscalls for a
+// silently untuned connection — Nagle back on, and nothing to say so.
+const acceptedInheritsOptions = false
+
+func tuneListenerFD(uintptr, TCPOptions) error { return nil }

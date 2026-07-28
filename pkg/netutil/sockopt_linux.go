@@ -2,7 +2,10 @@
 
 package netutil
 
-import "syscall"
+import (
+	"syscall"
+	"time"
+)
 
 // soReusePort is SO_REUSEPORT from <asm-generic/socket.h>. It is spelled out
 // here rather than taken from the syscall package so the value is visible at
@@ -16,6 +19,48 @@ const reusePortSupported = true
 // address and the kernel spreads incoming connections across them.
 func setReusePort(fd uintptr) error {
 	return syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, soReusePort, 1)
+}
+
+// acceptedInheritsOptions records that Linux clones an accepted socket from
+// the listening one, options included.
+//
+// Verified rather than assumed — see TestAcceptedSocketsInheritListenerOptions,
+// which sets distinctive values on a listener and reads them back off an
+// accepted connection. It is what lets the data plane tune once at bind time
+// instead of spending three setsockopt syscalls on every arriving connection.
+const acceptedInheritsOptions = true
+
+// tuneListenerFD applies the connection options to the listening socket, so
+// every socket accepted from it starts out already tuned.
+func tuneListenerFD(fd uintptr, opts TCPOptions) error {
+	nodelay := 0
+	if opts.NoDelay {
+		nodelay = 1
+	}
+	if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_TCP,
+		syscall.TCP_NODELAY, nodelay); err != nil {
+		return err
+	}
+
+	if opts.KeepAlive <= 0 {
+		return syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET,
+			syscall.SO_KEEPALIVE, 0)
+	}
+
+	if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET,
+		syscall.SO_KEEPALIVE, 1); err != nil {
+		return err
+	}
+
+	// Round up: a sub-second keepalive would truncate to zero, which the
+	// kernel reads as "use the default" — two hours, silently.
+	secs := int((opts.KeepAlive + time.Second - 1) / time.Second)
+	if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_TCP,
+		syscall.TCP_KEEPIDLE, secs); err != nil {
+		return err
+	}
+	return syscall.SetsockoptInt(int(fd), syscall.IPPROTO_TCP,
+		syscall.TCP_KEEPINTVL, secs)
 }
 
 const deferAcceptSupported = true

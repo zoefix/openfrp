@@ -75,8 +75,15 @@ type ListenOptions struct {
 	// under high connection churn.
 	ReusePort bool
 
-	// KeepAlive is applied to accepted connections by the runtime.
+	// KeepAlive is the keepalive interval for accepted connections. Zero
+	// leaves the data-plane default in place; negative disables keepalives.
 	KeepAlive time.Duration
+
+	// NoDelayOff disables the TCP_NODELAY that accepted connections get by
+	// default. The default is on because tunnels carry interactive traffic;
+	// this exists so a caller can say otherwise, and is spelled negatively so
+	// the zero value is the one we want.
+	NoDelayOff bool
 
 	// DeferAccept sets TCP_DEFER_ACCEPT (Linux; silently ignored elsewhere)
 	// so accept fires only when the first payload bytes have arrived.
@@ -93,9 +100,44 @@ type ListenOptions struct {
 // ReusePortSupported reports whether SO_REUSEPORT is available here.
 func ReusePortSupported() bool { return reusePortSupported }
 
+// AcceptedTCPOptions returns the tuning an accepted connection should end up
+// with, given the listener's options.
+func AcceptedTCPOptions(opts ListenOptions) TCPOptions {
+	tuned := DefaultTCPOptions()
+	tuned.NoDelay = !opts.NoDelayOff
+	if opts.KeepAlive != 0 {
+		tuned.KeepAlive = opts.KeepAlive
+	}
+	if tuned.KeepAlive < 0 {
+		tuned.KeepAlive = 0
+	}
+	return tuned
+}
+
 // NewListenConfig builds a net.ListenConfig honouring opts.
+//
+// Where the platform clones socket options into accepted connections, the
+// connection tuning is applied here, to the listening socket, and every
+// connection arrives already tuned. That is worth doing carefully because of
+// what it removes: three setsockopt syscalls per accepted connection from us,
+// and three more from the runtime.
+//
+// The runtime's are the surprising half. net.ListenConfig treats a zero
+// KeepAlive as "on, at my default" and implements it per accepted connection,
+// which both costs the syscalls and silently overwrites what the listener was
+// configured with — a 47 second idle set at bind time came back as Go's 15.
+// Passing a negative value is what turns that off.
 func NewListenConfig(opts ListenOptions) net.ListenConfig {
-	cfg := net.ListenConfig{KeepAlive: opts.KeepAlive}
+	tuned := AcceptedTCPOptions(opts)
+
+	cfg := net.ListenConfig{}
+	if acceptedInheritsOptions {
+		// Negative rather than zero: see above. Zero would have the runtime
+		// re-state keepalive on every connection, over the top of ours.
+		cfg.KeepAlive = -1
+	} else {
+		cfg.KeepAlive = tuned.KeepAlive
+	}
 
 	deferSecs := 0
 	if opts.DeferAccept > 0 && deferAcceptSupported {
@@ -104,7 +146,7 @@ func NewListenConfig(opts ListenOptions) net.ListenConfig {
 		deferSecs = int((opts.DeferAccept + time.Second - 1) / time.Second)
 	}
 
-	if opts.ReusePort || deferSecs > 0 {
+	if opts.ReusePort || deferSecs > 0 || acceptedInheritsOptions {
 		cfg.Control = func(_, _ string, rc syscall.RawConn) error {
 			var sockErr error
 			if err := rc.Control(func(fd uintptr) {
@@ -114,7 +156,12 @@ func NewListenConfig(opts ListenOptions) net.ListenConfig {
 					}
 				}
 				if deferSecs > 0 {
-					sockErr = setDeferAccept(fd, deferSecs)
+					if sockErr = setDeferAccept(fd, deferSecs); sockErr != nil {
+						return
+					}
+				}
+				if acceptedInheritsOptions {
+					sockErr = tuneListenerFD(fd, tuned)
 				}
 			}); err != nil {
 				return err
@@ -124,4 +171,16 @@ func NewListenConfig(opts ListenOptions) net.ListenConfig {
 	}
 
 	return cfg
+}
+
+// TuneAccepted applies the connection tuning to a freshly accepted socket.
+//
+// It is a no-op where the listener's options were inherited, which is the
+// whole point: the call stays at every accept site, so the tuning is
+// guaranteed on every platform, and costs nothing on the one that ships.
+func TuneAccepted(c net.Conn, opts ListenOptions) error {
+	if acceptedInheritsOptions {
+		return nil
+	}
+	return TuneConn(c, AcceptedTCPOptions(opts))
 }

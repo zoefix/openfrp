@@ -29,6 +29,10 @@ type tcpProxy struct {
 	reusePort   bool
 	recorder    Recorder
 
+	// listenOpts is remembered so accepted connections can be tuned to match
+	// on platforms that do not inherit the listener's options.
+	listenOpts netutil.ListenOptions
+
 	mu       sync.Mutex
 	listener net.Listener
 	closed   bool
@@ -72,9 +76,14 @@ func (p *tcpProxy) RemotePort() int {
 func (p *tcpProxy) Listen(ctx context.Context) error {
 	addr := net.JoinHostPort(p.bindAddr, strconv.Itoa(p.port))
 
-	ln, err := netutil.Listen(ctx, "tcp", addr, netutil.ListenOptions{
-		ReusePort: p.reusePort,
-	}, p.acceptLoops)
+	// Deliberately no DeferAccept here, unlike the vhost and control
+	// listeners: a tcp tunnel carries whatever protocol the user put behind
+	// it, and plenty of them speak server-first. An ssh client waits for the
+	// server's banner, so deferring the accept until the client sends
+	// something would deadlock the two against each other.
+	p.listenOpts = netutil.ListenOptions{ReusePort: p.reusePort}
+
+	ln, err := netutil.Listen(ctx, "tcp", addr, p.listenOpts, p.acceptLoops)
 	if err != nil {
 		return fmt.Errorf("proxy %q: %w", p.name, err)
 	}
@@ -156,7 +165,9 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 	}
 	defer workConn.Close()
 
-	if err := netutil.TuneConn(userConn, netutil.DefaultTCPOptions()); err != nil {
+	// Free on Linux: the listener was tuned at bind time and this connection
+	// was cloned from it.
+	if err := netutil.TuneAccepted(userConn, p.listenOpts); err != nil {
 		p.logger.Debug("tune user connection", "error", err)
 	}
 

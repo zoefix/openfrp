@@ -42,6 +42,10 @@ type Server struct {
 	listener   net.Listener
 	vhosts     []*vhostListener
 
+	// listenOpts is remembered so accepted connections can be tuned to match
+	// on platforms that do not inherit the listener's options.
+	listenOpts netutil.ListenOptions
+
 	wg sync.WaitGroup
 }
 
@@ -130,14 +134,15 @@ func (s *Server) Listen(ctx context.Context) error {
 	}
 
 	addr := net.JoinHostPort(s.cfg.BindAddr, strconv.Itoa(s.cfg.BindPort))
-	ln, err := netutil.Listen(ctx, "tcp", addr, netutil.ListenOptions{
+	s.listenOpts = netutil.ListenOptions{
 		ReusePort: s.cfg.AcceptLoops != 1,
 		KeepAlive: 30 * time.Second,
 		// Every legitimate connection here opens with our preamble, so accept
 		// can wait for it: one wakeup saved per connection, and a scanner that
 		// connects silently never costs a goroutine.
 		DeferAccept: 5 * time.Second,
-	}, s.cfg.AcceptLoops)
+	}
+	ln, err := netutil.Listen(ctx, "tcp", addr, s.listenOpts, s.cfg.AcceptLoops)
 	if err != nil {
 		return fmt.Errorf("server: %w", err)
 	}
@@ -238,7 +243,10 @@ func (s *Server) Serve(ctx context.Context) error {
 
 // handleConn reads the greeting and dispatches on the declared mode.
 func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
-	if err := netutil.TuneConn(conn, netutil.DefaultTCPOptions()); err != nil {
+	// Free on Linux: the listener was tuned at bind time and this connection
+	// was cloned from it. Work connections in particular arrive at the rate
+	// tunnelled connections are served, so this is on the hot path.
+	if err := netutil.TuneAccepted(conn, s.listenOpts); err != nil {
 		s.logger.Debug("tune connection", "error", err)
 	}
 

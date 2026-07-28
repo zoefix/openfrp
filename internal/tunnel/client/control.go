@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,9 +27,12 @@ type session struct {
 	serverVersion string
 
 	// tunnels maps a proxy name onto its local target, so a work connection
-	// assigned to a proxy knows where to forward.
+	// assigned to a proxy knows where to forward. targets holds the same
+	// destinations already rendered as host:port, because that string is
+	// needed once per visitor connection and never changes.
 	tunnelsMu sync.RWMutex
 	tunnels   map[string]config.Tunnel
+	targets   map[string]string
 
 	// retries bounds how long a tunnel keeps waiting for a previous session's
 	// claim to be released.
@@ -54,6 +58,7 @@ func (s *session) serve(ctx context.Context) error {
 	defer cancel()
 
 	s.tunnels = make(map[string]config.Tunnel)
+	s.targets = make(map[string]string)
 	if err := s.publishTunnels(); err != nil {
 		return err
 	}
@@ -103,7 +108,19 @@ func (s *session) publishTunnels() error {
 // publishTunnel asks the server to publish one tunnel.
 func (s *session) publishTunnel(tunnel config.Tunnel) error {
 	s.tunnelsMu.Lock()
+	// Initialised here rather than only in serve, so a session assembled any
+	// other way — the republish goroutine below reaching a session whose
+	// serve has already returned, or a test building one directly — records
+	// the tunnel instead of panicking on a nil map.
+	if s.tunnels == nil {
+		s.tunnels = make(map[string]config.Tunnel)
+	}
+	if s.targets == nil {
+		s.targets = make(map[string]string)
+	}
 	s.tunnels[tunnel.Name] = tunnel
+	s.targets[tunnel.Name] = net.JoinHostPort(
+		tunnel.LocalIP, strconv.Itoa(tunnel.LocalPort))
 	s.tunnelsMu.Unlock()
 
 	spec := protocol.ProxySpec{
@@ -298,4 +315,12 @@ func (s *session) tunnel(name string) (config.Tunnel, bool) {
 
 	t, ok := s.tunnels[name]
 	return t, ok
+}
+
+// target returns a tunnel's local destination as host:port, rendered when the
+// tunnel was published rather than for every connection it carries.
+func (s *session) target(name string) string {
+	s.tunnelsMu.RLock()
+	defer s.tunnelsMu.RUnlock()
+	return s.targets[name]
 }

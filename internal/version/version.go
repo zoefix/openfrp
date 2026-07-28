@@ -7,11 +7,22 @@ import (
 	"runtime/debug"
 )
 
-// These are set at link time:
+// Version is the release number, and this line is its single source of
+// truth: the Makefile and the OpenWrt package read it from here rather than
+// deriving something from git. It is a plain x.y.z so that every surface
+// that shows it — the LuCI overview, the per-server version column, logs on
+// both ends — shows a version a person can compare, not a commit hash.
 //
-//	-ldflags "-X github.com/zoefix/openfrp/internal/version.Version=1.2.3"
+// Being a source default rather than only a link-time stamp is what makes an
+// unstamped `go build` report "0.3.0" instead of "dev" — which is exactly
+// what the servers deployed from early unstamped builds have been answering
+// at login ever since.
+//
+// Bump it in the release commit. Commit and Date remain link-time stamps:
+//
+//	-ldflags "-X github.com/zoefix/openfrp/internal/version.Commit=abc1234"
 var (
-	Version = "dev"
+	Version = "0.3.0"
 	Commit  = ""
 	Date    = ""
 )

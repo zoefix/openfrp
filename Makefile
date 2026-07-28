@@ -5,7 +5,10 @@
 # oldstable, CentOS and OpenWrt alike.
 
 MODULE  := github.com/zoefix/openfrp
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+# The release number lives in internal/version/version.go, in x.y.z form;
+# read it from there so a build stamps the same number the source declares.
+# Override with `make VERSION=…` only for a prerelease experiment.
+VERSION ?= $(shell awk -F'"' '/^	Version = /{print $$2}' internal/version/version.go)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 

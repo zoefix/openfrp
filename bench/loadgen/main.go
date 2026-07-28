@@ -47,7 +47,7 @@ type report struct {
 
 func main() {
 	var (
-		mode        = flag.String("mode", "throughput", "throughput or latency")
+		mode        = flag.String("mode", "throughput", "throughput, latency or coldstart")
 		target      = flag.String("target", "", "host:port of the tunnel entrypoint")
 		label       = flag.String("label", "", "name for this run, echoed in the report")
 		duration    = flag.Duration("duration", 10*time.Second, "how long to run")
@@ -56,6 +56,7 @@ func main() {
 		chunk       = flag.Int("chunk", 256<<10, "write size for throughput mode")
 		warmup      = flag.Duration("warmup", 2*time.Second, "ignored settling period")
 		connectWait = flag.Duration("connect-wait", 60*time.Second, "how long to wait for the target to accept")
+		httpHost    = flag.String("http-host", "", "send an HTTP GET with this Host header (coldstart mode)")
 	)
 	flag.Parse()
 
@@ -78,6 +79,8 @@ func main() {
 		result, err = runThroughput(*target, *duration, *warmup, *chunk)
 	case "latency":
 		result, err = runLatency(*target, *duration, *warmup, *concurrency, *payload)
+	case "coldstart":
+		result, err = runColdStart(*target, *duration, *warmup, *concurrency, *httpHost)
 	default:
 		fmt.Fprintf(os.Stderr, "loadgen: unknown mode %q\n", *mode)
 		os.Exit(2)
@@ -308,4 +311,120 @@ func percentileMillis(sorted []time.Duration, q float64) float64 {
 func round(v float64, places int) float64 {
 	scale := math.Pow(10, float64(places))
 	return math.Round(v*scale) / scale
+}
+
+// runColdStart measures what a first-time visitor experiences: a fresh TCP
+// connection per request, timed from dial to first response byte.
+//
+// This is the mode the others cannot stand in for. Both of them dial once and
+// then reuse the connection, which measures the relay and is blind to
+// everything in front of it — and in front of it is where a tunnel differs
+// most from a real server. Every new visitor connection consumes one of the
+// client's pre-established work connections, and when those run out the
+// visitor waits for the server to ask for another, the client to dial it
+// across the internet, and the connection to be registered. On a 50 ms path
+// that is about a tenth of a second spent before their request has moved at
+// all, and no benchmark that reuses connections will ever show it.
+//
+// A browser opening six connections to load one page is exactly this
+// workload.
+func runColdStart(target string, duration, warmup time.Duration,
+	concurrency int, httpHost string) (report, error) {
+
+	var (
+		latencies = make([][]time.Duration, concurrency)
+		requests  atomic.Int64
+		errs      atomic.Int64
+		measure   atomic.Bool
+		wg        sync.WaitGroup
+		stop      = make(chan struct{})
+	)
+
+	request := []byte("ping")
+	if httpHost != "" {
+		request = []byte("GET / HTTP/1.1\r\nHost: " + httpHost +
+			"\r\nConnection: close\r\nUser-Agent: openfrp-loadgen\r\n\r\n")
+	}
+
+	for worker := range concurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			local := make([]time.Duration, 0, 4096)
+			defer func() { latencies[worker] = local }()
+
+			reply := make([]byte, 64)
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+
+				started := time.Now()
+
+				conn, err := net.DialTimeout("tcp", target, 15*time.Second)
+				if err != nil {
+					errs.Add(1)
+					continue
+				}
+				conn.SetDeadline(time.Now().Add(15 * time.Second))
+
+				if _, err := conn.Write(request); err != nil {
+					conn.Close()
+					errs.Add(1)
+					continue
+				}
+
+				// First byte, not the whole body: this measures the time to
+				// be served, not the size of what was served.
+				if _, err := conn.Read(reply); err != nil {
+					conn.Close()
+					errs.Add(1)
+					continue
+				}
+				elapsed := time.Since(started)
+				conn.Close()
+
+				if measure.Load() {
+					local = append(local, elapsed)
+					requests.Add(1)
+				}
+			}
+		}()
+	}
+
+	time.Sleep(warmup)
+	measure.Store(true)
+	started := time.Now()
+
+	time.Sleep(duration)
+	measure.Store(false)
+	elapsed := time.Since(started)
+	close(stop)
+	wg.Wait()
+
+	var all []time.Duration
+	for _, batch := range latencies {
+		all = append(all, batch...)
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i] < all[j] })
+
+	result := report{
+		Mode:     "coldstart",
+		Target:   target,
+		Seconds:  elapsed.Seconds(),
+		Requests: requests.Load(),
+		Errors:   errs.Load(),
+	}
+	if result.Seconds > 0 {
+		result.QPS = float64(result.Requests) / result.Seconds
+	}
+	if len(all) > 0 {
+		result.P50ms = percentileMillis(all, 0.50)
+		result.P99ms = percentileMillis(all, 0.99)
+		result.P999ms = percentileMillis(all, 0.999)
+	}
+	return result, nil
 }

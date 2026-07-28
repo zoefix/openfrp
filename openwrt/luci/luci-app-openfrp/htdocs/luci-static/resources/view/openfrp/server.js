@@ -620,6 +620,14 @@ return view.extend({
 		o = s.option(form.Value, 'port', _('Control port'));
 		o.datatype = 'port';
 		o.default = '7000';
+		o.textvalue = function (section_id) {
+			// Nothing dials a Cloudflare tunnel, so it has no port to show.
+			// The default rendered as 7000, which is a number that means
+			// nothing here and looks like a setting that was chosen.
+			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare')
+				return '—';
+			return uci.get('openfrp', section_id, 'port') || '7000';
+		};
 
 		o = s.option(form.DummyValue, '_tunnels', _('Tunnels'));
 		o.modalonly = false;
@@ -645,9 +653,14 @@ return view.extend({
 		o.modalonly = false;
 		o.cfgvalue = function (section_id) {
 			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare') {
+				// Two different states, and calling both "not authorised"
+				// sends the operator to re-authorise a router that already
+				// is. The credential belongs to the router; the tunnel
+				// belongs to this row, and only the second can be missing
+				// once the first is held.
 				var tunnel = uci.get('openfrp', section_id, 'tunnel_id');
 				return tunnel ? _('Tunnel %s').format(tunnel)
-					: _('Not authorised yet');
+					: _('No tunnel yet — press Set up');
 			}
 
 			// A server with SSH details but no token is a deployment that
@@ -672,7 +685,10 @@ return view.extend({
 		// button, so the one control that repairs a half-finished deployment
 		// was not reachable from the page that reports it.
 		o.editable = true;
-		o.inputtitle = _('Deploy over SSH');
+		o.inputtitle = function (section_id) {
+			return uci.get('openfrp', section_id, 'kind') === 'cloudflare'
+				? _('Set up') : _('Deploy over SSH');
+		};
 		o.inputstyle = 'apply';
 		o.onclick = function (ev, section_id) {
 			// A Cloudflare row has nothing to deploy over SSH. The same button

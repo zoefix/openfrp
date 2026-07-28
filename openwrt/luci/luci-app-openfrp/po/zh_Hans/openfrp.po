@@ -788,3 +788,9 @@ msgid ""
 "certificates, TLS handling, remote ports and the PROXY protocol do not "
 "apply to it."
 msgstr "不需要你自己的服务器。cloudflared 跑在本路由器上，向外连到 Cloudflare，由它把你的域名路由回这条连接。\n\n这种方式发布的隧道只支持 HTTP，TLS 由 Cloudflare 在边缘终止，访客地址通过头部传入 —— 所以证书、TLS 处理方式、远程端口和 PROXY 协议对它都不适用。"
+
+msgid "Set up"
+msgstr "设置"
+
+msgid "No tunnel yet — press Set up"
+msgstr "还没有隧道 — 点“设置”"

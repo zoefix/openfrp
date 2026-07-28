@@ -788,3 +788,9 @@ msgid ""
 "certificates, TLS handling, remote ports and the PROXY protocol do not "
 "apply to it."
 msgstr "自分のサーバーは不要です。cloudflared がこのルーターで動作し、Cloudflare へ外向きに接続し、ドメインへの通信がその接続を通って戻ってきます。\n\nこの方式で公開されるトンネルは HTTP のみで、TLS は Cloudflare のエッジで終了し、訪問者のアドレスはヘッダーで届きます。したがって証明書、TLS の扱い、リモートポート、PROXY プロトコルはこのトンネルには適用されません。"
+
+msgid "Set up"
+msgstr "セットアップ"
+
+msgid "No tunnel yet — press Set up"
+msgstr "トンネル未作成 — 「セットアップ」を押してください"

@@ -201,9 +201,20 @@ case "$KIND" in
 			uci -q commit openfrp
 			log "==> recorded tunnel $tunnel_id"
 
+			# Both services, because the section just became a Cloudflare
+			# server: the client's rendered configuration gains it, and
+			# cloudflared is a separate service that has to be told there is
+			# now something for it to run.
 			if /etc/init.d/openfrp enabled 2>/dev/null; then
 				/etc/init.d/openfrp reload >/dev/null 2>&1
-				log "==> reloaded so cloudflared picks it up"
+				log "==> reloaded the client so it knows about the new server"
+			fi
+			if /etc/init.d/openfrp-cloudflared enabled 2>/dev/null; then
+				/etc/init.d/openfrp-cloudflared reload >/dev/null 2>&1
+				log "==> started cloudflared for $section"
+			else
+				log "==> cloudflared's service is not enabled; run" \
+					"/etc/init.d/openfrp-cloudflared enable"
 			fi
 			finish succeeded
 		fi
@@ -212,13 +223,22 @@ case "$KIND" in
 		;;
 
 	restart)
+		# Both services. They are separated so that one of them falling over
+		# does not take the other with it, not so that an operator who asked
+		# for a restart has to know there are two things to restart.
 		log "==> restarting openfrp"
-		if /etc/init.d/openfrp restart >> "$LOG" 2>&1; then
-			log "==> restarted"
-			finish succeeded
+		if ! /etc/init.d/openfrp restart >> "$LOG" 2>&1; then
+			log "==> restart failed"
+			finish failed
 		fi
-		log "==> restart failed"
-		finish failed
+
+		if /etc/init.d/openfrp-cloudflared enabled 2>/dev/null; then
+			/etc/init.d/openfrp-cloudflared restart >> "$LOG" 2>&1 ||
+				log "==> cloudflared did not restart cleanly"
+		fi
+
+		log "==> restarted"
+		finish succeeded
 		;;
 
 	*)

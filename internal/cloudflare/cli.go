@@ -261,15 +261,50 @@ func lastLines(message string, n int) string {
 	return strings.Join(lines[len(lines)-n:], "; ")
 }
 
-// WriteConfig renders the cloudflared configuration and returns its path.
-func (c CLI) WriteConfig(tunnelID, credentialsPath string, rules []Rule) (string, error) {
-	path := filepath.Join(c.Dir, "config.yml")
+// ConfigPath is the cloudflared configuration for one server.
+//
+// Per server rather than one file for the router. Each Cloudflare server runs
+// its own cloudflared, and a shared file made them fight over it: applying one
+// server's tunnels overwrote the other's ingress, and the surviving process
+// was left holding a configuration describing somebody else's hostnames.
+//
+// The server is a UCI section name, which is letters, digits and underscores,
+// so it needs no escaping to be a filename. Anything else is rejected rather
+// than sanitised — a name that could reach out of this directory is a bug
+// upstream, not a string to repair.
+func (c CLI) ConfigPath(server string) string {
+	return filepath.Join(c.Dir, "config-"+server+".yml")
+}
+
+// WriteConfig renders one server's cloudflared configuration and returns its
+// path.
+func (c CLI) WriteConfig(server, tunnelID, credentialsPath string, rules []Rule) (string, error) {
+	if !validSection(server) {
+		return "", fmt.Errorf("cloudflare: %q is not a usable server name", server)
+	}
+
+	path := c.ConfigPath(server)
 	body := RenderConfig(tunnelID, credentialsPath, rules)
 
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		return "", fmt.Errorf("cloudflare: %s: %w", path, err)
 	}
 	return path, nil
+}
+
+// validSection reports whether a name is one UCI could have produced.
+func validSection(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // copyBinary installs cloudflared from a local file.

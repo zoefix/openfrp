@@ -207,3 +207,51 @@ func TestTheCredentialIsLookedForWhereCloudflaredWritesIt(t *testing.T) {
 		t.Error("a file in the wrong place was accepted as the credential")
 	}
 }
+
+// A router with two Cloudflare servers runs two cloudflared processes. They
+// used to share one config.yml, so applying either one's tunnels overwrote the
+// other's ingress and the surviving process served hostnames belonging to a
+// server it knows nothing about.
+func TestEachServerKeepsItsOwnConfiguration(t *testing.T) {
+	cli := CLI{Binary: "/nonexistent", Dir: t.TempDir()}
+
+	home, err := cli.WriteConfig("home", "tid-home", "/creds/home.json",
+		[]Rule{{Hostname: "home.example.com", Service: "http://127.0.0.1:80"}})
+	if err != nil {
+		t.Fatalf("WriteConfig: %v", err)
+	}
+
+	office, err := cli.WriteConfig("office", "tid-office", "/creds/office.json",
+		[]Rule{{Hostname: "office.example.com", Service: "http://127.0.0.1:81"}})
+	if err != nil {
+		t.Fatalf("WriteConfig: %v", err)
+	}
+
+	if home == office {
+		t.Fatalf("both servers wrote to %s", home)
+	}
+
+	body, err := os.ReadFile(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "home.example.com") {
+		t.Errorf("the first server's configuration was overwritten:\n%s", body)
+	}
+	if strings.Contains(string(body), "office.example.com") {
+		t.Errorf("the first server is serving the second one's hostname:\n%s", body)
+	}
+}
+
+// The path is composed from the server name, so a name that is not a UCI
+// section is refused rather than repaired: "../../etc/passwd" would otherwise
+// name a file well outside the directory this is allowed to write in.
+func TestAServerNameThatCouldEscapeIsRefused(t *testing.T) {
+	cli := CLI{Binary: "/nonexistent", Dir: t.TempDir()}
+
+	for _, name := range []string{"", "../escape", "with/slash", "with.dot"} {
+		if _, err := cli.WriteConfig(name, "tid", "/creds.json", nil); err == nil {
+			t.Errorf("WriteConfig accepted %q", name)
+		}
+	}
+}

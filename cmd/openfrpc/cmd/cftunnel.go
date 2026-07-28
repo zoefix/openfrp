@@ -180,7 +180,7 @@ func cfApply(ctx context.Context, cli cloudflare.CLI, configPath, server string)
 			"HTTP, nothing else", name)
 	}
 
-	path, err := cli.WriteConfig(upstream.TunnelID,
+	path, err := cli.WriteConfig(upstream.Name, upstream.TunnelID,
 		cli.CredentialsPath(upstream.TunnelID), rules)
 	if err != nil {
 		return err

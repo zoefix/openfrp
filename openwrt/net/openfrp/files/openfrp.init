@@ -2,6 +2,9 @@
 #
 # procd service for the OpenFrp client.
 #
+# The client only. cloudflared has its own service in openfrp-cloudflared —
+# see the comment at the top of it for why nothing here starts it any more.
+#
 # shellcheck shell=ash disable=SC2034
 #
 
@@ -16,8 +19,6 @@ PROG=/usr/bin/openfrpc
 RENDER=/usr/libexec/openfrp/render
 CONF=/var/etc/openfrp.json
 RUNDIR=/var/run/openfrp
-CLOUDFLARED=/usr/lib/openfrp/cloudflared
-CFDIR=/etc/openfrp/cloudflared
 
 # say records a diagnostic where it can be found afterwards.
 #
@@ -98,66 +99,20 @@ start_service() {
 
 	procd_set_param pidfile "$RUNDIR/openfrpc.pid"
 	procd_close_instance
-
-	config_foreach start_cloudflared server
-}
-
-# start_cloudflared runs one cloudflared for a Cloudflare tunnel server.
-#
-# A separate process because it is a separate product: cloudflared speaks
-# Cloudflare's protocol to their edge, and this daemon speaks its own to an
-# openfrps. Neither can carry the other's traffic, so a router publishing both
-# ways runs both.
-start_cloudflared() {
-	local section="$1"
-	local kind tunnel_id
-
-	config_get kind "$section" kind
-	[ "$kind" = "cloudflare" ] || return 0
-
-	config_get tunnel_id "$section" tunnel_id
-	if [ -z "$tunnel_id" ]; then
-		say "$section has no Cloudflare tunnel yet, skipping"
-		return 0
-	fi
-
-	if [ ! -x "$CLOUDFLARED" ]; then
-		say "$section needs cloudflared, which is not installed"
-		return 0
-	fi
-
-	# Rendering the ingress and routing the hostnames happens here rather than
-	# at setup: a domain added to a tunnel afterwards needs its own DNS record,
-	# and cloudflared needs to be told where the new hostname goes. Failure is
-	# reported and not fatal — a name that could not be routed should not stop
-	# the names that could.
-	local applied
-	if ! applied="$("$PROG" cftunnel apply -server "$section" -config "$CONF" \
-		-binary "$CLOUDFLARED" -dir "$CFDIR" 2>&1)"; then
-		say "$section could not be published to Cloudflare: $applied"
-	fi
-
-	procd_open_instance "cloudflared-$section"
-	procd_set_param command "$CLOUDFLARED" \
-		--config "$CFDIR/config.yml" \
-		--no-autoupdate \
-		tunnel run "$tunnel_id"
-	procd_set_param file "$CFDIR/config.yml"
-	procd_set_param stdout 1
-	procd_set_param stderr 1
-	procd_set_param respawn 3600 5 5
-	procd_set_param pidfile "$RUNDIR/cloudflared-$section.pid"
-	procd_close_instance
 }
 
 stop_service() {
 	rm -f "$CONF"
 }
 
-reload_service() {
-	stop
-	start
-}
+# reload_service is deliberately absent.
+#
+# Without it rc.common's reload runs start again, which hands procd the whole
+# service definition and lets it decide: the instance is restarted only when
+# its command or one of its watched files actually changed. A reload_service
+# that stopped and started unconditionally threw that away — every "save and
+# apply", including one that changed a setting this daemon does not read, took
+# every tunnel down and back up.
 
 service_triggers() {
 	procd_add_reload_trigger "openfrp"

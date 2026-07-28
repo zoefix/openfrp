@@ -75,6 +75,10 @@ define Package/openfrp/install
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/openfrp.init $(1)/etc/init.d/openfrp
+	# cloudflared is supervised by its own service. It exits by itself when its
+	# last connection to Cloudflare drops, and sharing a service with the client
+	# made that exit take every other tunnel down with it.
+	$(INSTALL_BIN) ./files/openfrp-cloudflared.init $(1)/etc/init.d/openfrp-cloudflared
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DATA) ./files/openfrp.defaults $(1)/etc/uci-defaults/90-openfrp
@@ -91,6 +95,10 @@ define Package/openfrp/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/openfrp enable >/dev/null 2>&1
+	# Enabled even where no Cloudflare tunnel is configured: it starts nothing
+	# in that case, and being enabled is what registers its reload trigger, so
+	# a tunnel set up later starts without anyone remembering this step.
+	/etc/init.d/openfrp-cloudflared enable >/dev/null 2>&1
 	exit 0
 }
 endef
@@ -98,6 +106,8 @@ endef
 define Package/openfrp/prerm
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
+	/etc/init.d/openfrp-cloudflared stop >/dev/null 2>&1
+	/etc/init.d/openfrp-cloudflared disable >/dev/null 2>&1
 	/etc/init.d/openfrp stop >/dev/null 2>&1
 	/etc/init.d/openfrp disable >/dev/null 2>&1
 }

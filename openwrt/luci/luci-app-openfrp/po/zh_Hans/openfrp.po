@@ -809,3 +809,24 @@ msgstr "发布为此名称加上 .%s。留空则使用 %s 本身。"
 
 msgid "This server has no domain yet — set it up again."
 msgstr "这台服务器还没有域名 — 请重新设置。"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "Restarting…"
+msgstr "正在重启…"
+
+msgid "Restarted."
+msgstr "已重启。"
+
+msgid "Did not come back up — see the log below."
+msgstr "没能重新启动 — 请看下方日志。"
+
+msgid "Restart the client? Every connection in progress is dropped."
+msgstr "重启客户端？所有进行中的连接都会断开。"
+
+msgid "Names under the domain"
+msgstr "域名下的名称"
+
+msgid "Each is published with .%s after it. Use @ for %s itself."
+msgstr "每个都会加上 .%s 发布。用 @ 表示 %s 本身。"

@@ -25,6 +25,16 @@ var callStatus = rpc.declare({
 	expect: {}
 });
 
+var callJobStart = rpc.declare({
+	object: 'luci.openfrp', method: 'job_start',
+	params: ['kind', 'args'], expect: {}
+});
+
+var callJobStatus = rpc.declare({
+	object: 'luci.openfrp', method: 'job_status',
+	params: ['id', 'offset'], expect: {}
+});
+
 var callLogTail = rpc.declare({
 	object: 'luci.openfrp',
 	method: 'log_tail',
@@ -119,6 +129,66 @@ function badge(ok, okText, badText) {
 	}, ok ? okText : badText);
 }
 
+// restartButton restarts the client.
+//
+// A restart is what picks up anything the daemon reads only at startup, and
+// what clears a session the server still believes in. It runs as a job rather
+// than an rpcd call because the daemon has to stop, republish every tunnel and
+// reconnect, which outlives the thirty seconds rpcd allows.
+var restartControl = null;
+
+function restartButton() {
+	// Built once and reused. The overview is re-rendered on every poll, and a
+	// button rebuilt each time loses whatever it was in the middle of saying —
+	// including "Restarting…", at exactly the moment it is true.
+	if (restartControl)
+		return restartControl;
+
+	var button = E('button', { 'class': 'btn cbi-button-action' }, _('Restart'));
+	var note = E('span', { 'style': 'margin-left:1em' }, '');
+
+	button.addEventListener('click', function () {
+		// Said out loud, because a restart drops every connection in flight —
+		// which for a tunnel means somebody's download.
+		if (!confirm(_('Restart the client? Every connection in progress is dropped.')))
+			return;
+
+		button.disabled = true;
+		note.textContent = _('Restarting…');
+
+		callJobStart('restart', '').then(function (res) {
+			if (!res || res.error || !res.id) {
+				note.textContent = (res && res.error) || _('no response');
+				button.disabled = false;
+				return;
+			}
+			follow(res.id);
+		});
+	});
+
+	function follow(jobId) {
+		function tick() {
+			return callJobStatus(jobId, 0).then(function (res) {
+				if (!res || res.error || res.state === 'running')
+					return;
+
+				poll.remove(tick);
+				button.disabled = false;
+				note.textContent = res.state === 'succeeded'
+					? _('Restarted.')
+					// The log below this is where the reason will be, now that
+					// a refusal to start reaches it.
+					: _('Did not come back up — see the log below.');
+			});
+		}
+		poll.add(tick, 1);
+		tick();
+	}
+
+	restartControl = E('span', {}, [button, note]);
+	return restartControl;
+}
+
 function infoRow(label, value) {
 	return E('tr', { 'class': 'tr' }, [
 		E('td', { 'class': 'td left', 'style': 'width:28%' }, label),
@@ -135,14 +205,6 @@ function overviewChildren(status, speed) {
 	else
 		serviceState = badge(status.running, _('Running'), _('Enabled but not running'));
 
-	var server = status.server.addr
-		? status.server.addr + ':' + status.server.port
-		: E('em', {}, _('not configured'));
-
-	var transport = status.server.mux
-		? _('Multiplexed — shared congestion window, no kernel zero-copy')
-		: _('Connection pool — independent congestion windows, kernel zero-copy');
-
 	var total = (status.traffic && status.traffic.total) || {};
 
 	var traffic = E('span', {}, [
@@ -151,11 +213,14 @@ function overviewChildren(status, speed) {
 			'↑ ' + formatBytes(total.bytes_out) + ' (' + formatRate(speed.total.out) + ')')
 	]);
 
+	// The address and transport of one server are gone from here. A router
+	// connects to several, and a Cloudflare tunnel has neither — showing the
+	// first one's was showing a fact about a part of the setup while implying
+	// it was a fact about all of it. The servers page has them, per server.
 	var rows = [
 		infoRow(_('Service'), serviceState),
-		infoRow(_('Server'), server),
-		infoRow(_('Transport'), transport),
-		infoRow(_('Total traffic'), traffic)
+		infoRow(_('Total traffic'), traffic),
+		infoRow('', restartButton())
 	];
 
 	return [E('h3', {}, _('Overview')), E('table', { 'class': 'table' }, rows)];

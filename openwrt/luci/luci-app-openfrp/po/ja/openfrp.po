@@ -809,3 +809,24 @@ msgstr "この名前に .%s を付けて公開されます。空にすると %s 
 
 msgid "This server has no domain yet — set it up again."
 msgstr "このサーバーにはまだドメインがありません — 再度セットアップしてください。"
+
+msgid "Restart"
+msgstr "再起動"
+
+msgid "Restarting…"
+msgstr "再起動中…"
+
+msgid "Restarted."
+msgstr "再起動しました。"
+
+msgid "Did not come back up — see the log below."
+msgstr "起動しませんでした — 下のログを確認してください。"
+
+msgid "Restart the client? Every connection in progress is dropped."
+msgstr "クライアントを再起動しますか？進行中の接続はすべて切断されます。"
+
+msgid "Names under the domain"
+msgstr "ドメイン下の名前"
+
+msgid "Each is published with .%s after it. Use @ for %s itself."
+msgstr "それぞれ .%s を付けて公開されます。%s 自体には @ を使います。"

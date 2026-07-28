@@ -53,6 +53,26 @@ append_domain() {
 	json_add_string "" "$1"
 }
 
+# CF_ZONE is the suffix append_prefixed adds. Set immediately before the loop
+# because config_list_foreach passes only the item.
+CF_ZONE=""
+
+# CF_ANY records whether the list produced anything, which is how a prefix
+# written as a plain option is told apart from one written as a list.
+CF_ANY=0
+
+# append_prefixed turns one label into the hostname it publishes.
+#
+# "@" is the zone itself, which is the convention a DNS zone file uses for the
+# same thing — and the only spelling that is not also a valid label.
+append_prefixed() {
+	CF_ANY=1
+	case "$1" in
+		'@') json_add_string "" "$CF_ZONE" ;;
+		*)   json_add_string "" "$1.$CF_ZONE" ;;
+	esac
+}
+
 add_tunnel() {
 	local section="$1"
 	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol server https
@@ -130,10 +150,19 @@ add_tunnel() {
 
 		if [ -n "$zone" ]; then
 			json_add_array domains
-			case "$prefix" in
-				''|'@') json_add_string "" "$zone" ;;
-				*)      json_add_string "" "$prefix.$zone" ;;
-			esac
+			if [ -n "$prefix" ]; then
+				CF_ZONE="$zone"
+				CF_ANY=0
+				config_list_foreach "$section" cf_prefix append_prefixed
+				# A configuration written when this took one prefix holds it as
+				# a plain option, which config_list_foreach does not iterate —
+				# and silently rendering no domains at all would unpublish a
+				# tunnel that was working.
+				[ "$CF_ANY" = "0" ] && append_prefixed "$prefix"
+			else
+				# No prefix at all means the domain itself.
+				json_add_string "" "$zone"
+			fi
 			json_close_array
 		else
 			say "tunnel '$section' is on $owner, which has no domain yet"

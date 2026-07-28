@@ -377,7 +377,19 @@ function zoneOf(section_id) {
 				owner = server['.name'];
 		});
 	}
-	return owner ? (uci.get('openfrp', owner, 'zone') || '') : '';
+	var zone = owner ? uci.get('openfrp', owner, 'zone') : '';
+	if (zone)
+		return zone;
+
+	// A tunnel being added has no server recorded yet — the choice is in the
+	// form, not in the configuration — so the fallback is the Cloudflare
+	// server itself. With one, which is the ordinary case, that is the answer.
+	var zones = [];
+	uci.sections('openfrp', 'server', function (server) {
+		if (server.kind === 'cloudflare' && server.zone)
+			zones.push(server.zone);
+	});
+	return zones.length === 1 ? zones[0] : '';
 }
 
 // certificateCovers reports whether one of a certificate's names serves a
@@ -519,7 +531,9 @@ return view.extend({
 		o.value('udp', 'UDP');
 		o.value('http', 'HTTP');
 		o.value('stcp', _('Secret TCP'));
-		o.default = 'tcp';
+		// HTTP by default. It is what a Cloudflare tunnel can publish at all,
+		// and what most of the rest are: a port forward is the exception.
+		o.default = 'http';
 		o.validate = function (section_id, value) {
 			if (value !== 'http' && value !== 'https' &&
 			    publishedByCloudflare(section_id))
@@ -580,7 +594,10 @@ return view.extend({
 		// while authorising, which is already known — asking for it again per
 		// tunnel is asking someone to retype a decision, and a typo there
 		// publishes a name that resolves nowhere.
-		o = s.option(form.Value, 'cf_prefix', _('Name under the domain'));
+		// A list, like the domains for an OpenFrp server: one tunnel commonly
+		// serves a service under more than one name, and there is no reason
+		// Cloudflare should be the exception.
+		o = s.option(form.DynamicList, 'cf_prefix', _('Names under the domain'));
 		o.placeholder = 'nas';
 		cloudflare.forEach(function (server) {
 			o.depends({ type: 'http', server: server });
@@ -595,10 +612,10 @@ return view.extend({
 			// what will be published is on screen while it is being typed.
 			var zone = zoneOf(section_id);
 			this.description = zone
-				? _('Published as this, followed by .%s. Leave empty for %s itself.')
+				? _('Each is published with .%s after it. Use @ for %s itself.')
 					.format(zone, zone)
 				: _('This server has no domain yet — set it up again.');
-			return form.Value.prototype.renderWidget.apply(this, arguments);
+			return form.DynamicList.prototype.renderWidget.apply(this, arguments);
 		};
 
 		o = s.option(form.Button, '_certificate', _('Certificate'));

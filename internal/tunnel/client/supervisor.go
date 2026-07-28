@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sync"
 
 	"github.com/zoefix/openfrp/internal/config"
@@ -133,9 +134,7 @@ func (s *Supervisor) Run(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := client.Run(ctx); err != nil {
-				s.logger.Error("server stopped", "server", server.Name, "error", err)
-			}
+			s.runServer(ctx, server.Name, client.Run)
 		}()
 	}
 
@@ -147,6 +146,37 @@ func (s *Supervisor) Run(ctx context.Context) error {
 
 	wg.Wait()
 	return nil
+}
+
+// runServer runs one server's client and contains a panic to that server.
+//
+// A panic in one client used to end the process, and with it every other
+// server's connections. That is the one place where servers sharing a process
+// is worse than a process each, and it is the whole of the difference: the
+// server that hit the bug stops, and the rest keep running.
+//
+// The stack is logged because nothing else will print it now. A panic that
+// reaches the runtime writes one on the way out; a recovered one leaves no
+// trace unless it is asked for, and a contained fault nobody can diagnose is
+// only half fixed.
+//
+// Not retried. Reconnecting is already the client's own job, so what is left
+// here is a bug, and running a bug straight back is how an isolated fault
+// becomes a busy loop.
+func (s *Supervisor) runServer(ctx context.Context, name string,
+	run func(context.Context) error) {
+
+	defer func() {
+		if panicked := recover(); panicked != nil {
+			s.logger.Error("server stopped after a panic",
+				"server", name, "panic", panicked,
+				"stack", string(debug.Stack()))
+		}
+	}()
+
+	if err := run(ctx); err != nil {
+		s.logger.Error("server stopped", "server", name, "error", err)
+	}
 }
 
 // scopedConfig narrows the configuration to one server and its tunnels.

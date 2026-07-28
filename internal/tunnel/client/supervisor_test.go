@@ -1,8 +1,12 @@
 package client
 
 import (
+	"context"
+	"errors"
 	"log/slog"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/zoefix/openfrp/internal/config"
 )
@@ -94,5 +98,57 @@ func TestScopedConfigLeavesTheOriginalAlone(t *testing.T) {
 
 	if cfg.Tunnels[1].Server != "hk" {
 		t.Errorf("the original tunnel now names %q, want hk", cfg.Tunnels[1].Server)
+	}
+}
+
+// One server panicking must not end the process. Every other server in it
+// loses its connections when it does, which is the failure this daemon exists
+// to avoid — the tunnels are independent and one bug should not be all of
+// their problem.
+func TestAPanicStopsOneServerNotTheProcess(t *testing.T) {
+	var logged strings.Builder
+	supervisor, err := NewSupervisor(twoServers(),
+		slog.New(slog.NewTextHandler(&logged, nil)), "test")
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		supervisor.runServer(context.Background(), "hk",
+			func(context.Context) error { panic("a bug in one server") })
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("runServer did not return")
+	}
+
+	// The panic has to be findable afterwards: nothing else prints it now that
+	// the runtime never sees it.
+	out := logged.String()
+	for _, want := range []string{"a bug in one server", "server=hk", "stack="} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the log does not mention %q:\n%s", want, out)
+		}
+	}
+}
+
+// A server that stops with an error is reported, not swallowed.
+func TestAServerErrorIsReported(t *testing.T) {
+	var logged strings.Builder
+	supervisor, err := NewSupervisor(twoServers(),
+		slog.New(slog.NewTextHandler(&logged, nil)), "test")
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+
+	supervisor.runServer(context.Background(), "home",
+		func(context.Context) error { return errors.New("dial failed") })
+
+	if !strings.Contains(logged.String(), "dial failed") {
+		t.Errorf("the error was not reported:\n%s", logged.String())
 	}
 }

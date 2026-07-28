@@ -192,15 +192,46 @@ const methods = {
 			const uci = cursor();
 			uci.load('openfrp');
 
+			// Which server each tunnel belongs to, and the domain a Cloudflare
+			// one publishes under. A tunnel naming no server belongs to the
+			// first, which is the rule the daemon applies.
+			const zones = {};
+			let firstServer = null;
+			uci.foreach('openfrp', 'server', function(section) {
+				const name = section['.name'];
+				if (firstServer === null)
+					firstServer = name;
+				if (section.kind == 'cloudflare')
+					zones[name] = section.zone ?? '';
+			});
+
 			const tunnels = [];
 			uci.foreach('openfrp', 'tunnel', function(section) {
+				let domains = section.domains ?? [];
+
+				// A Cloudflare tunnel stores a prefix, and the suffix belongs
+				// to its server. Reporting the prefix alone would be reporting
+				// half an address; reporting nothing, as this did, leaves the
+				// row saying the server allocated something when the operator
+				// chose the name themselves.
+				const owner = section.server ?? firstServer;
+				const zone = zones[owner];
+				if (zone) {
+					domains = [];
+					let prefixes = section.cf_prefix ?? [];
+					if (type(prefixes) != 'array')
+						prefixes = [prefixes];
+					for (let prefix in prefixes)
+						push(domains, prefix == '@' ? zone : prefix + '.' + zone);
+				}
+
 				push(tunnels, {
 					name: section.name ?? section['.name'],
 					enabled: section.enabled == '1',
 					type: section.type ?? 'tcp',
 					local: (section.local_ip ?? '') + ':' + (section.local_port ?? ''),
 					remote_port: section.remote_port ?? '',
-					domains: section.domains ?? []
+					domains: domains
 				});
 			});
 

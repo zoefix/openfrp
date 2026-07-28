@@ -392,6 +392,25 @@ function zoneOf(section_id) {
 	return zones.length === 1 ? zones[0] : '';
 }
 
+// publishedNames is what a tunnel actually serves.
+//
+// A Cloudflare tunnel stores a prefix and takes its suffix from the server, so
+// neither half on its own is the answer. Composing here means the column shows
+// the hostname rather than a piece of it.
+function publishedNames(section_id) {
+	if (!publishedByCloudflare(section_id))
+		return L.toArray(uci.get('openfrp', section_id, 'domains'));
+
+	var zone = zoneOf(section_id);
+	if (!zone)
+		return [];
+
+	return L.toArray(uci.get('openfrp', section_id, 'cf_prefix'))
+		.map(function (prefix) {
+			return prefix === '@' ? zone : prefix + '.' + zone;
+		});
+}
+
 // certificateCovers reports whether one of a certificate's names serves a
 // tunnel's domain.
 //
@@ -589,6 +608,16 @@ return view.extend({
 		o.placeholder = '*.aaa.com';
 		o.validate = validateDomainPattern;
 		limitToOpenFrp(o, openfrp);
+		o.textvalue = function (section_id) {
+			var names = publishedNames(section_id);
+			if (!names.length)
+				return null;
+			// One per line: a tunnel with several names in one run of text is
+			// a wall the eye has to parse.
+			return E('span', {}, names.map(function (name) {
+				return E('div', {}, name);
+			}));
+		};
 
 		// A Cloudflare tunnel names a prefix. The suffix is the domain chosen
 		// while authorising, which is already known — asking for it again per
@@ -598,6 +627,7 @@ return view.extend({
 		// serves a service under more than one name, and there is no reason
 		// Cloudflare should be the exception.
 		o = s.option(form.DynamicList, 'cf_prefix', _('Names under the domain'));
+		o.modalonly = true;
 		o.placeholder = 'nas';
 		cloudflare.forEach(function (server) {
 			o.depends({ type: 'http', server: server });

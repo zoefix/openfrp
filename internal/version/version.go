@@ -34,7 +34,7 @@ func String() string {
 		commit = vcsRevision()
 	}
 
-	s := Version
+	s := Short()
 	if commit != "" {
 		if len(commit) > 12 {
 			commit = commit[:12]
@@ -47,8 +47,19 @@ func String() string {
 	return fmt.Sprintf("%s %s/%s %s", s, runtime.GOOS, runtime.GOARCH, runtime.Version())
 }
 
-// Short returns just the version string.
-func Short() string { return Version }
+// Short returns the version as shown to people: v0.3.0.
+//
+// The v is added here, at the display boundary, rather than stored in
+// Version: the OpenWrt package and the Makefile read the bare number, and a
+// package version field wants 0.3.0 while a human-facing surface wants
+// v0.3.0. The guard means a Version already carrying a prefix — or a
+// non-release value like "dev" — passes through untouched.
+func Short() string {
+	if len(Version) > 0 && Version[0] >= '0' && Version[0] <= '9' {
+		return "v" + Version
+	}
+	return Version
+}
 
 // vcsRevision recovers the commit from the build info Go embeds automatically,
 // so a plain `go build` still reports something useful.

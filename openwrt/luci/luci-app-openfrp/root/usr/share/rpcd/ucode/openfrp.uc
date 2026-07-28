@@ -107,10 +107,11 @@ function binaryVersion() {
 	if (versionCache && versionCache.mtime == info.mtime)
 		return versionCache.version;
 
-	// Output shape: "openfrpc <version> (<date>) <os>/<arch> <go>".
+	// Output shape: "openfrpc <version>[+commit] (<date>) <os>/<arch> <go>".
+	// Only the version reads like a version; the commit is build metadata.
 	const out = runCommand(CLIENT + ' version 2>/dev/null');
 	const fields = split(trim(out ?? ''), ' ');
-	const version = length(fields) > 1 ? fields[1] : '';
+	const version = length(fields) > 1 ? split(fields[1], '+')[0] : '';
 
 	versionCache = { mtime: info.mtime, version: version };
 	return version;

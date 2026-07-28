@@ -217,10 +217,14 @@ function overviewChildren(status, speed) {
 	// connects to several, and a Cloudflare tunnel has neither — showing the
 	// first one's was showing a fact about a part of the setup while implying
 	// it was a fact about all of it. The servers page has them, per server.
+	// The restart sits beside the state it changes, rather than on a row of
+	// its own with an empty label. What it acts on is the badge next to it.
 	var rows = [
-		infoRow(_('Service'), serviceState),
-		infoRow(_('Total traffic'), traffic),
-		infoRow('', restartButton())
+		infoRow(_('Service'), E('span', {}, [
+			serviceState,
+			E('span', { 'style': 'margin-left:1em' }, restartButton())
+		])),
+		infoRow(_('Total traffic'), traffic)
 	];
 
 	return [E('h3', {}, _('Overview')), E('table', { 'class': 'table' }, rows)];

@@ -13,6 +13,10 @@
 #
 set -u
 
+# jshn is how a deployment request is completed from stored settings. Reading
+# JSON would be jsonfilter's job, but this has to write some back.
+. /usr/share/libubox/jshn.sh
+
 KIND="${1:-}"
 LOG="${2:-}"
 STATUS="${3:-}"
@@ -106,6 +110,87 @@ record_result() {
 	fi
 }
 
+# fill_from_uci completes a deployment request from the server's stored
+# settings, and prints the result.
+#
+# What the caller left out is filled in; what it supplied wins. That is what
+# lets a deployment run with nobody at the keyboard: naming the server is
+# enough, and an updater installing a new build does not need a password from
+# anywhere, because the password is already beside the host it belongs to.
+#
+# The browser is the reason this is here rather than in the caller. It used to
+# assemble the whole request, which meant the SSH password had to be sent to it
+# first to be sent back — and the one place a stored credential should never
+# have to travel is out to a page and in again.
+fill_from_uci() {
+	# A subshell, because jshn cannot be run under set -u and this is the only
+	# place that needs it off. jshn reads JSON_PREFIX, JSON_UNSET and others
+	# without ever initialising them, so every one of its entry points is an
+	# unset-variable error — json_init failed here before it had parsed
+	# anything. Setting those by hand chases a list that the next jshn is free
+	# to extend; scoping the relaxation is stable.
+	(
+		set +u
+
+		local request="$1"
+		local section auth stored
+
+		json_init
+		json_load "$request" 2>/dev/null
+
+		# One check for both failures, because jshn cannot tell them apart:
+		# json_load succeeds on input that is not JSON at all and simply
+		# parses nothing, so unusable settings and settings naming no server
+		# arrive here looking identical. Reporting the parse separately would
+		# be a branch that never runs and a message nobody ever sees.
+		json_get_var section server
+		if [ -z "$section" ]; then
+			log "the deployment settings name no server, or could not be read"
+			exit 1
+		fi
+		case "$section" in
+			*[!A-Za-z0-9_]*) log "invalid server section: $section"; exit 1 ;;
+		esac
+
+		carry_uci "$section" ssh_host         host
+		carry_uci "$section" ssh_user         user
+		carry_uci "$section" token            token
+		carry_uci "$section" host_fingerprint host_fingerprint
+		carry_uci "$section" release_url      release_url
+
+		# Named local_binary here and binary_path in UCI, and the difference
+		# matters: openfrpc decodes this strictly, so a field it does not know
+		# fails the whole deployment rather than being ignored.
+		json_get_var stored local_binary
+		[ -n "$stored" ] || {
+			stored="$(uci -q get "openfrp.$section.binary_path")"
+			json_add_string local_binary "${stored:-/usr/lib/openfrp/openfrps}"
+		}
+
+		auth="$(uci -q get "openfrp.$section.ssh_auth")"
+		if [ "$auth" = "key" ]; then
+			carry_uci "$section" ssh_key_path key_path
+		else
+			carry_uci "$section" ssh_pass password
+		fi
+
+		json_dump
+	)
+}
+
+# carry_uci copies one stored option into the request, unless the caller set it.
+carry_uci() {
+	# $1 server section, $2 uci option, $3 request field
+	local present value
+
+	json_get_var present "$3"
+	[ -z "$present" ] || return 0
+
+	value="$(uci -q get "openfrp.$1.$2")"
+	[ -n "$value" ] || return 0
+	json_add_string "$3" "$value"
+}
+
 write_status running
 
 case "$KIND" in
@@ -122,6 +207,8 @@ case "$KIND" in
 			log "no deployment settings were supplied"
 			finish failed
 		fi
+
+		ARGS="$(fill_from_uci "$ARGS")" || finish failed
 
 		log "==> starting server deployment"
 		# -stdin is what makes the JSON on stdin count. Without it the flag

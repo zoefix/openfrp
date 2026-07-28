@@ -664,9 +664,6 @@ msgstr "上傳到伺服器。伺服器無需能連線外網，且安裝的就是
 msgid "Use letters, digits, dot, dash or underscore only"
 msgstr "只能使用字母、數字、點、連字號或底線"
 
-msgid "Used for this deployment only. It is not saved."
-msgstr "僅用於本次部署，不會儲存。"
-
 msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
 msgstr "當上面的檔案不存在時使用。{arch} 與 {os} 會替換為實際偵測到的伺服器架構與系統。"
 
@@ -833,3 +830,12 @@ msgstr "每個都會加上 .%s 發布。用 @ 表示 %s 本身。"
 
 msgid "Clear"
 msgstr "清空"
+
+msgid "saved — leave blank to reuse"
+msgstr "已儲存 —— 留空即沿用"
+
+msgid "Saved on this router. Leave blank to reuse it, or type a new one to replace it."
+msgstr "已儲存在本路由器上。留空則沿用，輸入新的則替換。"
+
+msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
+msgstr "儲存在本路由器上，這樣更新時無需再詢問即可部署。以明文儲存，root 可讀。"

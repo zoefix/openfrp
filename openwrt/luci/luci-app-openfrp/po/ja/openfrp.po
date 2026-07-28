@@ -664,9 +664,6 @@ msgstr "サーバーへアップロードします。サーバー側に外向き
 msgid "Use letters, digits, dot, dash or underscore only"
 msgstr "英数字、ドット、ハイフン、アンダースコアのみ使用できます"
 
-msgid "Used for this deployment only. It is not saved."
-msgstr "今回のデプロイにのみ使用し、保存はされません。"
-
 msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
 msgstr "上のファイルが無い場合に使用します。{arch} と {os} は判別したサーバーの値に置き換えられます。"
 
@@ -833,3 +830,12 @@ msgstr "それぞれ .%s を付けて公開されます。%s 自体には @ を�
 
 msgid "Clear"
 msgstr "クリア"
+
+msgid "saved — leave blank to reuse"
+msgstr "保存済み — 空欄なら再利用"
+
+msgid "Saved on this router. Leave blank to reuse it, or type a new one to replace it."
+msgstr "このルーターに保存されています。空欄のままなら再利用し、新しいものを入力すると置き換えます。"
+
+msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
+msgstr "このルーターに保存され、更新時に尋ねられることなくデプロイできます。平文で保存され、root が読み取れます。"

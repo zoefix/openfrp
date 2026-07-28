@@ -298,8 +298,20 @@ function deployFields(section) {
 	]);
 	authSelect.value = stored('ssh_auth', 'password');
 
+	// Whether one is on file, not what it is. The stored password is handed to
+	// the deployment by the job worker, which reads it on the router; sending
+	// it out to this page so the page could send it back is the one trip a
+	// stored credential should never make.
+	var hasStoredPassword = !!stored('ssh_pass');
+	if (hasStoredPassword)
+		passwordInput.setAttribute('placeholder', _('saved — leave blank to reuse'));
+
 	var passwordRow = row(_('SSH password'), passwordInput,
-		_('Used for this deployment only. It is not saved.'));
+		hasStoredPassword
+			? _('Saved on this router. Leave blank to reuse it, or type a new ' +
+				'one to replace it.')
+			: _('Saved on this router, so an update can deploy without being ' +
+				'asked for it. It is stored in plain text, readable by root.'));
 	var keyRow = row(_('Private key'), keyInput,
 		_('Path to a key on this router.'));
 
@@ -342,7 +354,8 @@ function deployFields(section) {
 				ui.addNotification(null, E('p', {}, _('Enter the SSH host.')), 'warning');
 				return;
 			}
-			if (authSelect.value === 'password' && !passwordInput.value) {
+			if (authSelect.value === 'password' &&
+				!passwordInput.value && !hasStoredPassword) {
 				ui.addNotification(null, E('p', {}, _('Enter the SSH password.')), 'warning');
 				return;
 			}
@@ -363,6 +376,11 @@ function deployFields(section) {
 			uci.set('openfrp', name, 'ssh_auth', authSelect.value);
 			if (authSelect.value === 'key')
 				uci.set('openfrp', name, 'ssh_key_path', keyInput.value);
+			// Kept, so a later deployment — including one nobody started —
+			// has it. Only when something was typed: an empty field means
+			// "reuse what is stored", not "forget it".
+			else if (passwordInput.value)
+				uci.set('openfrp', name, 'ssh_pass', passwordInput.value);
 
 			// Saved before deploying: the worker writes the results straight
 			// into this section, and it has to exist on disk for that to land.
@@ -375,26 +393,16 @@ function deployFields(section) {
 					bind_port: parseInt(controlPort.value, 10) || 7000
 				};
 
-				if (authSelect.value === 'password')
+				// Only what was typed here. Everything else the deployment
+				// needs — the stored password, the token that must survive a
+				// redeploy, the host fingerprint, which binary to upload — the
+				// job worker reads from UCI on the router. It has to know how
+				// to do that anyway for a deployment nobody started, and doing
+				// it in one place means the two paths cannot disagree.
+				if (authSelect.value === 'password' && passwordInput.value)
 					args.password = passwordInput.value;
-				else if (keyInput.value)
+				else if (authSelect.value === 'key' && keyInput.value)
 					args.key_path = keyInput.value;
-
-				// Redeploying keeps the existing token, so tunnels already
-				// pointing here are not orphaned by a re-key.
-				var token = section && uci.get('openfrp', section, 'token');
-				if (token)
-					args.token = token;
-
-				var fingerprint = uci.get('openfrp', name, 'host_fingerprint');
-				if (fingerprint)
-					args.host_fingerprint = fingerprint;
-
-				args.local_binary = uci.get('openfrp', name, 'binary_path') ||
-					'/usr/lib/openfrp/openfrps';
-				var release = uci.get('openfrp', name, 'release_url');
-				if (release)
-					args.release_url = release;
 
 				ui.hideModal();
 

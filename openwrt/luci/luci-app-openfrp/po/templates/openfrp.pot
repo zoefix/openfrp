@@ -1034,9 +1034,6 @@ msgid "Use letters, digits, dot, dash or underscore only"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:242
-msgid "Used for this deployment only. It is not saved."
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:598
 msgid ""
 "Used when the file above is missing. {arch} and {os} are substituted "
@@ -1131,4 +1128,13 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:286
 msgid "unnamed"
+msgstr ""
+
+msgid "saved — leave blank to reuse"
+msgstr ""
+
+msgid "Saved on this router. Leave blank to reuse it, or type a new one to replace it."
+msgstr ""
+
+msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
 msgstr ""

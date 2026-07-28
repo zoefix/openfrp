@@ -152,3 +152,63 @@ func TestAPoolThatCannotBeRefilledStillFails(t *testing.T) {
 		t.Errorf("the failure does not mention the stale connections it discarded: %v", err)
 	}
 }
+
+// TestPoolGrowsWithDemandAndSettlesBack covers the control loop that decides
+// how warm the pool stays.
+//
+// The stake is a stall the benchmarks cannot see: on loopback a missed pool
+// costs microseconds, while on a real path the visitor waits for the server
+// to ask, the client to dial and the connection to be registered — about two
+// round trips before their first byte moves. A pool that does not grow into a
+// burst pays that on every connection past its size.
+func TestPoolGrowsWithDemandAndSettlesBack(t *testing.T) {
+	session := testSession(t, 4, 32)
+
+	if got := session.PoolTarget(); got != 4 {
+		t.Fatalf("initial pool target = %d, want the configured 4", got)
+	}
+
+	// Twenty visitors find the pool empty. Each miss is one step, so the
+	// target lands where the demand actually was rather than at a guess.
+	for range 20 {
+		session.growPool()
+	}
+	if got := session.PoolTarget(); got != 24 {
+		t.Errorf("after 20 misses the pool target = %d, want 24", got)
+	}
+
+	// The ceiling is the server's cap, not the client's request.
+	for range 100 {
+		session.growPool()
+	}
+	if got := session.PoolTarget(); got != 32 {
+		t.Errorf("pool target = %d, want it clamped to the 32 maximum", got)
+	}
+
+	// A quiet interval gives a quarter of the surplus back. Driven directly
+	// rather than by waiting out the real ninety second tick.
+	session.poolMisses.Store(0)
+	session.decayPool()
+	if got := session.PoolTarget(); got != 25 {
+		t.Errorf("after one quiet interval the pool target = %d, want 25 "+
+			"(a quarter of the 28 surplus given back)", got)
+	}
+
+	// An interval with any miss in it holds the pool where it is: the burst
+	// is still going, and shrinking now would rebuild the stall.
+	session.poolMisses.Store(1)
+	session.decayPool()
+	if got := session.PoolTarget(); got != 25 {
+		t.Errorf("pool target = %d after an interval with a miss, want it held at 25", got)
+	}
+
+	// Quiet for long enough and it returns exactly to what was configured,
+	// never below it.
+	for range 50 {
+		session.poolMisses.Store(0)
+		session.decayPool()
+	}
+	if got := session.PoolTarget(); got != 4 {
+		t.Errorf("pool target settled at %d, want the configured floor of 4", got)
+	}
+}

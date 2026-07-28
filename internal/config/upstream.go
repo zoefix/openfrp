@@ -20,6 +20,11 @@ type Upstream struct {
 	// what every server was before there was more than one kind.
 	Kind string `json:"kind,omitempty"`
 
+	// Zone is the domain a Cloudflare tunnel publishes under, as chosen while
+	// authorising. A tunnel on that server names only the label in front of
+	// it; this is what the label is a prefix of.
+	Zone string `json:"zone,omitempty"`
+
 	// TunnelID names the Cloudflare tunnel, for a server of that kind. There
 	// is no address or token to go with it: cloudflared connects outward from
 	// this router and Cloudflare routes hostnames back down that connection,

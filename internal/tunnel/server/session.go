@@ -135,39 +135,102 @@ func (s *Session) AddWorkConn(conn net.Conn) {
 // The returned connection has already been told which proxy it serves, and
 // carries nothing but raw payload afterwards. It is deliberately handed back
 // unwrapped so netutil.Relay can reach the splice fast path.
+//
+// A pooled connection may be dead by the time it is wanted, and this is the
+// ordinary case rather than the exceptional one. The pool is warm, so its
+// connections sit idle for exactly as long as nobody visits the site — hours,
+// on a tunnel that is quiet overnight — and anything on the path holding NAT
+// or proxy state gives up long before that. Nothing reads from a parked work
+// connection, so the peer's close is not noticed when it arrives; it waits in
+// the socket until the first write, which is this one.
+//
+// So a dead one is skipped and the next is tried. Failing the visitor's
+// request on it, which is what this used to do, is what made a site that had
+// been quiet answer 502 to the first few people and then work perfectly: one
+// 502 per stale connection, until the visitors had emptied the pool of them.
 func (s *Session) GetWorkConn(ctx context.Context, proxyName, sourceAddr string) (net.Conn, error) {
-	conn, err := s.takeWorkConn(ctx)
-	if err != nil {
-		return nil, err
+	// The pool is topped back up however this ends. A request that discarded
+	// every connection it found needs replacements more than one that took a
+	// live connection first time.
+	defer s.replenishPool()
+
+	var stale int
+
+	// Warm connections first. Each stale one costs a failed write and nothing
+	// else — the close is already in the socket, so this does not wait.
+	for {
+		conn, ok := s.takePooled()
+		if !ok {
+			break
+		}
+
+		if err := s.startWorkConn(conn, proxyName, sourceAddr); err != nil {
+			conn.Close()
+			stale++
+			continue
+		}
+
+		if stale > 0 {
+			s.logger.Info("discarded work connections that had gone stale",
+				"discarded", stale, "proxy", proxyName)
+		}
+		return conn, nil
 	}
 
-	// Written with the unbuffered helper on purpose: this connection switches
-	// to raw payload immediately after, and a buffered reader would swallow
-	// the leading bytes of it.
-	if err := protocol.WriteMessage(conn, &protocol.StartWorkConn{
-		ProxyName:  proxyName,
-		SourceAddr: sourceAddr,
-	}); err != nil {
+	// Nothing warm left, either because the pool was empty or because all of
+	// it was dead. Ask the client for one and wait for it.
+	conn, err := s.waitWorkConn(ctx)
+	if err != nil {
+		if stale > 0 {
+			return nil, fmt.Errorf(
+				"session %s: %w (after discarding %d stale connection(s))",
+				s.runID, err, stale)
+		}
+		return nil, fmt.Errorf("session %s: %w", s.runID, err)
+	}
+
+	if err := s.startWorkConn(conn, proxyName, sourceAddr); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("session %s: start work conn: %w", s.runID, err)
 	}
 
-	s.replenishPool()
+	if stale > 0 {
+		s.logger.Info("discarded work connections that had gone stale",
+			"discarded", stale, "proxy", proxyName)
+	}
 	return conn, nil
 }
 
-// takeWorkConn pops a pooled connection, asking the client for more if the
-// pool has run dry.
-func (s *Session) takeWorkConn(ctx context.Context) (net.Conn, error) {
+// startWorkConn tells one connection which proxy it is about to carry.
+//
+// Written with the unbuffered helper on purpose: this connection switches to
+// raw payload immediately after, and a buffered reader would swallow the
+// leading bytes of it.
+func (s *Session) startWorkConn(conn net.Conn, proxyName, sourceAddr string) error {
+	return protocol.WriteMessage(conn, &protocol.StartWorkConn{
+		ProxyName:  proxyName,
+		SourceAddr: sourceAddr,
+	})
+}
+
+// takePooled pops a warm connection if there is one, without waiting.
+func (s *Session) takePooled() (net.Conn, bool) {
 	select {
 	case conn := <-s.workConns:
-		return conn, nil
+		return conn, true
+	default:
+		return nil, false
+	}
+}
+
+// waitWorkConn asks the client to dial one and waits for it to arrive.
+func (s *Session) waitWorkConn(ctx context.Context) (net.Conn, error) {
+	select {
 	case <-s.done:
 		return nil, errors.New("session closed")
 	default:
 	}
 
-	// Pool empty. Ask the client to dial, then wait.
 	s.requestWorkConns(1)
 
 	timer := time.NewTimer(workConnTimeout)

@@ -1,343 +1,297 @@
+<div align="center">
+
 # OpenFrp
 
-High-performance NAT traversal for OpenWrt, with DNS management and TLS
-certificate automation built in.
+---
 
-Three pieces:
+Reach the services on your home network from anywhere. An OpenWrt package with
+a web interface for tunnels, domains and HTTPS certificates.
+
+[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
+
+![Version](https://img.shields.io/badge/VERSION-v0.3.0-8A2BE2?style=for-the-badge&labelColor=444)
+![OpenWrt](https://img.shields.io/badge/OPENWRT-SUPPORTED-00B5E2?style=for-the-badge&labelColor=444)
+![apk](https://img.shields.io/badge/APK-SUPPORTED-000000?style=for-the-badge&labelColor=444)
+![opkg](https://img.shields.io/badge/OPKG-SUPPORTED-F5A623?style=for-the-badge&labelColor=444)
+
+</div>
+
+## What this is for
+
+Your NAS, your home server, a camera, a website you run at home — none of it is
+reachable from outside, because your router has no public address.
+
+OpenFrp fixes that with a cheap VPS as the front door. Traffic arrives at the
+VPS and is carried to the machine on your LAN through a tunnel your router
+keeps open.
+
+```
+visitor ──▶ your VPS (public IP) ──tunnel──▶ your router ──▶ NAS / server / camera
+```
+
+You need two things:
+
+- **A router running OpenWrt**, where the package and the web interface are
+  installed.
+- **A VPS with a public IP.** Any provider, any size — the cheapest one works.
+  You need SSH access to it once, for setup.
+
+A domain is optional, but without one you reach services by `IP:port`. With
+one you get `nas.example.com` and real HTTPS.
+
+## Install
+
+### If your OpenWrt feed has the package
+
+```bash
+apk update && apk add luci-app-openfrp
+```
+
+On OpenWrt 24.10 and older, which use opkg:
+
+```bash
+opkg update && opkg install luci-app-openfrp
+```
+
+### Otherwise, use the installer
+
+```bash
+wget -O - https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh | sh
+```
+
+It works out your router's architecture, picks the matching release, checks it
+against the published checksums, and installs it with `apk` or `opkg` —
+whichever your system uses. Run the same command again to upgrade.
+
+For a Chinese-language interface:
+
+```bash
+apk add luci-i18n-openfrp-zh-cn      # or opkg install …
+```
+
+Then open **LuCI → Services → OpenFrp**. Log out and back in if the menu is
+not there yet.
+
+## Setting up
+
+### Step 1 — set up the VPS
+
+Go to the **Servers** tab, **Add server**, fill in:
 
 | | |
 |---|---|
-| **`openfrps`** | Public server. Moves tunnel traffic and nothing else — no cloud credentials live here. |
-| **`openfrpc`** | Runs on the router. Maintains tunnels, provisions the server over SSH, and manages DNS and certificates locally. |
-| **`luci-app-openfrp`** | The LuCI web UI: status, tunnels, server provisioning, DNS and certificates. Every management action happens here. |
+| Address | your VPS's IP |
+| SSH user | usually `root` |
+| SSH password | asked for now, never stored unless you tick the box |
 
-Status: tunnels (TCP, UDP and domain-routed HTTP/HTTPS), the OpenWrt package
-and LuCI app, one-command server provisioning, DNS management, ACME issuance
-with zero-downtime rotation, renewal scheduling and traffic accounting all
-work and are tested on real hardware. See
-[Known gaps](#known-gaps) for what does not.
+Press **Deploy over SSH**. This installs the server side on the VPS: it works
+out the distribution and init system, uploads the binary, writes a service,
+opens the firewall and starts it. Takes about half a minute; the log appears
+as it runs.
 
-## Servers
+When it finishes the connection token is filled in for you. The **Status** tab
+should show the server as connected.
 
-A router can connect to several. Each has its own control connection, token
-and transport settings, and each tunnel names the one that publishes it — so
-one server being unreachable does not affect the tunnels on another, and the
-same port may be bound on two of them.
+> Already running OpenFrp on that VPS? Skip the deploy — just fill in the
+> address, port and token by hand.
 
-Adding one is either describing a server that already runs OpenFrp, or
-provisioning a fresh one over SSH, which fills the connection details in from
-whatever it just installed.
+### Step 2 — add a tunnel
 
-A configuration written when there could only be one server needs no
-migration: its single section is read as the first server, and its tunnels
-name nothing and belong to it.
+Go to **Tunnels**, **Add**, and choose a type:
 
-## Provisioning a server
+| Type | Use it for | What you get |
+|---|---|---|
+| **HTTP** | websites, NAS panels, anything you open in a browser | `https://nas.example.com` |
+| **TCP** | SSH, databases, Minecraft, remote desktop | `your-vps-ip:port` |
+| **UDP** | game servers, WireGuard, DNS | `your-vps-ip:port` |
 
-```bash
-openfrpc deploy -host 203.0.113.10 -binary ./dist/openfrps_linux_amd64
+For an **HTTP** tunnel:
+
+- **Local address / port** — where the service actually runs, e.g.
+  `192.168.1.50` and `5000`.
+- **Domains** — the name visitors will use, e.g. `nas.example.com`.
+- **Enable HTTPS** — serve it on 443 as well.
+
+For **TCP** or **UDP**, set the **remote port** instead: the port on the VPS
+that will be forwarded to your service.
+
+Tick **Enabled** and press **Save & Apply**.
+
+### Step 3 — point your domain at the VPS
+
+At your DNS provider, create an `A` record:
+
+```
+nas.example.com.   A   <your VPS IP>
 ```
 
-Detects the distribution, architecture and init system; removes any previous
-installation; creates a service user; uploads and checksums the binary; writes
-the configuration; installs a systemd, OpenRC or sysvinit service; opens the
-firewall; enables BBR; and verifies the result. Re-running upgrades in place.
+Or a wildcard, so every name under it arrives without adding records one by
+one:
 
-Clearing the previous installation matters: installing on top of one leaves
-whichever service manager it used still holding the port, and the new binary
-then starts and immediately fails to bind — which reads like a broken build
-rather than a leftover.
+```
+*.example.com.     A   <your VPS IP>
+```
 
-From LuCI it is the **Deploy now** button, which asks for the SSH password at
-that moment and never stores it. Key authentication is offered alongside.
+Wait for it to propagate — usually a minute or two — then open
+`http://nas.example.com`. You should see your service.
 
-A password is never accepted as a flag, and never reaches a command line at
-all, because `/proc/*/cmdline` is readable by every local process on the
-router — a password in an argument is a password published to anyone with a
-shell. It travels from the browser to the job worker through a mode-0600 file
-on tmpfs that the worker unlinks the moment it has read it. From a shell, pass
-credentials as JSON on stdin with `-stdin`. `-dry-run` prints the plan without
-touching anything.
+### Step 4 — get an HTTPS certificate
 
-The router bundles a server binary built for its own architecture and uploads
-it, so the server needs no outbound internet and gets bytes the router
-checksummed. When the server turns out to be a different architecture, the
-deployer notices from the ELF header and downloads the right one instead of
-installing something that cannot execute.
+Go to **Certificates**, **Request a certificate**, enter the domain, and
+submit. For a plain name like `nas.example.com` nothing else is needed: the
+VPS answers the challenge itself, because the name already points at it.
+
+For a **wildcard** (`*.example.com`) the certificate authority insists on a
+DNS check, so you first add your DNS provider's API credentials under the
+**DNS** tab. Supported: Aliyun, DNSPod, Huawei Cloud, Cloudflare, NameSilo,
+PowerDNS and West.
+
+Once issued, edit the tunnel, set **TLS handling** to *The remote server
+handles HTTPS*, and choose the certificate. It is pushed to the VPS without
+dropping any connections, and renews itself.
 
 ## Domain routing
 
-Any number of tunnels share ports 80 and 443, routed by name. A `*` label
-matches **exactly one** level and may appear at any depth:
+Any number of tunnels share ports 80 and 443 on the same VPS; they are told
+apart by the name in the request. Wildcards are supported, and a `*` stands
+for **exactly one** level:
 
 | Pattern | Matches | Does not match |
 |---|---|---|
 | `aaa.com` | `aaa.com` | any subdomain |
-| `*.aaa.com` | `www.aaa.com` | `x.bb.aaa.com` |
+| `*.aaa.com` | `www.aaa.com`, `nas.aaa.com` | `x.bb.aaa.com` |
 | `*.bb.aaa.com` | `x.bb.aaa.com` | `y.x.bb.aaa.com` |
 
-Exact names beat wildcards, deeper wildcards beat shallower ones, and a bare
-`*` is an opt-in catch-all.
+An exact name always wins over a wildcard, so you can point `*.aaa.com` at one
+tunnel and `shop.aaa.com` at another.
 
-This differs from frp, where `*.aaa.com` also matches `x.bb.aaa.com`. Ours
-mirrors DNS and TLS certificate scope — a Let's Encrypt `*.aaa.com` covers one
-level — so a route can never resolve to a tunnel whose certificate does not
-cover the name. Under frp's rule that mismatch is silent and unpleasant to
-debug.
+This is the same rule DNS and HTTPS certificates use: a `*.aaa.com`
+certificate covers `www.aaa.com` but not `x.bb.aaa.com`. Matching it means a
+visitor can never be routed to a tunnel whose certificate does not cover the
+name they typed.
 
-HTTPS is routed on the TLS SNI **without decrypting** by default: the server
-forwards ciphertext untouched and the backend owns the certificate. Edge
-termination — where the router issues the certificate and pushes it up — is
-available per tunnel via `tls_mode`, and costs `splice(2)` for that connection
-since a decrypting proxy cannot hand the kernel a raw socket.
+## Common setups
 
-A tunnel that terminates TLS names the certificate it uses, and only a bound
-tunnel has one pushed. With several certificates on file, choosing one
-automatically would eventually serve the wrong name — which a browser reports
-to the visitor as an impersonation attempt, not as a misconfiguration.
+**A NAS with a web panel** — HTTP tunnel, local port `5000`, domain
+`nas.example.com`, HTTPS on, certificate issued in step 4.
 
-Termination offers **HTTP/1.1 only**. The decrypted stream is relayed to the
-LAN service unchanged, so whatever is negotiated here is spoken directly at
-that service; advertising HTTP/2 promises a protocol the other end was never
-asked about. Measured against a real nginx backend, doing so returned 421
-where HTTP/1.1 returned 200.
+**SSH into your home machine** — TCP tunnel, local `192.168.1.10:22`, remote
+port `2222`. Connect with `ssh -p 2222 user@your-vps-ip`.
 
-## Proving a domain is yours
+**A game server** — UDP (or TCP, depending on the game), local port whatever
+the server listens on, remote port the same so players do not have to be told
+a different one.
 
-A wildcard can only be proved through DNS, so it needs provider credentials.
-Everything else can be proved over HTTP, and here that costs nothing to set
-up: the name already resolves to the tunnel server, so **the server answers
-the authority's request itself** on its shared HTTP port. Nothing reaches the
-router, the LAN service is not involved, and a name can be certified before it
-has a tunnel at all — which is the normal case, since the certificate is being
-obtained in order to serve it.
+**Several sites on one VPS** — one HTTP tunnel per site, each with its own
+domain. They share port 443; nothing extra to configure.
 
-That matters because the alternative is handing this router an API key for an
-entire DNS zone in order to certify one host.
+## Bandwidth limits and traffic
 
-## Why it is faster than frp
+Each tunnel can be capped, in its edit dialog:
 
-frp has three structural bottlenecks. Each one is addressed by a specific
-decision here, not by general optimisation.
+- **Download limit** — KB/s toward visitors. `0` means no limit.
+- **Upload limit** — KB/s from visitors.
+- **Traffic cap** — total in MB. When reached, that tunnel stops accepting
+  new connections. Useful on a VPS with a monthly allowance.
 
-**1. frp multiplexes by default.** Every work stream shares one TCP connection
-via yamux, so all tunnels sit behind a single congestion window and a single
-retransmission queue — one lost packet stalls every tunnel at once.
+The **Status** page shows live up and down rates per tunnel, and daily totals
+are kept for 400 days.
 
-OpenFrp defaults to a **connection pool**: each work connection is its own TCP
-connection with its own congestion window. Multiplexing is available
-(`transport.mux`) but opt-in, and when enabled the window defaults to 8 MiB
-rather than yamux's 256 KiB.
+## Keeping it up to date
 
-Measured against frp on a lossy link with 32 concurrent streams, this is worth
-**3.5× the QPS at 3% loss** and roughly a fifth of the p99 at 1% loss. On a
-clean link it is worth nothing at all: latency alone does not trigger
-head-of-line blocking, because there is nothing to retransmit. See
-[the benchmark](docs/benchmark.md), which also records the prediction this
-project got wrong.
+The **Status** page shows the version it is running. When a newer release
+exists a button appears next to it; pressing it shows what changed and asks
+you to confirm.
 
-**2. frp copies every byte through userspace.** NIC → kernel → frps → kernel →
-frpc → kernel → NIC.
+An update replaces everything — client, server binary, web interface,
+translations — and restarts the service. If the new version fails to start,
+the old one is put back automatically, so a bad release cannot leave the
+router without tunnels.
 
-Because our work connections are bare TCP sockets, `netutil.Relay` hands the
-transfer to **`splice(2)`** and payload never enters the process at all. This
-is verified, not assumed: `TestEndToEndUsesKernelFastPath` fails the build if
-any hop of a plain TCP tunnel falls back to a userspace copy on Linux, and
-`RelayCounts()` exposes the split at runtime.
+You can also just re-run the installer, or `apk upgrade` / `opkg upgrade` if
+you installed from a feed.
 
-The corollary is a rule this codebase enforces: **never wrap a work connection
-in a type that hides the underlying `*net.TCPConn`**. A wrapper that does not
-transform bytes may implement `netutil.Unwrapper` to stay on the fast path;
-anything that transforms bytes (TLS, compression) must not. TLS is therefore
-applied to the control connection only — see the comment on `Dialer.DialWork`.
+## If something is not working
 
-**3. frps cannot be reconfigured at runtime.** Its API is read-only, so
-changing a port, a token, or a certificate means restarting the process and
-dropping every connected client. Certificate rotation in particular
-([frp#2946](https://github.com/fatedier/frp/issues/2946)) is a full
-disconnect.
+### The server shows as disconnected
 
-OpenFrp's routing table is swapped atomically, and certificates are pushed up
-the control connection and hot-loaded — zero dropped connections.
+The most common cause is not a firewall — it is a **transparent proxy on the
+router**. OpenClash, Passwall and ShellCrash all redirect outbound TCP, and
+the tunnel's control connection gets swept up and sent through a proxy node
+that cannot carry it.
 
-Additional wins: `SO_REUSEPORT` multi-accept removes accept-queue lock
-contention, and the SSH provisioner enables BBR on the server as part of
-deployment.
+The giveaway: the log says the connection succeeded and then immediately
+closed, and the VPS's log shows nothing at all.
 
-The status page reports per-tunnel bytes and live rates, and the counters
-include how many relays reached `splice(2)` against how many fell back. That
-ratio is the health signal for the property everything above rests on: a
-deployment where it drops is one where something started wrapping work
-connections, and the advantage went with it.
+Two fixes, either works:
 
-None of this is a claim until it is measured. The [`bench/`](bench/) harness
-runs frp and OpenFrp side by side under identical `tc netem` conditions, and
-[`docs/benchmark.md`](docs/benchmark.md) publishes the numbers **including the
-scenarios where OpenFrp ties or loses, and one where the original theory was
-simply wrong**.
+- Turn on **Skip the proxy** for that server, in its edit dialog.
+- Or add a direct rule in your proxy's config, above the final catch-all:
+  ```yaml
+  - "IP-CIDR,<your-vps-ip>/32,DIRECT,no-resolve"
+  ```
 
-## Languages
+### The domain gives "no tunnel is serving this name"
 
-The LuCI app ships English, 简体中文, 繁體中文 (台灣) and 日本語. English is the
-source language and needs no catalogue; the other three live in
-[`openwrt/luci/luci-app-openfrp/po/`](openwrt/luci/luci-app-openfrp/po/) and
-build into `luci-i18n-openfrp-{zh-cn,zh-tw,ja}`.
+The request reached the VPS, so DNS is right. Either the tunnel is not
+enabled, or the name is not in its **Domains** list. Remember `*.example.com`
+does not cover `a.b.example.com`.
 
-`tools/luci-i18n` replaces the parts of LuCI's toolchain that only exist inside
-a buildroot, so catalogues can be extracted, compiled and checked from a normal
-checkout:
+### The certificate request fails
 
-```bash
-go run ./tools/luci-i18n extract openwrt/luci/luci-app-openfrp/po/templates/openfrp.pot openwrt/luci/luci-app-openfrp/htdocs
+For a plain name, check the domain already points at the VPS — the authority
+has to reach it there. For a wildcard, check the DNS credentials under the
+**DNS** tab; the **Test** button says whether they work.
+
+### The service records every visitor as the router
+
+Turn on **Client IP** in the tunnel, then configure the service to trust it.
+For nginx:
+
+```nginx
+listen 5000 proxy_protocol;
+set_real_ip_from <your router's LAN address>;
+real_ip_header proxy_protocol;
 ```
 
-`go test ./tools/...` fails when a string reachable from the UI has no
-translation, when a translation loses or reorders a `%s`, and when the hash
-drifts from LuCI's. That last one matters more than it looks: the hash is how
-LuCI keys every entry, and one wrong bit yields a catalogue that loads without
-error and translates nothing. It is pinned against keys read out of a stock
-`base.zh-cn.lmo` taken off a running router.
+Configure the service **first** — a service that is not expecting the PROXY
+protocol header will reject every request once you turn this on.
 
-Selecting 繁體中文 or 日本語 translates this app, but the rest of the LuCI
-interface stays English unless the matching `luci-i18n-base-*` package is
-installed — that is a separate package, not something this one can supply.
+### DNS and certificate pages say they are unavailable
 
-## Build
+Those need SQLite, which has no build for MIPS routers. Tunnels are
+unaffected; you can still use every tunnel type, just without certificate
+management on the router.
+
+## Removing it
 
 ```bash
-make build
+apk del luci-app-openfrp openfrp
 ```
 
-Both binaries are static and dependency-free (`CGO_ENABLED=0`), so one build
-runs on Alpine, Debian oldstable, CentOS and OpenWrt alike.
+or with the installer:
 
 ```bash
+sh install.sh --uninstall
+```
+
+On the VPS, the deploy page has a **Remove** action that takes the server side
+off cleanly.
+
+## For developers
+
+Build, test and contribution notes live in
+[docs/development.md](docs/development.md), and getting the package into the
+OpenWrt feeds is [docs/openwrt-feed.md](docs/openwrt-feed.md). The short version:
+
+```bash
+make build       # both binaries, static, no CGO
 make check       # vet, gofmt, race-enabled tests
-make test-linux  # run the suite on Linux, where splice(2) actually engages
-make cross       # release artefacts for every target platform
+make test-linux  # the suite on Linux, where splice(2) actually engages
 ```
 
-`make test-linux` matters: the fast-path assertions are skipped on macOS
-because `splice(2)` is Linux-only. A green run on your laptop does not prove
-the performance property holds.
-
-## Try it locally
-
-```bash
-make dev-up
-```
-
-Then, in another shell:
-
-```bash
-curl -s http://localhost:6080/
-```
-
-That request reaches an nginx container through a real tunnel. The three
-containers mirror production topology: `service` is the LAN service, `openfrpc`
-is the router, `openfrps` is the public host.
-
-```bash
-make dev-down
-```
-
-## Configuration
-
-JSON. See [`configs/`](configs/) for annotated examples. On OpenWrt the init
-script renders UCI into `/var/etc/openfrp.json`, so the daemon only ever has to
-understand one format.
-
-Unknown fields are rejected rather than ignored — a typo in a key should fail
-loudly, not silently disable the thing you meant to configure.
-
-Domain patterns for `http` and `https` tunnels follow the rules in
-[Domain routing](#domain-routing) above.
-
-## Layout
-
-Packages are organised by domain, not by technical layer.
-
-```
-cmd/                     entrypoints, one subcommand per file
-bench/                   side-by-side comparison against frp
-internal/
-  tunnel/
-    protocol/            wire format, shared by both daemons
-    transport/           TCP dialer, opt-in yamux
-    vhost/               wildcard routing, Host and SNI sniffing
-    server/  client/     the two daemons
-  dns/                   DNS management and providers
-  cert/                  ACME issuance and renewal
-  deploy/                SSH provisioning
-  scheduler/             periodic jobs
-  stats/                 traffic accounting
-pkg/
-  netutil/               splice, buffers, socket options — the hot path
-  cloudapi/              cloud API request signing
-  schema/                declarative provider forms
-openwrt/                 OpenWrt feed and LuCI app
-tools/                   build-time helpers, one command per directory
-```
-
-Rules that hold throughout: one DNS provider per package; registries populated
-via `init()` so adding a provider touches no existing file; interfaces declared
-by the consumer; `pkg/` free of business logic.
-
-## Roadmap
-
-| | | |
-|---|---|---|
-| **P0** | protocol, transport, server, client, TCP tunnels | ✅ done |
-| **P1** | wildcard domain routing, HTTP vhost, SNI passthrough, `bench/` | ✅ done |
-| **P2** | OpenWrt `.apk` and LuCI app | ✅ done |
-| **P3** | SSH server provisioning | ✅ done |
-| **P4** | cloud API signing, schema-driven forms | ✅ done |
-| **P5** | DNS management, seven providers | ✅ done |
-| **P6** | ACME issuance, edge TLS termination, hot cert reload | ✅ done |
-| P7 | the remaining twelve DNS providers | in progress |
-| P8–P9 | renewal scheduling, traffic accounting | ✅ done |
-| P10 | bandwidth limits, traffic quota, daily history | ✅ done |
-| | QUIC and KCP transports | selectable, marked unimplemented, run as TCP |
-| P11 | eBPF sockmap | not started |
-
-### Known gaps
-
-- **QUIC and KCP are selectable and run as TCP.** The transport selector
-  exists; the transports do not. They are labelled as unimplemented in the
-  interface and the client warns at startup, so the setting no longer
-  misleads.
-- **Twelve of the nineteen planned DNS providers are unwritten.** The seven
-  present are Aliyun, DNSPod, Huawei, Cloudflare, NameSilo, PowerDNS and West.
-- **DNS and certificate management need SQLite, which has no MIPS port.** On a
-  MIPS router those two pages report themselves unavailable; tunnels are
-  unaffected.
-- Renewal reaches a running client by polling the database once a minute
-  rather than being told, because issuance runs in a separate process. A
-  renewed certificate is therefore live within a minute, not instantly.
-
-## If the client cannot connect
-
-A transparent proxy on the router is the most likely cause, not a firewall.
-OpenClash, Passwall and ShellCrash all install an unconditional TCP redirect,
-and the control port usually falls through to their catch-all rule and gets
-routed via a proxy node that cannot relay it.
-
-The symptom is distinctive: **the TCP connect succeeds in 0 ms** — impossible
-for a remote host — and the connection is then closed, so the client reports
-`login: EOF` while the server's log stays completely empty.
-
-Fix it with a direct rule ahead of the final `MATCH`:
-
-```yaml
-- "IP-CIDR,<server-ip>/32,DIRECT,no-resolve"
-```
-
-## Target environments
-
-Both test systems are documented in
-[`docs/test-environments.md`](docs/test-environments.md) with the constraints
-they impose — including that the router runs OpenWrt 25.12, so packages must be
-`.apk` rather than `.ipk`.
+Why it is quick, and the measurements behind that claim — including the cases
+where it ties or loses — are in [docs/benchmark.md](docs/benchmark.md).
 
 ## Licence
 

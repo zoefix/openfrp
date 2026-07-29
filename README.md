@@ -9,7 +9,7 @@ a web interface for tunnels, domains and HTTPS certificates.
 
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
-![Version](https://img.shields.io/badge/VERSION-v1.0.8-8A2BE2?style=for-the-badge&labelColor=444)
+![Version](https://img.shields.io/badge/VERSION-v1.0.9-8A2BE2?style=for-the-badge&labelColor=444)
 ![OpenWrt](https://img.shields.io/badge/OPENWRT-21.02%2B-00B5E2?style=for-the-badge&labelColor=444)
 ![Arch](https://img.shields.io/badge/ARCH-x86__64%20%7C%20ARM64-000000?style=for-the-badge&labelColor=444)
 ![Licence](https://img.shields.io/badge/LICENCE-MIT-F5A623?style=for-the-badge&labelColor=444)
@@ -58,6 +58,10 @@ Run the same command again to upgrade. To remove it:
 wget -O /tmp/openfrp-install.sh https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh
 sh /tmp/openfrp-install.sh --uninstall
 ```
+
+That keeps your settings, so reinstalling picks up the same tunnels. Use
+`--purge` instead to remove the configuration, certificates and traffic
+history as well.
 
 Other options: `--version v0.4.0` for a specific release, `--lang zh-cn` for a
 translated interface, and `OPENFRP_API=…` to use a GitHub mirror where

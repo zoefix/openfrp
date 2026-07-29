@@ -8,7 +8,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
-![Version](https://img.shields.io/badge/VERSION-v1.0.8-8A2BE2?style=for-the-badge&labelColor=444)
+![Version](https://img.shields.io/badge/VERSION-v1.0.9-8A2BE2?style=for-the-badge&labelColor=444)
 ![OpenWrt](https://img.shields.io/badge/OPENWRT-21.02%2B-00B5E2?style=for-the-badge&labelColor=444)
 ![Arch](https://img.shields.io/badge/ARCH-x86__64%20%7C%20ARM64-000000?style=for-the-badge&labelColor=444)
 ![Licence](https://img.shields.io/badge/LICENCE-MIT-F5A623?style=for-the-badge&labelColor=444)
@@ -48,6 +48,8 @@ wget -O - https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.
 wget -O /tmp/openfrp-install.sh https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh
 sh /tmp/openfrp-install.sh --uninstall
 ```
+
+這樣會保留設定，重新安裝後隧道還在。想連設定、憑證與流量記錄一併清除就用 `--purge`。
 
 其他參數：`--version v0.4.0` 安裝指定版本，`--lang zh-tw` 順帶安裝語言包，`OPENFRP_API=…` 在連不上 github.com 時指向鏡像。
 

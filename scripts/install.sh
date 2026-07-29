@@ -14,7 +14,8 @@ usage() {
 	cat <<'EOF'
 usage: install.sh [options]
 
-  --uninstall        remove OpenFrp and its interface
+  --uninstall        remove OpenFrp and its interface, keeping settings
+  --purge            remove OpenFrp and its settings, certificates and history
   --version VERSION  install a specific release, e.g. v0.4.0
   --lang LANG        also install a translation: zh-cn, zh-tw or ja
   --help             this
@@ -28,10 +29,12 @@ EOF
 WANT_VERSION=""
 WANT_LANG=""
 UNINSTALL=0
+PURGE=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--uninstall) UNINSTALL=1 ;;
+		--purge) UNINSTALL=1; PURGE=1 ;;
 		--version) shift; WANT_VERSION="${1:-}" ;;
 		--lang) shift; WANT_LANG="${1:-}" ;;
 		--help|-h) usage; exit 0 ;;
@@ -162,7 +165,24 @@ uninstall() {
 	rm -f /tmp/luci-indexcache 2>/dev/null || true
 	[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd restart >/dev/null 2>&1 || true
 
-	say "/etc/config/openfrp was kept; delete it by hand if you want it gone."
+	if [ "$PURGE" = 1 ]; then
+		rm -f /etc/config/openfrp
+		rm -rf /etc/openfrp
+		rm -f /var/run/openfrp/update.json /var/run/openfrp/stats.json
+		say "Purged: settings, certificates, DNS accounts and traffic history are gone."
+		return 0
+	fi
+
+	# Kept on purpose, and named so it is obvious what survived. A package
+	# manager keeps its conffiles too, and reinstalling onto your own tunnels
+	# is the common case; losing them to a reinstall would not be.
+	say "Kept your settings. Reinstalling will pick them up again:"
+	say "  /etc/config/openfrp        servers, tunnels, tokens"
+	[ -e /etc/openfrp/openfrp.db ] &&
+		say "  /etc/openfrp/openfrp.db    certificates, DNS accounts, traffic history"
+	[ -d /etc/openfrp/cloudflared ] &&
+		say "  /etc/openfrp/cloudflared   cloudflared credentials"
+	say "Run with --purge to remove those as well."
 }
 
 if [ "$UNINSTALL" = 1 ]; then
@@ -313,7 +333,19 @@ done
 
 if [ -x /etc/init.d/openfrp ]; then
 	/etc/init.d/openfrp enable >/dev/null 2>&1 || true
-	[ "$RUNNING" = 1 ] && /etc/init.d/openfrp start >/dev/null 2>&1 || true
+
+	# Start when the configuration says the service is wanted, not merely when
+	# it happened to be running a moment ago. After an uninstall nothing is
+	# running, so the old test left a fresh install enabled and stopped —
+	# which the status page reports, accurately and unhelpfully, as "enabled
+	# but not running".
+	WANTED="$(uci -q get openfrp.global.enabled 2>/dev/null || echo 0)"
+	if [ "$WANTED" = "1" ] || [ "$RUNNING" = 1 ]; then
+		/etc/init.d/openfrp start >/dev/null 2>&1 || true
+		step "started the service"
+	else
+		step "service installed but left stopped; enable OpenFrp in LuCI to start it"
+	fi
 fi
 
 [ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd restart >/dev/null 2>&1 || true

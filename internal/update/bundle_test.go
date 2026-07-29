@@ -111,11 +111,34 @@ func TestExtractRefusesToEscape(t *testing.T) {
 			want:    "outside",
 		},
 		{
-			name: "a path an update has no business touching",
+			name: "another package's init script",
 			entries: []entry{
-				{name: "etc/init.d/openfrp", mode: 0o755, body: "#!/bin/sh"},
+				{name: "etc/init.d/dropbear", mode: 0o755, body: "#!/bin/sh"},
 			},
 			want: "outside what an update may replace",
+		},
+		{
+			// A release replaces etc/init.d/openfrp, and a prefix match on that
+			// would have taken this too.
+			name: "an init script merely starting with our name",
+			entries: []entry{
+				{name: "etc/init.d/openfrpevil", mode: 0o755, body: "#!/bin/sh"},
+			},
+			want: "outside what an update may replace",
+		},
+		{
+			// The tunnels, tokens and limits an operator configured. A release
+			// that could write here would silently discard them.
+			name: "the operator's configuration",
+			entries: []entry{
+				{name: "etc/config/openfrp", body: "config global 'global'"},
+			},
+			want: "outside what an update may replace",
+		},
+		{
+			name:    "a path with no relation to us at all",
+			entries: []entry{{name: "etc/passwd", body: "root::0:0"}},
+			want:    "outside what an update may replace",
 		},
 		{
 			name: "symlink",
@@ -142,6 +165,26 @@ func TestExtractRefusesToEscape(t *testing.T) {
 				t.Fatal("the extract wrote outside its directory")
 			}
 		})
+	}
+}
+
+// TestExtractAcceptsTheServiceScripts pins the other half: a release has to be
+// able to replace its own init scripts, or a fresh install has nothing to
+// start.
+func TestExtractAcceptsTheServiceScripts(t *testing.T) {
+	archive := buildBundle(t, []entry{
+		{name: "etc/init.d/openfrp", mode: 0o755, body: "#!/bin/sh"},
+		{name: "etc/init.d/openfrp-cloudflared", mode: 0o755, body: "#!/bin/sh"},
+		{name: "usr/share/luci/menu.d/luci-app-openfrp.json", body: "{}"},
+		{name: "usr/share/rpcd/acl.d/luci-app-openfrp.json", body: "{}"},
+	})
+
+	written, err := Extract(bytes.NewReader(archive), t.TempDir())
+	if err != nil {
+		t.Fatalf("a bundle holding the files a fresh install needs was refused: %v", err)
+	}
+	if len(written) != 4 {
+		t.Errorf("wrote %d of 4: %v", len(written), written)
 	}
 }
 

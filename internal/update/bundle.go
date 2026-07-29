@@ -38,22 +38,34 @@ func MkdirAllMode(dir string) error {
 // be obeyed, so the archive decides only which of these files it replaces,
 // never which places exist to replace.
 var allowedPrefixes = []string{
-	// Exact names under etc/init.d, never the directory: a release has to be
-	// able to replace its own service scripts, and nothing else there.
-	"etc/init.d/openfrp",
-	"etc/init.d/openfrp-cloudflared",
-	"usr/bin/openfrpc",
-	"usr/share/luci/menu.d/luci-app-openfrp.json",
-	"usr/share/rpcd/acl.d/luci-app-openfrp.json",
 	"usr/lib/openfrp/",
 	"usr/libexec/openfrp/",
-	"usr/share/rpcd/ucode/openfrp.uc",
 	"usr/lib/lua/luci/i18n/openfrp.",
 	"www/luci-static/resources/openfrp/",
 	"www/luci-static/resources/view/openfrp/",
 }
 
+// allowedExact are the single files a release replaces outside its own
+// directories.
+//
+// Named in full rather than by prefix. etc/init.d/ has to be reachable so a
+// release can update its own service scripts, and a prefix of
+// "etc/init.d/openfrp" would also accept etc/init.d/openfrpanything.
+// /etc/config/openfrp is deliberately absent: that is the operator's
+// configuration and no release may write over it.
+var allowedExact = map[string]bool{
+	"etc/init.d/openfrp":                          true,
+	"etc/init.d/openfrp-cloudflared":              true,
+	"usr/bin/openfrpc":                            true,
+	"usr/share/luci/menu.d/luci-app-openfrp.json": true,
+	"usr/share/rpcd/acl.d/luci-app-openfrp.json":  true,
+	"usr/share/rpcd/ucode/openfrp.uc":             true,
+}
+
 func permitted(name string) bool {
+	if allowedExact[name] {
+		return true
+	}
 	for _, prefix := range allowedPrefixes {
 		if strings.HasPrefix(name, prefix) {
 			return true

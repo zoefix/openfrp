@@ -338,4 +338,4 @@ they impose — including that the router runs OpenWrt 25.12, so packages must b
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for third-party attribution.
+MIT. See [LICENSE](LICENSE).

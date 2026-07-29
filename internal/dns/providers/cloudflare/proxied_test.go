@@ -9,12 +9,6 @@ import (
 
 func boolPtr(v bool) *bool { return &v }
 
-// TestRecordBodyAlwaysSendsProxied is the guard against a silent outage.
-//
-// Cloudflare replaces the whole record on write. Omitting proxied resets it to
-// false, so editing the TTL of a proxied name would quietly take it off the
-// edge — the API returns success, the record still exists, and the only signal
-// is that traffic stopped going where it used to.
 func TestRecordBodyAlwaysSendsProxied(t *testing.T) {
 	p := &provider{}
 
@@ -48,8 +42,7 @@ func TestRecordBodyAlwaysSendsProxied(t *testing.T) {
 			want: false, present: true,
 		},
 		{
-			// The API rejects the flag on types that cannot be proxied, so it
-			// must be left out rather than sent as false.
+
 			name: "TXT records omit the flag entirely",
 			record: dns.Record{
 				Name: "_acme-challenge", Type: dns.TypeTXT,
@@ -88,9 +81,6 @@ func TestRecordBodyAlwaysSendsProxied(t *testing.T) {
 	}
 }
 
-// TestProxiedSurvivesJSONRoundTrip covers the path from the browser: the UI
-// sends the record back as JSON, and a pointer that decodes to nil would be
-// read as "no opinion" and reset the flag on the next write.
 func TestProxiedSurvivesJSONRoundTrip(t *testing.T) {
 	for _, want := range []bool{true, false} {
 		encoded, err := json.Marshal(dns.Record{

@@ -9,18 +9,6 @@ import (
 	"unicode"
 )
 
-// The .lmo layout, from LuCI's template_lmo.h:
-//
-//	[ string data, each entry padded to a 4-byte boundary ]
-//	[ index: one 16-byte entry per string, sorted by key hash ]
-//	[ uint32: byte offset at which the index starts           ]
-//
-// Every integer is big endian. Each index entry is:
-//
-//	uint32 key_id   hash of the msgid
-//	uint32 val_id   hash of the msgstr
-//	uint32 offset   where the msgstr data begins
-//	uint32 length   its length in bytes
 const entrySize = 16
 
 type entry struct {
@@ -30,30 +18,10 @@ type entry struct {
 	length uint32
 }
 
-// hashKey is a msgid as LuCI asks for it.
-//
-// The runtime collapses whitespace before hashing:
-//
-//	function trimws(s) { return String(s).trim().replace(/[ \t\n]+/g, ' '); }
-//	function _(s, c) { ... return (window.TR && TR[sfh(k)]) || s; }
-//
-// so a message written across several lines, or holding an indented block, is
-// looked up under its collapsed form. Keying the catalogue by the literal text
-// instead produces entries nothing ever asks for: the page loads, every other
-// string translates, and that one falls back to English with no error
-// anywhere. Every message this project had until now was a single line of
-// single-spaced text — already collapsed — which is why the difference stayed
-// invisible.
 func hashKey(msgid string) uint32 {
 	return sfhHash([]byte(collapseWhitespace(msgid)))
 }
 
-// collapseWhitespace mirrors trimws.
-//
-// The trim follows JavaScript, which strips every kind of space; the collapse
-// follows the character class in the regex above, which is only these three.
-// Widening either half would move the key away from the one the browser
-// computes, which is the whole thing being matched here.
 func collapseWhitespace(msgid string) string {
 	trimmed := strings.TrimFunc(msgid, func(r rune) bool {
 		return unicode.IsSpace(r) || r == '\ufeff'
@@ -77,13 +45,6 @@ func collapseWhitespace(msgid string) string {
 	return out.String()
 }
 
-// sfhHash is Paul Hsieh's SuperFastHash, which is what LuCI keys entries by.
-//
-// The implementation has to match byte for byte. It was checked against a
-// stock catalogue pulled off a live router: hashing "Save", "Hostname",
-// "Interface", "Password", "Reboot" and "Firewall" finds each one's Chinese
-// translation in LuCI's own base.zh-cn.lmo. A hash that is merely close
-// produces a catalogue that loads without error and translates nothing.
 func sfhHash(data []byte) uint32 {
 	length := len(data)
 	if length <= 0 {
@@ -151,8 +112,6 @@ func compile(input, output string) error {
 	for _, msg := range messages {
 		keyID := hashKey(msg.id)
 
-		// A collision would make one of the two strings untranslatable at
-		// random, so refuse rather than produce a subtly wrong catalogue.
 		if previous, clash := seen[keyID]; clash && previous != msg.id {
 			return fmt.Errorf("hash collision between %q and %q", previous, msg.id)
 		}
@@ -166,13 +125,12 @@ func compile(input, output string) error {
 		})
 
 		data = append(data, msg.str...)
-		// Entries are padded so every offset stays 4-byte aligned.
+
 		for len(data)%4 != 0 {
 			data = append(data, 0)
 		}
 	}
 
-	// The lookup is a binary search, so the index must be sorted by key.
 	sort.Slice(entries, func(i, j int) bool { return entries[i].keyID < entries[j].keyID })
 
 	indexOffset := uint32(len(data))
@@ -195,7 +153,6 @@ func compile(input, output string) error {
 	return nil
 }
 
-// readCatalogue returns a catalogue's raw bytes together with its index.
 func readCatalogue(path string) (raw, index []byte, err error) {
 	raw, err = os.ReadFile(path)
 	if err != nil {
@@ -219,8 +176,6 @@ func readCatalogue(path string) (raw, index []byte, err error) {
 	return raw, index, nil
 }
 
-// dump decodes a catalogue, which is how the format was validated against a
-// stock LuCI .lmo before the encoder above was trusted.
 func dump(path string) error {
 	raw, index, err := readCatalogue(path)
 	if err != nil {
@@ -247,7 +202,6 @@ func dump(path string) error {
 	return nil
 }
 
-// lookupOne resolves a single msgid, reporting whether it was present.
 func lookupOne(raw, index []byte, msgid string) (string, bool) {
 	want := hashKey(msgid)
 
@@ -263,9 +217,6 @@ func lookupOne(raw, index []byte, msgid string) (string, bool) {
 	return "", false
 }
 
-// lookup resolves msgids against a catalogue. This is the check that decides
-// whether the hash implementation is right, so it is a first-class command
-// rather than a test fixture.
 func lookup(path string, msgids []string) error {
 	raw, index, err := readCatalogue(path)
 	if err != nil {

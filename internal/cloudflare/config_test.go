@@ -14,8 +14,6 @@ func httpTunnel(name string, port int, domains ...string) config.Tunnel {
 	}
 }
 
-// A wildcard listed before an exact name underneath it swallows that name:
-// cloudflared takes the first rule that matches, so the order is the routing.
 func TestExactHostnamesAreMatchedBeforeAWildcardOverThem(t *testing.T) {
 	rules, _ := RulesFor([]config.Tunnel{
 		httpTunnel("catchall", 80, "*.example.com"),
@@ -34,7 +32,6 @@ func TestExactHostnamesAreMatchedBeforeAWildcardOverThem(t *testing.T) {
 	}
 }
 
-// A deeper wildcard is the more specific of two that both match.
 func TestADeeperWildcardComesFirst(t *testing.T) {
 	rules, _ := RulesFor([]config.Tunnel{
 		httpTunnel("broad", 80, "*.example.com"),
@@ -46,8 +43,6 @@ func TestADeeperWildcardComesFirst(t *testing.T) {
 	}
 }
 
-// Everything a Cloudflare tunnel cannot publish is reported rather than
-// emitted as a rule that would never work.
 func TestTunnelsCloudflareCannotPublishAreReported(t *testing.T) {
 	rules, skipped := RulesFor([]config.Tunnel{
 		httpTunnel("web", 80, "web.example.com"),
@@ -70,13 +65,12 @@ func TestTunnelsCloudflareCannotPublishAreReported(t *testing.T) {
 			t.Errorf("%q was dropped without being reported: %v", want, skipped)
 		}
 	}
-	// A disabled tunnel is not a problem to report, it is simply off.
+
 	if strings.Contains(joined, "off") {
 		t.Errorf("a disabled tunnel was reported as skipped: %v", skipped)
 	}
 }
 
-// One tunnel serving several names becomes one rule per name.
 func TestEveryDomainOfATunnelGetsARule(t *testing.T) {
 	rules, _ := RulesFor([]config.Tunnel{
 		httpTunnel("web", 80, "a.example.com", "b.example.com"),
@@ -90,7 +84,6 @@ func TestEveryDomainOfATunnelGetsARule(t *testing.T) {
 	}
 }
 
-// cloudflared refuses a configuration whose last rule names a hostname.
 func TestTheConfigEndsWithACatchAll(t *testing.T) {
 	rules, _ := RulesFor([]config.Tunnel{httpTunnel("web", 80, "web.example.com")})
 	rendered := RenderConfig("tid", "/etc/openfrp/cf.json", rules)
@@ -107,8 +100,6 @@ func TestTheConfigEndsWithACatchAll(t *testing.T) {
 	}
 }
 
-// A hostname reaches this file from the configuration a person typed, so it
-// has to survive being written into YAML whatever is in it.
 func TestScalarsAreQuoted(t *testing.T) {
 	rendered := RenderConfig("tid", "/etc/openfrp/cf.json", []Rule{
 		{Hostname: `odd".example.com`, Service: "http://127.0.0.1:80"},
@@ -119,9 +110,6 @@ func TestScalarsAreQuoted(t *testing.T) {
 	}
 }
 
-// The hop from cloudflared to the LAN service is plain HTTP: Cloudflare has
-// already terminated TLS, and the service has no certificate for a LAN
-// address nobody browses to.
 func TestTheServiceHopIsPlainHTTP(t *testing.T) {
 	rules, _ := RulesFor([]config.Tunnel{{
 		Name: "secure", Enabled: true, Type: config.TunnelHTTPS,

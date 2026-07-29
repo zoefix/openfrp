@@ -12,17 +12,8 @@ import (
 	"time"
 )
 
-// ReleaseURL is where a cloudflared build is fetched from when the router has
-// none. {arch} is replaced with the Go architecture name, which is what
-// Cloudflare happens to publish these under.
 const ReleaseURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-{arch}"
 
-// Install makes sure a usable cloudflared is at path.
-//
-// Downloaded rather than packaged. cloudflared is around thirty megabytes,
-// which is more than the entire flash of a typical router — bundling it would
-// make this plugin uninstallable on hardware that has no use for the feature.
-// A router with room fetches it once, when the operator asks for it.
 func Install(ctx context.Context, path string, progress func(string)) error {
 	if progress == nil {
 		progress = func(string) {}
@@ -49,21 +40,14 @@ func Install(ctx context.Context, path string, progress func(string)) error {
 	return nil
 }
 
-// DownloadURL is where the build for one architecture lives.
 func DownloadURL(arch string) string {
-	// Cloudflare publishes arm rather than armv7, and has no mips build at
-	// all — which is checked for by the caller, because the message that
-	// helps says what to do instead and this only knows the URL.
+
 	if arch == "arm" {
 		arch = "arm"
 	}
 	return replaceArch(ReleaseURL, arch)
 }
 
-// Supported reports whether Cloudflare publishes a build for an architecture.
-//
-// Named rather than discovered by a failing download: a router that will never
-// have a build should be told so before it spends a minute fetching a 404.
 func Supported(arch string) bool {
 	switch arch {
 	case "amd64", "arm64", "arm", "386":
@@ -85,7 +69,6 @@ func replaceArch(template, arch string) string {
 	return out
 }
 
-// usable reports whether the file at path runs and answers as cloudflared.
 func usable(ctx context.Context, path string) bool {
 	if info, err := os.Stat(path); err != nil || info.Size() == 0 {
 		return false
@@ -94,12 +77,9 @@ func usable(ctx context.Context, path string) bool {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
-	// --version rather than a size or hash check: a binary for the wrong
-	// architecture is the failure worth catching, and it fails here.
 	return exec.CommandContext(ctx, path, "--version").Run() == nil
 }
 
-// download fetches a binary and puts it in place atomically.
 func download(ctx context.Context, url, path string) error {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
@@ -139,8 +119,5 @@ func download(ctx context.Context, url, path string) error {
 		return err
 	}
 
-	// Renamed into place so an interrupted download is never the file that
-	// runs, and so an upgrade does not blank the binary a running process is
-	// executing from.
 	return os.Rename(temporary, path)
 }

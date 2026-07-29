@@ -16,8 +16,6 @@ func init() {
 	Register("tcp", newTCPProxy)
 }
 
-// tcpProxy binds a dedicated port and relays each accepted connection to the
-// client over a work connection.
 type tcpProxy struct {
 	name   string
 	source WorkConnSource
@@ -29,8 +27,6 @@ type tcpProxy struct {
 	reusePort   bool
 	recorder    Recorder
 
-	// listenOpts is remembered so accepted connections can be tuned to match
-	// on platforms that do not inherit the listener's options.
 	listenOpts netutil.ListenOptions
 
 	mu       sync.Mutex
@@ -63,24 +59,15 @@ func newTCPProxy(opts Options) (Proxy, error) {
 
 func (p *tcpProxy) Name() string { return p.name }
 
-// RemotePort reports the bound port. It is only meaningful after Listen, since
-// a spec asking for port 0 has the kernel choose one.
 func (p *tcpProxy) RemotePort() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.port
 }
 
-// Listen binds the port. It is separate from Run so the server can report the
-// allocated port in its NewProxyResp before serving begins.
 func (p *tcpProxy) Listen(ctx context.Context) error {
 	addr := net.JoinHostPort(p.bindAddr, strconv.Itoa(p.port))
 
-	// Deliberately no DeferAccept here, unlike the vhost and control
-	// listeners: a tcp tunnel carries whatever protocol the user put behind
-	// it, and plenty of them speak server-first. An ssh client waits for the
-	// server's banner, so deferring the accept until the client sends
-	// something would deadlock the two against each other.
 	p.listenOpts = netutil.ListenOptions{ReusePort: p.reusePort}
 
 	ln, err := netutil.Listen(ctx, "tcp", addr, p.listenOpts, p.acceptLoops)
@@ -124,7 +111,6 @@ func (p *tcpProxy) Run(ctx context.Context) error {
 		p.mu.Unlock()
 	}
 
-	// Close the listener on cancellation so the blocking accepts return.
 	go func() {
 		<-ctx.Done()
 		p.Close()
@@ -133,9 +119,6 @@ func (p *tcpProxy) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	// One accept loop per underlying SO_REUSEPORT listener, each spawning
-	// handlers directly. The dispatch below must stay minimal: it runs on the
-	// accept goroutine.
 	err := netutil.Serve(ln, func(userConn net.Conn) {
 		wg.Add(1)
 		go func() {
@@ -152,7 +135,6 @@ func (p *tcpProxy) Run(ctx context.Context) error {
 	return nil
 }
 
-// handle joins one user connection to a work connection.
 func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 	defer userConn.Close()
 
@@ -165,8 +147,6 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 	}
 	defer workConn.Close()
 
-	// Free on Linux: the listener was tuned at bind time and this connection
-	// was cloned from it.
 	if err := netutil.TuneAccepted(userConn, p.listenOpts); err != nil {
 		p.logger.Debug("tune user connection", "error", err)
 	}
@@ -178,8 +158,6 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 			transferred.AToB, transferred.BToA, transferred.Spliced)
 	}
 
-	// Guarded: this runs per connection, and the ...any boxing of the
-	// attributes below allocates even when debug logging is off.
 	if p.logger.Enabled(ctx, slog.LevelDebug) {
 		p.logger.Debug("connection closed",
 			"source", source,
@@ -202,22 +180,18 @@ func (p *tcpProxy) Close() error {
 	return err
 }
 
-// Listener exposes the bound listener for tests.
 func (p *tcpProxy) Listener() net.Listener {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.listener
 }
 
-// binder is implemented by proxies that must bind before serving, so the
-// server can allocate and report a port ahead of Run.
 type binder interface {
 	Listen(ctx context.Context) error
 }
 
 var _ binder = (*tcpProxy)(nil)
 
-// Bind binds p if its kind needs a port reserved before serving.
 func Bind(ctx context.Context, p Proxy) error {
 	if b, ok := p.(binder); ok {
 		return b.Listen(ctx)

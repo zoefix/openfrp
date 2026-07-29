@@ -45,10 +45,6 @@ func runDaemon(ctx context.Context, args []string) error {
 		return err
 	}
 
-	// Certificates for tunnels that terminate TLS come out of the local
-	// database. Its absence is not fatal: on an architecture with no SQLite
-	// driver, or before anything has been issued, the tunnels still run and
-	// only edge termination is unavailable.
 	if bound := boundCertificates(cfg); bound > 0 {
 		service, err := manage.New(dbPath)
 		if err != nil {
@@ -75,10 +71,6 @@ func runDaemon(ctx context.Context, args []string) error {
 	return nil
 }
 
-// boundCertificates counts the enabled tunnels that name a certificate.
-//
-// Opening the database is skipped entirely when none do, so a plain tunnelling
-// setup neither touches SQLite nor warns about it.
 func boundCertificates(cfg *config.Client) int {
 	count := 0
 	for _, tunnel := range cfg.EnabledTunnels() {

@@ -5,25 +5,6 @@ import (
 	"strings"
 )
 
-// Condition grammar, in full:
-//
-//	<expr>  := <term> ( "||" <term> )*
-//	<term>  := <atom> ( "&&" <atom> )*
-//	<atom>  := <field> <op> <literal>
-//	<op>    := "==" | "!="
-//
-// Literals may be quoted with single or double quotes. There is no grouping,
-// no negation operator and no arithmetic.
-//
-// The grammar is this small on purpose. A form definition is data, and once it
-// needs a real expression language it has stopped being data and become code
-// that happens to live in a string. Anything more complicated than "show this
-// field when that select has this value" belongs in the provider's Go code,
-// where it can be tested.
-//
-// Precedence follows the usual convention: && binds tighter than ||.
-
-// Visible evaluates a ShowIf condition. An empty condition is always visible.
 func Visible(condition string, values map[string]string) (bool, error) {
 	condition = strings.TrimSpace(condition)
 	if condition == "" {
@@ -58,7 +39,6 @@ func evalTerm(term string, values map[string]string) (bool, error) {
 func evalAtom(atom string, values map[string]string) (bool, error) {
 	atom = strings.TrimSpace(atom)
 
-	// Check != before ==, since both contain '='.
 	for _, op := range []string{"!=", "=="} {
 		field, literal, found := strings.Cut(atom, op)
 		if !found {
@@ -82,9 +62,6 @@ func evalAtom(atom string, values map[string]string) (bool, error) {
 	return false, fmt.Errorf("condition %q: expected == or !=", atom)
 }
 
-// splitTop splits on a separator. There is no nesting in this grammar, so a
-// plain split is correct — but quoted literals may contain the separator, so
-// the scan skips over them.
 func splitTop(input, sep string) []string {
 	var (
 		parts []string

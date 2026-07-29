@@ -7,12 +7,6 @@ import (
 	"github.com/zoefix/openfrp/internal/cert"
 )
 
-// TestChallengePathMatchesLego pins the interception against the ACME
-// library's own definition rather than a copy of the URL.
-//
-// A path this server checks and a path lego publishes under are the same
-// string or the validation silently 404s — with the authority reporting a
-// generic failure and nothing here logging anything at all.
 func TestChallengePathMatchesLego(t *testing.T) {
 	const token = "sometoken123"
 
@@ -37,7 +31,6 @@ func TestChallengeStoreAnswers(t *testing.T) {
 		t.Errorf("answered %q", answer)
 	}
 
-	// Anything else on that path is not ours to answer.
 	if _, ok := store.Answer(cert.HTTPChallengePath("other")); ok {
 		t.Error("answered a token that was never published")
 	}
@@ -46,9 +39,6 @@ func TestChallengeStoreAnswers(t *testing.T) {
 	}
 }
 
-// TestChallengeTokenIsNotAPath refuses a token that could escape its URL
-// segment. Tokens come from the authority and never contain these, so anything
-// that does is either a bug or an attempt.
 func TestChallengeTokenIsNotAPath(t *testing.T) {
 	store := NewChallengeStore()
 
@@ -59,8 +49,6 @@ func TestChallengeTokenIsNotAPath(t *testing.T) {
 	}
 }
 
-// TestWithdrawIsScopedToTheClient stops one client removing another's
-// validation, which would fail an issuance that was about to succeed.
 func TestWithdrawIsScopedToTheClient(t *testing.T) {
 	store := NewChallengeStore()
 
@@ -79,14 +67,6 @@ func TestWithdrawIsScopedToTheClient(t *testing.T) {
 	}
 }
 
-// TestChallengeOutlastsItsPublisher covers what a disconnect actually means
-// here.
-//
-// The publisher is a certificate issuance running in its own process: it opens
-// a control connection, publishes, and hangs up, all before the authority
-// fetches anything. So the run that published a challenge is expected to be
-// gone by the time the challenge is needed, and forgetting challenges when a
-// run ends means never answering one at all.
 func TestChallengeOutlastsItsPublisher(t *testing.T) {
 	store := NewChallengeStore()
 
@@ -94,8 +74,6 @@ func TestChallengeOutlastsItsPublisher(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Whatever the run does next — including ending — the challenge stands
-	// until it is withdrawn or expires.
 	if _, ok := store.Answer(cert.HTTPChallengePath("tok-a")); !ok {
 		t.Error("the challenge did not outlast the run that published it")
 	}
@@ -106,9 +84,6 @@ func TestChallengeOutlastsItsPublisher(t *testing.T) {
 	}
 }
 
-// TestExpiredChallengeStopsAnswering covers the case a disconnect used to:
-// an issuance that died without withdrawing. Time is the only thing left to
-// clean up after it, so it has to.
 func TestExpiredChallengeStopsAnswering(t *testing.T) {
 	store := NewChallengeStore()
 
@@ -116,7 +91,6 @@ func TestExpiredChallengeStopsAnswering(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Reach in and age it, rather than waiting an hour.
 	store.mu.Lock()
 	aged := store.tokens["tok-a"]
 	aged.deadline = time.Now().Add(-time.Second)

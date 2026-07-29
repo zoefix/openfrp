@@ -1,4 +1,3 @@
-// Package client implements the OpenFrp client daemon.
 package client
 
 import (
@@ -22,14 +21,11 @@ import (
 	"github.com/zoefix/openfrp/pkg/netutil"
 )
 
-// Reconnect backoff bounds. The jitter matters when a server restarts and
-// every client it was serving tries to come back at the same instant.
 const (
 	minReconnectDelay = 500 * time.Millisecond
 	maxReconnectDelay = 30 * time.Second
 )
 
-// Client maintains the control connection and the work connection pool.
 type Client struct {
 	cfg     *config.Client
 	logger  *slog.Logger
@@ -37,41 +33,23 @@ type Client struct {
 
 	dialer *transport.Dialer
 
-	// runID is assigned by the server on first login and reused on reconnect
-	// so the server recognises us rather than counting a second client.
 	mu    sync.Mutex
 	runID string
 
-	// connected and serverVersion describe the control connection, for the
-	// status page. The version is whatever the server announced at login and
-	// deliberately survives a disconnect: "last seen 0.2.0, not connected"
-	// tells the operator more than a blank.
 	connected     bool
 	serverVersion string
 
-	// serverStates, when set, contributes every server's state to the
-	// published snapshot. The supervisor sets it on the one client that
-	// publishes for all of them.
 	serverStates func() map[string]ServerSnapshot
 
-	// certs resolves the certificate a tunnel is bound to. Optional: without
-	// it, tunnels terminating TLS rely on whatever the server already holds.
 	certs CertSource
 
-	// pushedCerts records what the current session has already sent, so the
-	// renewal watcher only speaks when something actually changed.
 	pushedCerts pushed
 
-	// traffic accumulates per-tunnel byte counts. The client sees every byte
-	// on its way to and from the local service, so it can account for them
-	// without asking the server.
 	traffic *stats.Registry
 
-	// statsPath is where the snapshot is published for the status page.
 	statsPath string
 }
 
-// New builds a client from cfg.
 func New(cfg *config.Client, logger *slog.Logger, version string) (*Client, error) {
 	if cfg == nil {
 		return nil, errors.New("client: nil config")
@@ -105,15 +83,12 @@ func New(cfg *config.Client, logger *slog.Logger, version string) (*Client, erro
 	}, nil
 }
 
-// Run connects and keeps reconnecting until ctx is cancelled.
 func (c *Client) Run(ctx context.Context) error {
 	if c.cfg.Transport.Mux {
 		c.logger.Warn("multiplexing is enabled: every tunnel will share one " +
 			"congestion window and none can use the kernel zero-copy path")
 	}
 
-	// Published for as long as the daemon runs, so the status page keeps
-	// showing totals across a reconnect rather than blanking out.
 	go c.publishTraffic(ctx)
 	defer c.removeTraffic()
 
@@ -136,8 +111,6 @@ func (c *Client) Run(ctx context.Context) error {
 			c.logger.Info("connection closed by server")
 		}
 
-		// A session that stayed up a while is evidence the server is healthy,
-		// so start the next backoff from the floor rather than escalating.
 		if time.Since(start) > time.Minute {
 			delay = minReconnectDelay
 		}
@@ -157,14 +130,11 @@ func (c *Client) Run(ctx context.Context) error {
 	}
 }
 
-// jitter spreads reconnect attempts so a fleet does not stampede a recovering
-// server. Full jitter: pick uniformly from [d/2, d].
 func jitter(d time.Duration) time.Duration {
 	half := d / 2
 	return half + time.Duration(rand.Int64N(int64(half)+1))
 }
 
-// runOnce establishes one session and serves it until it ends.
 func (c *Client) runOnce(ctx context.Context) error {
 	conn, err := c.dialer.DialControl(ctx)
 	if err != nil {
@@ -198,25 +168,14 @@ func (c *Client) runOnce(ctx context.Context) error {
 	return session.serve(ctx)
 }
 
-// ServerState reports whether the control connection is up, and the version
-// the server announced at the most recent login.
 func (c *Client) ServerState() (version string, connected bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.serverVersion, c.connected
 }
 
-// login performs the handshake and returns a live session.
 func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
-	// Bound the whole exchange. Without this a server that completes the TCP
-	// handshake and then says nothing — one shutting down, or a middlebox that
-	// accepted on its behalf — leaves this read blocked forever. The client
-	// stays alive with no connection, never reconnects and logs nothing, and
-	// procd reports the service as healthy the entire time.
-	//
-	// The control loop has always had a deadline; login is the gap it was
-	// missing, and it is the one place where the peer has not yet proved it is
-	// the server at all.
+
 	deadline := c.cfg.Transport.DialTimeout.D()
 	if deadline <= 0 {
 		deadline = 30 * time.Second
@@ -224,8 +183,7 @@ func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
 	if err := conn.SetDeadline(time.Now().Add(deadline)); err != nil {
 		return nil, fmt.Errorf("client: login: %w", err)
 	}
-	// Cleared before returning: the session that follows manages its own, and
-	// leaving this one in place would kill an idle but healthy connection.
+
 	defer conn.SetDeadline(time.Time{})
 
 	timestamp := time.Now().Unix()
@@ -259,12 +217,7 @@ func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
 	}
 	resp := msg.(*protocol.LoginResp)
 	if resp.Error != "" {
-		// A rejection with nothing to authenticate with is not a wrong token,
-		// it is a server that was never finished being set up — most often a
-		// deployment that failed after its address was saved but before its
-		// token was written back. Reporting "authentication failed" sends the
-		// operator hunting for a mismatch between two values when there is
-		// only one, and it is empty.
+
 		if c.cfg.Token == "" {
 			return nil, fmt.Errorf("client: server rejected login and no token "+
 				"is configured for it — finish the deployment or enter the "+
@@ -289,7 +242,6 @@ func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
 	}, nil
 }
 
-// RunID reports the identifier the server assigned, if connected.
 func (c *Client) RunID() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()

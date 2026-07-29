@@ -5,19 +5,6 @@
 'require dom';
 'require openfrp.schema-form as schemaForm';
 
-/*
- * DNS provider accounts and their records.
- *
- * Every provider is rendered by one schema-driven form: the backend ships each
- * provider's credential fields as data, so adding a provider is a Go package
- * and nothing here changes.
- *
- * Stored secrets are never sent to the browser — not even masked. A masked
- * value would be rendered into the input and submitted back on the next save,
- * replacing the credential with the mask. The backend sends `secrets_set`
- * instead, and the form shows "leave blank to keep".
- */
-
 var callDNS = rpc.declare({
 	object: 'luci.openfrp',
 	method: 'dns',
@@ -25,7 +12,6 @@ var callDNS = rpc.declare({
 	expect: {}
 });
 
-// call unwraps the {ok, data, error} envelope into a promise.
 function call(action, params, payload) {
 	return callDNS(action, params || {}, payload ? JSON.stringify(payload) : '')
 		.then(function (res) {
@@ -48,20 +34,16 @@ function button(label, style, onclick) {
 var state = {
 	providers: [],
 	accounts: [],
-	// The account whose records are being browsed, and the zone within it.
+
 	account: null,
 	zone: null,
-	// What the browsed account's provider supports, so the UI offers controls
-	// that exist rather than ones that fail on save.
+
 	capabilities: {}
 };
 
 function providerByKey(key) {
 	return state.providers.filter(function (p) { return p.key === key; })[0];
 }
-
-/* ------------------------------------------------------------------ */
-/* Accounts                                                            */
 
 function accountDialog(existing) {
 	var editing = !!existing;
@@ -83,8 +65,6 @@ function accountDialog(existing) {
 			return;
 		}
 
-		// On an edit the secrets are absent by design, so the form renders them
-		// blank and treats blank as "unchanged".
 		form = schemaForm.render(descriptor.form, existing ? existing.credentials : {});
 		dom.content(formHolder, form.node);
 	}
@@ -167,8 +147,7 @@ function testAccount(account) {
 function deleteAccount(account) {
 	ui.showModal(_('Delete DNS account'), [
 		E('p', {}, _('Delete %s?').format(account.name)),
-		// Worth stating plainly: the certificates are kept on purpose, and a
-		// user who expects a cascade should know they will need to repoint them.
+
 		E('p', {}, _('Certificates issued through it are kept, but cannot renew until moved elsewhere.')),
 		E('div', { 'class': 'right' }, [
 			button(_('Cancel'), '', ui.hideModal), ' ',
@@ -213,9 +192,6 @@ function accountsTable() {
 
 	return [E('table', { 'class': 'table' }, [head].concat(rows))];
 }
-
-/* ------------------------------------------------------------------ */
-/* Records                                                             */
 
 var recordsHolder = E('div', {});
 
@@ -337,8 +313,6 @@ function recordsTable(records) {
 	return [E('table', { 'class': 'table' }, [head].concat(rows))];
 }
 
-// proxiableTypes are the record types an edge network can front. Offering the
-// control on others would produce a request the provider rejects.
 var proxiableTypes = ['A', 'AAAA', 'CNAME'];
 
 function recordDialog(existing) {
@@ -370,9 +344,6 @@ function recordDialog(existing) {
 		'value': existing ? existing.ttl : 600
 	});
 
-	// Resolution mode: through the provider's edge, or answering with the
-	// origin address. Only offered where the provider has the concept and only
-	// for record types it will accept it on.
 	var proxySelect = E('select', { 'class': 'cbi-input-select' }, [
 		E('option', { 'value': '0' }, _('DNS only — answer with this address')),
 		E('option', { 'value': '1' }, _('Proxied — route through the provider'))
@@ -394,8 +365,6 @@ function recordDialog(existing) {
 		if (!applicable)
 			return;
 
-		// Worth stating at the point of choosing rather than in documentation
-		// nobody reads: a proxied name cannot carry a tunnel.
 		dom.content(proxyHint, proxySelect.value === '1'
 			? E('span', { 'style': 'color:#d9534f' },
 				_('Do not proxy a tunnel\'s name: the proxy answers HTTPS itself, on its own ports.'))
@@ -415,9 +384,6 @@ function recordDialog(existing) {
 			enabled: true
 		};
 
-		// Always sent when the provider supports it, never left out. Cloudflare
-		// replaces the whole record on write, so an omitted flag resets it and
-		// an edit of the TTL would quietly take the name off the edge.
 		if (state.capabilities.proxy && proxiableTypes.indexOf(typeSelect.value) !== -1)
 			record.proxied = proxySelect.value === '1';
 
@@ -460,8 +426,6 @@ function deleteRecord(record) {
 	]);
 }
 
-/* ------------------------------------------------------------------ */
-
 var accountsHolder = E('div', {});
 
 function refreshAccounts() {
@@ -474,10 +438,6 @@ function refreshAccounts() {
 	});
 }
 
-// stylesheet returns the app's shared presentation, loaded as part of the view
-// so it applies while one of these pages is open and nowhere else. Dialogs
-// render outside this node, but the link is in the document for as long as the
-// page is, so they pick it up too.
 function stylesheet() {
 	return E('link', {
 		'rel': 'stylesheet',

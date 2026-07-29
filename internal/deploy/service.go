@@ -13,7 +13,6 @@ import (
 //go:embed templates/*
 var templateFS embed.FS
 
-// serviceParams fill a unit template.
 type serviceParams struct {
 	BinaryPath string
 	ConfigPath string
@@ -21,8 +20,6 @@ type serviceParams struct {
 	User       string
 }
 
-// serviceUnit describes where a unit lives and how it is controlled, for one
-// init system.
 type serviceUnit struct {
 	template string
 	path     string
@@ -63,8 +60,7 @@ func unitFor(init detect.InitSystem) (serviceUnit, error) {
 			template: "templates/openfrps.sysvinit",
 			path:     "/etc/init.d/openfrps",
 			mode:     0o755,
-			// update-rc.d on Debian derivatives, chkconfig on RHEL ones. Try
-			// both and let the one that is absent fail harmlessly.
+
 			enable:  []string{"update-rc.d openfrps defaults 2>/dev/null || chkconfig --add openfrps 2>/dev/null || true"},
 			start:   []string{"/etc/init.d/openfrps start"},
 			restart: []string{"/etc/init.d/openfrps restart"},
@@ -77,7 +73,6 @@ func unitFor(init detect.InitSystem) (serviceUnit, error) {
 	}
 }
 
-// renderUnit fills the template for the detected init system.
 func renderUnit(init detect.InitSystem, params serviceParams) ([]byte, serviceUnit, error) {
 	unit, err := unitFor(init)
 	if err != nil {
@@ -101,7 +96,6 @@ func renderUnit(init detect.InitSystem, params serviceParams) ([]byte, serviceUn
 	return out.Bytes(), unit, nil
 }
 
-// installService writes the unit and brings the service up.
 func (d *Deployer) installService(ctx context.Context, report stepReporter, info *detect.Result) error {
 	params := serviceParams{
 		BinaryPath: d.opts.BinaryPath,
@@ -136,8 +130,6 @@ func (d *Deployer) installService(ctx context.Context, report stepReporter, info
 		}
 	}
 
-	// Restart rather than start: a re-run is an in-place upgrade, and the
-	// service is very likely already running.
 	for _, command := range unit.restart {
 		if _, err := d.session.Run(ctx, command); err != nil {
 			return fmt.Errorf("deploy: start service: %w", err)
@@ -148,7 +140,6 @@ func (d *Deployer) installService(ctx context.Context, report stepReporter, info
 	return nil
 }
 
-// ensureServiceUser creates the unprivileged account the daemon runs as.
 func (d *Deployer) ensureServiceUser(ctx context.Context, report stepReporter) error {
 	user := d.opts.ServiceUser
 	if user == "root" {
@@ -167,7 +158,6 @@ func (d *Deployer) ensureServiceUser(ctx context.Context, report stepReporter) e
 		return nil
 	}
 
-	// useradd on most distributions, adduser on Alpine. Neither is universal.
 	command := fmt.Sprintf(
 		"useradd --system --no-create-home --shell /usr/sbin/nologin %s 2>/dev/null || "+
 			"adduser -S -D -H -s /sbin/nologin %s 2>/dev/null || true",

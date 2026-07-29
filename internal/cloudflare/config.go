@@ -10,19 +10,11 @@ import (
 	"github.com/zoefix/openfrp/internal/config"
 )
 
-// Rule is one cloudflared ingress entry: a hostname and where it goes.
 type Rule struct {
 	Hostname string
 	Service  string
 }
 
-// RulesFor turns the tunnels belonging to a Cloudflare server into ingress.
-//
-// Only HTTP tunnels appear. A Cloudflare tunnel publishes hostnames over
-// HTTP and HTTPS and nothing else — a raw TCP port has no public listener at
-// the other end, and reaching one requires the visitor to run cloudflared
-// themselves, which is not publishing. Rather than emit a rule that cannot
-// work, those tunnels are reported so the caller can say which were skipped.
 func RulesFor(tunnels []config.Tunnel) (rules []Rule, skipped []string) {
 	for _, tunnel := range tunnels {
 		if !tunnel.Enabled {
@@ -44,9 +36,6 @@ func RulesFor(tunnels []config.Tunnel) (rules []Rule, skipped []string) {
 		}
 	}
 
-	// A more specific hostname has to be matched before a wildcard that also
-	// covers it: cloudflared takes the first rule that matches, so a wildcard
-	// listed first would swallow every exact name underneath it.
 	sort.SliceStable(rules, func(i, j int) bool {
 		return specificity(rules[i].Hostname) > specificity(rules[j].Hostname)
 	})
@@ -54,8 +43,6 @@ func RulesFor(tunnels []config.Tunnel) (rules []Rule, skipped []string) {
 	return rules, skipped
 }
 
-// specificity ranks a hostname pattern. Exact beats wildcard, and a deeper
-// wildcard beats a shallower one.
 func specificity(hostname string) int {
 	labels := strings.Count(hostname, ".") + 1
 	if strings.HasPrefix(hostname, "*.") {
@@ -64,12 +51,6 @@ func specificity(hostname string) int {
 	return labels + 1000
 }
 
-// serviceURL is where cloudflared sends a matched request.
-//
-// Always plain HTTP to the LAN service. Cloudflare terminates TLS at its edge
-// and the hop from cloudflared to the service is a loopback or LAN
-// connection, so speaking TLS on it would mean the service needs a
-// certificate for an address nobody browses to.
 func serviceURL(tunnel config.Tunnel) string {
 	host := tunnel.LocalIP
 	if host == "" {
@@ -78,12 +59,6 @@ func serviceURL(tunnel config.Tunnel) string {
 	return "http://" + net.JoinHostPort(host, strconv.Itoa(tunnel.LocalPort))
 }
 
-// RenderConfig writes the cloudflared configuration file.
-//
-// YAML is emitted directly rather than through a library: this document has
-// four shapes in it, all of them fixed, and the values that vary are a
-// hostname and a URL. Escaping them is the whole of the problem, and quoting
-// every scalar solves it.
 func RenderConfig(tunnelID, credentialsPath string, rules []Rule) string {
 	var out strings.Builder
 
@@ -91,8 +66,6 @@ func RenderConfig(tunnelID, credentialsPath string, rules []Rule) string {
 	fmt.Fprintf(&out, "tunnel: %s\n", quote(tunnelID))
 	fmt.Fprintf(&out, "credentials-file: %s\n", quote(credentialsPath))
 
-	// Without this cloudflared writes to its own default, which on OpenWrt is
-	// a home directory that may not exist.
 	out.WriteString("loglevel: info\n")
 	out.WriteString("no-autoupdate: true\n")
 	out.WriteString("ingress:\n")
@@ -102,15 +75,11 @@ func RenderConfig(tunnelID, credentialsPath string, rules []Rule) string {
 		fmt.Fprintf(&out, "    service: %s\n", quote(rule.Service))
 	}
 
-	// cloudflared refuses a configuration whose last rule has a hostname, so
-	// this is required rather than tidy. It also decides what an unclaimed
-	// name gets: a 404 from the edge, rather than a rule matching by accident.
 	out.WriteString("  - service: http_status:404\n")
 
 	return out.String()
 }
 
-// quote renders a scalar as a YAML double-quoted string.
 func quote(value string) string {
 	var out strings.Builder
 	out.WriteByte('"')

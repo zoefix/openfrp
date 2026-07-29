@@ -6,35 +6,13 @@ import (
 	"io"
 )
 
-// Magic prefixes every connection to the server.
-//
-// It costs four bytes and buys two things: a port scanner or stray HTTP
-// request is rejected immediately instead of occupying a goroutine until it
-// times out, and a version mismatch surfaces as a clear error rather than as a
-// confusing JSON decode failure further in.
 var Magic = [4]byte{'O', 'F', 'R', 'P'}
 
-// Mode declares what a freshly opened connection is for. It is the first thing
-// the server learns, because the answer decides whether the connection is
-// framed at all.
 type Mode uint8
 
 const (
-	// ModePlain means this connection speaks the control protocol directly.
-	// Whether it is a control connection or a work connection is settled by
-	// the first message on it.
-	//
-	// This is the default, and the one that keeps splice(2) reachable: a work
-	// connection in this mode is a bare TCP socket once its opening message is
-	// consumed.
 	ModePlain Mode = 0x01
 
-	// ModeMux means the connection carries a yamux session, and every stream
-	// inside it behaves as if it were a ModePlain connection.
-	//
-	// Opt in only when socket count matters more than throughput. Everything
-	// inside a mux session shares one congestion window and one retransmission
-	// queue, and no stream can ever be spliced.
 	ModeMux Mode = 0x02
 )
 
@@ -43,7 +21,6 @@ var modeNames = map[Mode]string{
 	ModeMux:   "mux",
 }
 
-// String implements fmt.Stringer.
 func (m Mode) String() string {
 	if name, ok := modeNames[m]; ok {
 		return name
@@ -51,32 +28,18 @@ func (m Mode) String() string {
 	return fmt.Sprintf("Mode(%d)", uint8(m))
 }
 
-// Valid reports whether m is a recognised mode.
 func (m Mode) Valid() bool {
 	_, ok := modeNames[m]
 	return ok
 }
 
-// preambleSize is magic + version + mode.
 const preambleSize = len(Magic) + 2
 
-// Preamble is the fixed-size greeting opening every connection.
 type Preamble struct {
 	Version uint8
 	Mode    Mode
 }
 
-// WritePreamble sends the greeting.
-// WriteGreeting writes the preamble and the first message in a single write.
-//
-// Two writes is two syscalls, and this runs once per work connection — which
-// is once per visitor connection, because each visitor consumes one. At the
-// rates this data plane reaches, the write syscall is the single largest line
-// in its CPU profile, so a syscall on the connection-setup path is not a
-// rounding error.
-//
-// The peer reads them as it always did: the preamble is fixed width, so two
-// reads of one packet parse exactly the same as two reads of two packets.
 func WriteGreeting(w io.Writer, p Preamble, m Message) error {
 	frame, err := encode(m)
 	if err != nil {
@@ -106,7 +69,6 @@ func WritePreamble(w io.Writer, p Preamble) error {
 	return nil
 }
 
-// ReadPreamble consumes and validates the greeting.
 func ReadPreamble(r io.Reader) (Preamble, error) {
 	var buf [preambleSize]byte
 	if _, err := io.ReadFull(r, buf[:]); err != nil {

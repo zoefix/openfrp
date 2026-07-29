@@ -14,7 +14,6 @@ import (
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 )
 
-// fakeSource stands in for the database.
 type fakeSource struct {
 	byID  map[int64]Certificate
 	calls int
@@ -29,8 +28,6 @@ func (f *fakeSource) Certificate(_ context.Context, id int64) (Certificate, erro
 	return material, nil
 }
 
-// harness wires a client to an in-memory connection and returns both, so a
-// test can read back exactly what went onto the wire.
 func harness(t *testing.T, tunnels []config.Tunnel, source CertSource) (*Client, *session, *bytes.Buffer) {
 	t.Helper()
 
@@ -47,8 +44,6 @@ func harness(t *testing.T, tunnels []config.Tunnel, source CertSource) (*Client,
 	}, wire
 }
 
-// readWriter satisfies io.ReadWriter with a write-only buffer; nothing in
-// these tests reads from the peer.
 type readWriter struct{ w *bytes.Buffer }
 
 func (rw *readWriter) Read([]byte) (int, error) { return 0, errors.New("not reading") }
@@ -56,7 +51,6 @@ func (rw *readWriter) Write(p []byte) (int, error) {
 	return rw.w.Write(p)
 }
 
-// pushes decodes every CertPush written to the wire.
 func pushes(t *testing.T, wire *bytes.Buffer) []*protocol.CertPush {
 	t.Helper()
 
@@ -83,12 +77,6 @@ func material(chain string) Certificate {
 	}
 }
 
-// TestOnlyBoundTunnelsArePushed is the rule the feature rests on.
-//
-// With several certificates on file, pushing one for a tunnel that names none
-// would be a guess, and a wrong guess serves the wrong name — which a browser
-// reports to the visitor as an impersonation attempt rather than a
-// misconfiguration.
 func TestOnlyBoundTunnelsArePushed(t *testing.T) {
 	source := &fakeSource{byID: map[int64]Certificate{
 		7: material("BOUND"),
@@ -113,8 +101,6 @@ func TestOnlyBoundTunnelsArePushed(t *testing.T) {
 	}
 }
 
-// TestDisabledTunnelsAreNotPushed keeps a switched-off tunnel from publishing
-// its certificate to the server anyway.
 func TestDisabledTunnelsAreNotPushed(t *testing.T) {
 	source := &fakeSource{byID: map[int64]Certificate{7: material("X")}}
 
@@ -129,9 +115,6 @@ func TestDisabledTunnelsAreNotPushed(t *testing.T) {
 	}
 }
 
-// TestUnchangedCertificatesAreNotResent covers the renewal watcher's steady
-// state. It runs every minute; without this it would spend a control round
-// trip and a store rebuild on the server each time, per tunnel, forever.
 func TestUnchangedCertificatesAreNotResent(t *testing.T) {
 	source := &fakeSource{byID: map[int64]Certificate{7: material("SAME")}}
 
@@ -148,8 +131,6 @@ func TestUnchangedCertificatesAreNotResent(t *testing.T) {
 	}
 }
 
-// TestRenewedCertificateIsPushed is the reason the watcher exists: renewal
-// happens in another process, so the running daemon has to notice by itself.
 func TestRenewedCertificateIsPushed(t *testing.T) {
 	source := &fakeSource{byID: map[int64]Certificate{7: material("OLD")}}
 
@@ -170,9 +151,6 @@ func TestRenewedCertificateIsPushed(t *testing.T) {
 	}
 }
 
-// TestReconnectResendsCertificates covers a server that restarted. Its store
-// is empty and it will not ask, so a reconnect has to re-push regardless of
-// what the previous session sent.
 func TestReconnectResendsCertificates(t *testing.T) {
 	source := &fakeSource{byID: map[int64]Certificate{7: material("SAME")}}
 
@@ -181,7 +159,7 @@ func TestReconnectResendsCertificates(t *testing.T) {
 	}, source)
 
 	client.pushCertificates(context.Background(), sess)
-	client.pushedCerts.reset() // what serve() does on a new session
+	client.pushedCerts.reset()
 	client.pushCertificates(context.Background(), sess)
 
 	if sent := pushes(t, wire); len(sent) != 2 {
@@ -189,8 +167,6 @@ func TestReconnectResendsCertificates(t *testing.T) {
 	}
 }
 
-// TestMissingCertificateDoesNotStopOtherTunnels keeps one deleted binding from
-// costing every other tunnel its certificate.
 func TestMissingCertificateDoesNotStopOtherTunnels(t *testing.T) {
 	source := &fakeSource{byID: map[int64]Certificate{9: material("GOOD")}}
 
@@ -207,8 +183,6 @@ func TestMissingCertificateDoesNotStopOtherTunnels(t *testing.T) {
 	}
 }
 
-// TestNoSourceIsNotAnError covers a build or architecture with no database:
-// tunnels must still run, and only edge termination is unavailable.
 func TestNoSourceIsNotAnError(t *testing.T) {
 	client, sess, wire := harness(t, []config.Tunnel{
 		{Name: "bound", Enabled: true, Type: "https", TLSMode: "terminate", CertID: 7},
@@ -221,17 +195,6 @@ func TestNoSourceIsNotAnError(t *testing.T) {
 	}
 }
 
-// TestSessionShutdownDoesNotDeadlock is a regression test for an ordering bug
-// that made the client hang forever on its first disconnect.
-//
-// serve registers a cancel and a waitgroup wait. Defers run last-registered
-// first, so registering the cancel first means the wait runs first — and the
-// wait blocks on goroutines whose only exit is that cancellation. The symptom
-// is brutal to diagnose: the process is alive, procd considers the service
-// healthy, there is no connection, nothing reconnects, and nothing is logged.
-//
-// The test drives the same shape rather than serve itself, which needs a live
-// server: a waitgroup holding a goroutine that exits only on cancellation.
 func TestSessionShutdownDoesNotDeadlock(t *testing.T) {
 	done := make(chan struct{})
 
@@ -241,7 +204,6 @@ func TestSessionShutdownDoesNotDeadlock(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
 
-		// The order under test.
 		defer wg.Wait()
 		defer cancel()
 
@@ -259,16 +221,6 @@ func TestSessionShutdownDoesNotDeadlock(t *testing.T) {
 	}
 }
 
-// TestRejectedRetriesOnlyAStaleClaim covers the restart race.
-//
-// procd starts the new client before the old one has finished exiting, so the
-// new session publishes while the server still holds the old session's routes
-// and reaps them a fraction of a second later. Treating that as final leaves
-// the tunnel down until something restarts it again — an outage caused by the
-// act of applying a configuration change.
-//
-// A rejection for any other reason is a real disagreement and must not be
-// retried, or a genuinely misconfigured tunnel would hammer the server.
 func TestRejectedRetriesOnlyAStaleClaim(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -336,7 +288,6 @@ func TestRejectedRetriesOnlyAStaleClaim(t *testing.T) {
 	}
 }
 
-// TestRejectedGivesUpEventually stops a permanent conflict becoming a loop.
 func TestRejectedGivesUpEventually(t *testing.T) {
 	tunnel := config.Tunnel{
 		Name: "acgshop", Enabled: true, Type: "https",
@@ -375,13 +326,6 @@ func TestRejectedGivesUpEventually(t *testing.T) {
 	}
 }
 
-// TestLoginTimesOutOnASilentServer covers the failure that took the client
-// down twice in one session.
-//
-// A server that completes the TCP handshake and then says nothing left the
-// client blocked in login forever: alive, no connection, never reconnecting,
-// logging nothing, with procd reporting the service healthy. The control loop
-// had always had a read deadline; login was the gap.
 func TestLoginTimesOutOnASilentServer(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -389,8 +333,6 @@ func TestLoginTimesOutOnASilentServer(t *testing.T) {
 	}
 	defer listener.Close()
 
-	// Accept and say nothing at all, which is what a server mid-shutdown or a
-	// middlebox answering on its behalf does.
 	accepted := make(chan net.Conn, 1)
 	go func() {
 		conn, err := listener.Accept()

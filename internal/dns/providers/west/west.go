@@ -1,4 +1,3 @@
-// Package west manages records at West.cn (西部数码).
 package west
 
 import (
@@ -52,13 +51,6 @@ type provider struct {
 	http     *dns.HTTPClient
 }
 
-// authParams builds West.cn's authentication fields.
-//
-// The scheme is a timestamp plus md5(username + password + timestamp). MD5 is
-// not a choice here — it is what the API requires — but it is worth noting
-// that the credential is therefore replayable within the timestamp window, so
-// the API password should be scoped and rotated rather than treated as a
-// long-lived secret.
 func (p *provider) authParams() url.Values {
 	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	sum := md5.Sum([]byte(p.username + p.password + timestamp))
@@ -70,14 +62,12 @@ func (p *provider) authParams() url.Values {
 	}
 }
 
-// response is West.cn's uniform envelope.
 type response struct {
 	Result   int    `json:"result"`
 	Msg      string `json:"msg"`
 	ClientID string `json:"clientid"`
 }
 
-// ok reports success. West.cn signals success with result 200.
 func (r response) ok() error {
 	if r.Result == 200 {
 		return nil
@@ -191,7 +181,7 @@ func (p *provider) ListRecords(ctx context.Context, zone string, opts dns.ListOp
 			TTL:      item.TTL,
 			Priority: item.Level,
 			Line:     dns.LineFromProvider(providerKey, item.Line),
-			// West.cn inverts the sense: pause 1 means the record is held.
+
 			Enabled: item.Pause != 1,
 		})
 	}

@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Splice the rendered results into docs/benchmark.md between its markers.
-#
-# Kept separate from run.sh so publishing is a deliberate act: a noisy or
-# half-finished run should not silently overwrite the numbers other documents
-# link to.
+
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

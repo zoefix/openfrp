@@ -17,12 +17,6 @@ func init() {
 	})
 }
 
-// vhostProxy publishes a tunnel on a shared domain-routed listener.
-//
-// Unlike a tcp proxy it binds nothing of its own. The server runs one HTTP and
-// one HTTPS listener for every client, and this type's whole job is to claim
-// its domains in the routing table and release them again. That is what lets
-// hundreds of tunnels share ports 80 and 443.
 type vhostProxy struct {
 	name    string
 	runID   string
@@ -51,8 +45,6 @@ func newVhostProxy(opts Options, scheme vhost.Scheme) (Proxy, error) {
 			spec.Name, scheme, scheme)
 	}
 
-	// Validate every pattern up front so a bad domain is reported against the
-	// tunnel that owns it, not as an opaque failure later.
 	for _, domain := range spec.Domains {
 		if _, err := vhost.ParsePattern(domain); err != nil {
 			return nil, fmt.Errorf("proxy %q: %w", spec.Name, err)
@@ -78,13 +70,8 @@ func newVhostProxy(opts Options, scheme vhost.Scheme) (Proxy, error) {
 
 func (p *vhostProxy) Name() string { return p.name }
 
-// RemotePort reports the shared vhost port this tunnel answers on. It is not
-// exclusive to this tunnel, unlike a tcp proxy's port.
 func (p *vhostProxy) RemotePort() int { return p.port }
 
-// Listen claims the domains. Registration happens here rather than in Run so a
-// conflict is reported in the publish response, before the client is told the
-// tunnel is live.
 func (p *vhostProxy) Listen(context.Context) error {
 	if err := p.routes.Add(p.domains, vhost.Route{
 		RunID:     p.runID,
@@ -99,8 +86,6 @@ func (p *vhostProxy) Listen(context.Context) error {
 	return nil
 }
 
-// Run blocks until cancelled. The shared listener does the serving; there is
-// nothing per-proxy to accept.
 func (p *vhostProxy) Run(ctx context.Context) error {
 	if !p.registered {
 		if err := p.Listen(ctx); err != nil {

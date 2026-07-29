@@ -16,7 +16,6 @@ import (
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 )
 
-// session is one live connection to the server.
 type session struct {
 	client *Client
 	conn   net.Conn
@@ -25,43 +24,23 @@ type session struct {
 
 	runID         string
 	serverVersion string
-	// observedAddr is the address the server saw this connection arrive
-	// from, which is how a bypass is confirmed rather than assumed.
+
 	observedAddr string
 
-	// tunnels maps a proxy name onto its local target, so a work connection
-	// assigned to a proxy knows where to forward. targets holds the same
-	// destinations already rendered as host:port, because that string is
-	// needed once per visitor connection and never changes.
 	tunnelsMu sync.RWMutex
 	tunnels   map[string]config.Tunnel
 	targets   map[string]string
 
-	// retries bounds how long a tunnel keeps waiting for a previous session's
-	// claim to be released.
 	retries retryCounter
 
-	// dialSlots bounds concurrent work-connection dials. See
-	// maxConcurrentDials for why the limit protects the client rather than
-	// the server.
 	dialSlots chan struct{}
 
 	wg sync.WaitGroup
 }
 
-// serve publishes the configured tunnels and runs the control loop.
 func (s *session) serve(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 
-	// Order matters, and defers run last-registered-first: this cancels and
-	// then waits.
-	//
-	// Waiting first deadlocks the moment any goroutine's only exit is the
-	// cancellation — it would never arrive, and the client would sit alive
-	// with no connection, never reconnecting and logging nothing at all. The
-	// heartbeat happened to survive that ordering because its next write fails
-	// on a dead socket and it returns on its own; the certificate watcher has
-	// no such accident to rely on.
 	defer s.wg.Wait()
 	defer cancel()
 
@@ -71,10 +50,6 @@ func (s *session) serve(ctx context.Context) error {
 		return err
 	}
 
-	// Certificates go up after the tunnels exist on the server, so the store
-	// is populated before the first request can arrive for one of them. The
-	// record of what was sent is cleared first: this is a new session, and the
-	// server it belongs to holds nothing yet.
 	s.client.pushedCerts.reset()
 	s.client.pushCertificates(ctx, s)
 
@@ -90,9 +65,6 @@ func (s *session) serve(ctx context.Context) error {
 		s.heartbeat(ctx)
 	}()
 
-	// The relief valve for an empty pool. Started after the tunnels are
-	// published, since a carrier is only useful once there is something for
-	// the server to route onto it.
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -107,7 +79,6 @@ func (s *session) serve(ctx context.Context) error {
 	return s.controlLoop(ctx)
 }
 
-// publishTunnels asks the server to publish every enabled tunnel.
 func (s *session) publishTunnels() error {
 	enabled := s.client.cfg.EnabledTunnels()
 	if len(enabled) == 0 {
@@ -122,13 +93,9 @@ func (s *session) publishTunnels() error {
 	return nil
 }
 
-// publishTunnel asks the server to publish one tunnel.
 func (s *session) publishTunnel(tunnel config.Tunnel) error {
 	s.tunnelsMu.Lock()
-	// Initialised here rather than only in serve, so a session assembled any
-	// other way — the republish goroutine below reaching a session whose
-	// serve has already returned, or a test building one directly — records
-	// the tunnel instead of panicking on a nil map.
+
 	if s.tunnels == nil {
 		s.tunnels = make(map[string]config.Tunnel)
 	}
@@ -154,26 +121,11 @@ func (s *session) publishTunnel(tunnel config.Tunnel) error {
 	return nil
 }
 
-// republishAttempts and republishDelay bound the retry below.
-//
-// Two seconds of retrying covers the overlap; beyond that the conflict is with
-// something that genuinely intends to keep the name.
 const (
 	republishAttempts = 8
 	republishDelay    = 250 * time.Millisecond
 )
 
-// rejected handles a tunnel the server refused.
-//
-// A name or domain still held by a previous session is retried rather than
-// given up on. Restarting the client overlaps the two processes — procd starts
-// the new one before the old one has finished exiting — so the new session
-// publishes while the server still holds the old session's routes, and reaps
-// them a fraction of a second later. Failing there leaves the tunnel down
-// until something else restarts it, which is a self-inflicted outage on every
-// configuration change.
-//
-// Anything else is a real disagreement and is reported.
 func (s *session) rejected(ctx context.Context, resp *protocol.NewProxyResp) {
 	if !strings.Contains(resp.Error, "already routed") &&
 		!strings.Contains(resp.Error, "already registered") {
@@ -217,7 +169,6 @@ func (s *session) rejected(ctx context.Context, resp *protocol.NewProxyResp) {
 	}()
 }
 
-// retryCounter tracks republish attempts per tunnel for one session.
 type retryCounter struct {
 	mu     sync.Mutex
 	counts map[string]int
@@ -234,8 +185,6 @@ func (r *retryCounter) next(name string) int {
 	return r.counts[name]
 }
 
-// heartbeat keeps the control connection alive and detects a server that has
-// gone away without closing the socket.
 func (s *session) heartbeat(ctx context.Context) {
 	interval := s.client.cfg.Transport.HeartbeatInterval.D()
 	if interval <= 0 {
@@ -259,14 +208,11 @@ func (s *session) heartbeat(ctx context.Context) {
 	}
 }
 
-// controlLoop services server messages until the connection ends.
 func (s *session) controlLoop(ctx context.Context) error {
 	timeout := s.client.cfg.Transport.HeartbeatTimeout.D()
 
 	for {
-		// A silent server is indistinguishable from a black-holed connection,
-		// so bound how long we will wait between messages. The server answers
-		// every ping, which guarantees traffic well inside this window.
+
 		if timeout > 0 {
 			if err := s.conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 				return err
@@ -290,14 +236,9 @@ func (s *session) controlLoop(ctx context.Context) error {
 
 		switch m := msg.(type) {
 		case *protocol.Pong:
-			// Liveness confirmed; the deadline above is refreshed on the next
-			// loop iteration.
 
 		case *protocol.ReqWorkConn:
-			// The server batches its requests, so Count above one is routine.
-			// The ceiling guards against a corrupt or hostile value spawning
-			// an unbounded number of dials; anything clamped away is simply
-			// re-requested once the server notices its pool is still short.
+
 			count := min(max(m.Count, 1), 4*config.DefaultMaxPoolCount)
 			for range count {
 				s.wg.Add(1)
@@ -325,7 +266,6 @@ func (s *session) controlLoop(ctx context.Context) error {
 	}
 }
 
-// tunnel looks up a tunnel by proxy name.
 func (s *session) tunnel(name string) (config.Tunnel, bool) {
 	s.tunnelsMu.RLock()
 	defer s.tunnelsMu.RUnlock()
@@ -334,8 +274,6 @@ func (s *session) tunnel(name string) (config.Tunnel, bool) {
 	return t, ok
 }
 
-// target returns a tunnel's local destination as host:port, rendered when the
-// tunnel was published rather than for every connection it carries.
 func (s *session) target(name string) string {
 	s.tunnelsMu.RLock()
 	defer s.tunnelsMu.RUnlock()

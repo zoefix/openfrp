@@ -1,21 +1,3 @@
-// Command luci-i18n manages the LuCI app's translations without a buildroot.
-//
-// LuCI's own toolchain lives inside OpenWrt: i18n-scan.pl extracts strings and
-// a C po2lmo compiles catalogues. Both are build-time tools, so translations
-// normally cannot be produced or checked outside a buildroot. This is a
-// standalone equivalent of the parts this project needs.
-//
-//	luci-i18n extract <dir>...            scan JS for _() and write a .pot
-//	luci-i18n compile <in.po> <out.lmo>   build a binary catalogue
-//	luci-i18n dump    <in.lmo>            decode one, for inspection
-//	luci-i18n lookup  <in.lmo> <msgid>... resolve strings against one
-//
-// The decoder exists because of how the format was verified: rather than
-// trusting a reading of the spec, it was run against a stock .lmo from a live
-// router, and `lookup` was used to confirm that hashing a known English string
-// finds its translation in a catalogue LuCI itself produced. Only then was the
-// encoder trusted. A hash that is merely close compiles a catalogue that loads
-// without error and translates nothing.
 package main
 
 import (

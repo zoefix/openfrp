@@ -9,22 +9,13 @@ import (
 	"strings"
 )
 
-// message is one catalogue entry.
 type message struct {
 	id  string
 	str string
 
-	// references are the source locations the string was extracted from,
-	// carried through to the .pot so a translator can see the context.
 	references []string
 }
 
-// parsePO reads a gettext catalogue.
-//
-// Only what LuCI actually uses is supported: msgid, msgstr and their
-// continuation lines. Plural forms are skipped rather than mistranslated —
-// this app has none, and a half-understood plural is worse than an untouched
-// English string.
 func parsePO(path string) ([]message, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -40,10 +31,7 @@ func parsePO(path string) ([]message, error) {
 	)
 
 	flush := func() {
-		// The header entry has an empty msgid; it carries metadata, not a
-		// translation, so it never belongs in the compiled catalogue. An
-		// untranslated entry is dropped too, so the UI falls back to English
-		// rather than rendering an empty label.
+
 		if current.id != "" && current.str != "" && !plural {
 			messages = append(messages, current)
 		}
@@ -63,7 +51,6 @@ func parsePO(path string) ([]message, error) {
 			field = ""
 
 		case strings.HasPrefix(line, "#"):
-			// Comments, including the "#:" source references.
 
 		case strings.HasPrefix(line, "msgid_plural"), strings.HasPrefix(line, "msgstr["):
 			plural = true
@@ -87,7 +74,7 @@ func parsePO(path string) ([]message, error) {
 			current.str = value
 
 		case strings.HasPrefix(line, `"`):
-			// A continuation of whichever field is open.
+
 			value, err := unquotePO(line)
 			if err != nil {
 				return nil, err
@@ -105,7 +92,6 @@ func parsePO(path string) ([]message, error) {
 	return messages, scanner.Err()
 }
 
-// unquotePO unwraps a quoted .po string, honouring the escapes gettext uses.
 func unquotePO(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -115,11 +101,9 @@ func unquotePO(s string) (string, error) {
 		return "", fmt.Errorf("malformed po string: %s", s)
 	}
 
-	// strconv.Unquote handles the escape set gettext shares with C, and
-	// rejects anything malformed rather than silently mangling it.
 	unquoted, err := strconv.Unquote(s)
 	if err != nil {
-		// Fall back for escapes strconv rejects but gettext permits.
+
 		body := s[1 : len(s)-1]
 		replacer := strings.NewReplacer(
 			`\n`, "\n", `\t`, "\t", `\r`, "\r",
@@ -130,8 +114,6 @@ func unquotePO(s string) (string, error) {
 	return unquoted, nil
 }
 
-// quotePO renders a string as a .po literal, wrapping long ones the way
-// gettext does so the file stays readable in a diff.
 func quotePO(s string) string {
 	escape := func(in string) string {
 		var b strings.Builder
@@ -156,7 +138,6 @@ func quotePO(s string) string {
 		return `"` + escape(s) + `"`
 	}
 
-	// Break on word boundaries into ~72 column chunks.
 	var (
 		lines []string
 		line  strings.Builder
@@ -180,7 +161,6 @@ func quotePO(s string) string {
 	return b.String()
 }
 
-// writePOT renders extracted messages as a template catalogue.
 func writePOT(path string, messages []message) error {
 	sort.Slice(messages, func(i, j int) bool { return messages[i].id < messages[j].id })
 

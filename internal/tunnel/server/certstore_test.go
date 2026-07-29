@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// issue mints a certificate for the given names.
 func issue(t *testing.T, notAfter time.Time, names ...string) (certPEM, keyPEM []byte) {
 	t.Helper()
 
@@ -60,9 +59,6 @@ func TestCertStoreMatchesSingleLabelWildcards(t *testing.T) {
 		t.Fatalf("Install: %v", err)
 	}
 
-	// Matching must agree with the router's rule exactly: a name that routes
-	// to a tunnel is a name whose certificate covers it. Diverging produces a
-	// browser error that looks like a routing bug and is not.
 	serves := []string{"aaa.com", "www.aaa.com", "anything.aaa.com"}
 	for _, host := range serves {
 		if !store.Has(host) {
@@ -85,16 +81,12 @@ func TestCertStoreRejectsBadMaterial(t *testing.T) {
 		t.Error("garbage should be refused")
 	}
 
-	// A mismatched pair is the subtle case: both halves parse, but they do not
-	// belong together and every handshake would fail.
 	certA, _ := issue(t, time.Now().Add(time.Hour), "a.com")
 	_, keyB := issue(t, time.Now().Add(time.Hour), "b.com")
 	if _, err := store.Install(certA, keyB); err == nil {
 		t.Error("a certificate and an unrelated key should be refused")
 	}
 
-	// An expired certificate is refused at push time rather than installed and
-	// left to fail every handshake.
 	expiredCert, expiredKey := issue(t, time.Now().Add(-time.Hour), "old.com")
 	if _, err := store.Install(expiredCert, expiredKey); err == nil {
 		t.Error("an expired certificate should be refused")
@@ -115,13 +107,6 @@ func TestCertStoreRequiresSNI(t *testing.T) {
 	}
 }
 
-// TestCertRotationDoesNotDisturbLiveConnections is the headline claim of the
-// whole certificate design, so it is tested directly rather than argued for.
-//
-// frps loads certificates once at startup, so rotating one there means
-// restarting and dropping every connected client. Here the swap is a single
-// atomic pointer store: readers in the middle of a handshake keep the snapshot
-// they already hold, and the next handshake sees the new one.
 func TestCertRotationDoesNotDisturbLiveConnections(t *testing.T) {
 	store := NewCertStore()
 
@@ -135,8 +120,6 @@ func TestCertRotationDoesNotDisturbLiveConnections(t *testing.T) {
 		t.Fatalf("first lookup: %v", err)
 	}
 
-	// Hammer lookups while the certificate is replaced underneath, which is
-	// what a renewal during live traffic actually looks like. Run with -race.
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
 
@@ -150,8 +133,7 @@ func TestCertRotationDoesNotDisturbLiveConnections(t *testing.T) {
 					return
 				default:
 				}
-				// A lookup must never fail mid-rotation. A gap here would be a
-				// dropped handshake for a real client.
+
 				if _, err := store.GetCertificate(
 					&tls.ClientHelloInfo{ServerName: "rotate.test"}); err != nil {
 					t.Errorf("lookup failed during rotation: %v", err)
@@ -177,7 +159,6 @@ func TestCertRotationDoesNotDisturbLiveConnections(t *testing.T) {
 		t.Fatalf("final lookup: %v", err)
 	}
 
-	// The material must actually have changed, or the test proves nothing.
 	if before.Leaf.SerialNumber.Cmp(after.Leaf.SerialNumber) == 0 {
 		t.Error("the certificate did not change; rotation was a no-op")
 	}
@@ -196,7 +177,6 @@ func TestCertStoreReplacesRatherThanAccumulates(t *testing.T) {
 		}
 	}
 
-	// Two patterns from one certificate, replaced twice — still two.
 	if store.Len() != 2 {
 		t.Errorf("store holds %d patterns, want 2", store.Len())
 	}

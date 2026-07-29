@@ -11,7 +11,6 @@ import (
 	"github.com/zoefix/openfrp/internal/config"
 )
 
-// newTestSupervisor builds one over a discarding logger.
 func newTestSupervisor(t *testing.T, cfg *config.Client) *Supervisor {
 	t.Helper()
 	supervisor, err := NewSupervisor(cfg, slog.New(slog.DiscardHandler), "test")
@@ -21,8 +20,6 @@ func newTestSupervisor(t *testing.T, cfg *config.Client) *Supervisor {
 	return supervisor
 }
 
-// twoServers is a router publishing one tunnel on each of two servers. The
-// second tunnel has to name its server, because only the first is implied.
 func twoServers() *config.Client {
 	cfg := &config.Client{
 		Servers: []config.Upstream{
@@ -40,14 +37,6 @@ func twoServers() *config.Client {
 	return cfg
 }
 
-// A tunnel that names its server must still validate once the supervisor has
-// narrowed the configuration down to that one server.
-//
-// The narrowed configuration carries the server in the single-server fields,
-// where it is known by the default name rather than its own. A tunnel naming
-// the server it belongs to then matched nothing and validated as an orphan, so
-// every server but the first refused to start — which is the whole of the
-// multi-server feature failing, silently, for anyone who used it.
 func TestScopedConfigKeepsATunnelThatNamesItsServer(t *testing.T) {
 	cfg := twoServers()
 	supervisor := newTestSupervisor(t, cfg)
@@ -67,7 +56,6 @@ func TestScopedConfigKeepsATunnelThatNamesItsServer(t *testing.T) {
 	}
 }
 
-// The tunnels each server is given are its own, and nobody else's.
 func TestScopedConfigSplitsTunnelsByServer(t *testing.T) {
 	cfg := twoServers()
 	supervisor := newTestSupervisor(t, cfg)
@@ -86,8 +74,6 @@ func TestScopedConfigSplitsTunnelsByServer(t *testing.T) {
 	}
 }
 
-// Narrowing must not edit the configuration it was narrowing from: the
-// supervisor holds one copy and hands out a view of it per server.
 func TestScopedConfigLeavesTheOriginalAlone(t *testing.T) {
 	cfg := twoServers()
 	supervisor := newTestSupervisor(t, cfg)
@@ -101,10 +87,6 @@ func TestScopedConfigLeavesTheOriginalAlone(t *testing.T) {
 	}
 }
 
-// One server panicking must not end the process. Every other server in it
-// loses its connections when it does, which is the failure this daemon exists
-// to avoid — the tunnels are independent and one bug should not be all of
-// their problem.
 func TestAPanicStopsOneServerNotTheProcess(t *testing.T) {
 	var logged strings.Builder
 	supervisor, err := NewSupervisor(twoServers(),
@@ -126,8 +108,6 @@ func TestAPanicStopsOneServerNotTheProcess(t *testing.T) {
 		t.Fatal("runServer did not return")
 	}
 
-	// The panic has to be findable afterwards: nothing else prints it now that
-	// the runtime never sees it.
 	out := logged.String()
 	for _, want := range []string{"a bug in one server", "server=hk", "stack="} {
 		if !strings.Contains(out, want) {
@@ -136,7 +116,6 @@ func TestAPanicStopsOneServerNotTheProcess(t *testing.T) {
 	}
 }
 
-// A server that stops with an error is reported, not swallowed.
 func TestAServerErrorIsReported(t *testing.T) {
 	var logged strings.Builder
 	supervisor, err := NewSupervisor(twoServers(),

@@ -5,14 +5,6 @@
 'require dom';
 'require poll';
 
-/*
- * TLS certificates.
- *
- * Issuance is not an rpcd call. It talks to the CA and then waits for DNS
- * propagation, which takes minutes against rpcd's 30 second limit, so it runs
- * as a detached job and this page follows its log.
- */
-
 var callCert = rpc.declare({
 	object: 'luci.openfrp',
 	method: 'cert',
@@ -60,16 +52,12 @@ function button(label, style, onclick) {
 
 var state = { orders: [], cas: [], keyTypes: [], accounts: [] };
 
-/* ------------------------------------------------------------------ */
-
-// stateBadge colours an order by what an operator would do about it.
 function stateBadge(order) {
 	var colour, label;
 
 	switch (order.state) {
 		case 'issued':
-			// Expiry matters more than the state once issued: a certificate
-			// that renewed months ago and is now expiring is still "issued".
+
 			if (order.days_remaining < 0) {
 				colour = '#d9534f';
 				label = _('Expired');
@@ -136,8 +124,6 @@ function ordersTable() {
 	return [E('table', { 'class': 'table' }, [head].concat(rows))];
 }
 
-/* ------------------------------------------------------------------ */
-
 function orderDialog() {
 	function field(label, input, help) {
 		var children = [input];
@@ -165,9 +151,7 @@ function orderDialog() {
 		state.keyTypes.map(function (k) {
 			return E('option', { 'value': k.value }, k.label);
 		}));
-	// "None" means validate over HTTP, which the tunnel server answers on this
-	// router's behalf and which needs no credentials for the zone. A wildcard
-	// is the one case that cannot use it.
+
 	var accountSelect = E('select', { 'class': 'cbi-input-select' },
 		[E('option', { 'value': '' }, _('None — validate over HTTP'))].concat(
 			state.accounts.map(function (a) {
@@ -178,9 +162,6 @@ function orderDialog() {
 		'type': 'checkbox', 'class': 'cbi-input-checkbox', 'checked': ''
 	});
 
-	// External account binding. ZeroSSL and Google Trust Services refuse to
-	// issue without it; Let's Encrypt does not use it at all. The rows are
-	// hidden rather than absent so switching authority does not relayout.
 	var eabKeyInput = E('input', {
 		'type': 'text', 'class': 'cbi-input-text', 'style': 'width:100%'
 	});
@@ -193,9 +174,6 @@ function orderDialog() {
 		return state.cas.filter(function (ca) { return ca.key === caSelect.value; })[0];
 	}
 
-	// eabStored is set once the backend confirms credentials are already on
-	// file for the chosen authority. They are entered once and reused for
-	// every certificate from it, so asking again is both noise and misleading.
 	var eabStored = false;
 
 	function refreshEAB() {
@@ -210,8 +188,6 @@ function orderDialog() {
 			? 'https://app.zerossl.com/developer'
 			: 'https://console.cloud.google.com/security/publicca';
 
-		// Ask before rendering: the answer decides whether these are fields
-		// the operator must fill in or ones they can ignore.
 		call('eab-status', { ca: ca.key })
 			.then(function (status) {
 				eabStored = !!(status && status.present);
@@ -272,10 +248,6 @@ function orderDialog() {
 			return;
 		}
 
-		// Store the binding first, and only when new values were typed in.
-		// Doing it after would leave an order that exists and cannot issue if
-		// this call failed; doing it always would overwrite a stored pair with
-		// the empty boxes the operator never touched.
 		var prepared = givingEAB
 			? call('eab', {}, {
 				ca: caSelect.value, email: emailInput.value,
@@ -326,8 +298,6 @@ function orderDialog() {
 	refreshEAB();
 }
 
-// eabDialog collects binding credentials for an order that cannot issue
-// without them, so a failed order can be repaired rather than recreated.
 function eabDialog(order, status, then) {
 	var keyInput = E('input', {
 		'type': 'text', 'class': 'cbi-input-text', 'style': 'width:100%'
@@ -368,13 +338,6 @@ function eabDialog(order, status, then) {
 	]);
 }
 
-/* ------------------------------------------------------------------ */
-
-// issue checks the order can actually proceed, then runs the job.
-//
-// Starting a job that is certain to be refused wastes minutes and teaches the
-// operator nothing they can act on — which is exactly what happened before
-// there was anywhere to enter these credentials.
 function issue(order) {
 	call('eab-status', { id: String(order.id) })
 		.then(function (status) {
@@ -387,7 +350,6 @@ function issue(order) {
 		.catch(function () { startIssue(order); });
 }
 
-// startIssue runs the job and follows its log.
 function startIssue(order) {
 	var offset = 0;
 	var output = E('pre', {
@@ -486,8 +448,6 @@ function deleteOrder(order) {
 	]);
 }
 
-/* ------------------------------------------------------------------ */
-
 var ordersHolder = E('div', {});
 
 function refresh() {
@@ -500,10 +460,6 @@ function refresh() {
 	});
 }
 
-// stylesheet returns the app's shared presentation, loaded as part of the view
-// so it applies while one of these pages is open and nowhere else. Dialogs
-// render outside this node, but the link is in the document for as long as the
-// page is, so they pick it up too.
 function stylesheet() {
 	return E('link', {
 		'rel': 'stylesheet',

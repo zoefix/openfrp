@@ -19,9 +19,6 @@ import (
 	"github.com/zoefix/openfrp/pkg/log"
 )
 
-// freePort reserves an ephemeral port and releases it, so the caller can bind
-// it deliberately. Vhost ports cannot be requested as zero — zero means the
-// listener is disabled — so the port has to be chosen up front.
 func freePort(t testing.TB) int {
 	t.Helper()
 
@@ -34,8 +31,6 @@ func freePort(t testing.TB) int {
 	return port
 }
 
-// startHTTPService runs a backend that identifies itself in the body, so a
-// test can tell which tunnel a request actually reached.
 func startHTTPService(t *testing.T, name string) (host string, port int) {
 	t.Helper()
 
@@ -46,8 +41,7 @@ func startHTTPService(t *testing.T, name string) (host string, port int) {
 
 	srv := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Echo the Host back too: it must survive the tunnel untouched,
-			// since the backend may itself be doing name-based routing.
+
 			fmt.Fprintf(w, "%s|%s|%s", name, r.Host, r.URL.Path)
 		}),
 	}
@@ -62,8 +56,6 @@ func startHTTPService(t *testing.T, name string) (host string, port int) {
 	return "127.0.0.1", addr.Port
 }
 
-// vhostHarness is a server with vhost listeners plus a client publishing
-// domain-routed tunnels.
 type vhostHarness struct {
 	server    *server.Server
 	httpPort  int
@@ -158,7 +150,6 @@ func startVhost(t *testing.T, tunnels []config.Tunnel) *vhostHarness {
 	return h
 }
 
-// waitForRoutes blocks until every tunnel has claimed its domains.
 func (h *vhostHarness) waitForRoutes(t *testing.T, want int) {
 	t.Helper()
 
@@ -173,14 +164,11 @@ func (h *vhostHarness) waitForRoutes(t *testing.T, want int) {
 		h.server.Router().Len(), want)
 }
 
-// get issues an HTTP request through the vhost listener with an explicit Host.
 func (h *vhostHarness) get(t *testing.T, host, path string) (status int, body string) {
 	t.Helper()
 
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(h.httpPort))
 
-	// A plain client with no redirect handling and no connection reuse, so
-	// each call exercises the routing path from scratch.
 	transport := &http.Transport{DisableKeepAlives: true}
 	httpClient := &http.Client{Transport: transport, Timeout: 10 * time.Second}
 
@@ -203,9 +191,6 @@ func (h *vhostHarness) get(t *testing.T, host, path string) (status int, body st
 	return resp.StatusCode, string(payload)
 }
 
-// TestVhostRoutesEveryDomainFormat is the P1 acceptance test. It registers all
-// four shapes the project promised — bare, exact subdomain, wildcard, and a
-// deeper wildcard — and confirms each request lands on the right tunnel.
 func TestVhostRoutesEveryDomainFormat(t *testing.T) {
 	type backend struct {
 		name    string
@@ -238,13 +223,13 @@ func TestVhostRoutesEveryDomainFormat(t *testing.T) {
 		want string
 	}{
 		{"aaa.com", "bare"},
-		{"AAA.COM", "bare"},      // case-insensitive
-		{"aaa.com.", "bare"},     // trailing dot
-		{"www.aaa.com", "exact"}, // exact beats wildcard
+		{"AAA.COM", "bare"},
+		{"aaa.com.", "bare"},
+		{"www.aaa.com", "exact"},
 		{"other.aaa.com", "wild"},
-		{"bb.aaa.com", "wild"},     // one label deep
-		{"x.bb.aaa.com", "deep"},   // deeper wildcard wins
-		{"www.bb.aaa.com", "deep"}, // depth decides, not the label
+		{"bb.aaa.com", "wild"},
+		{"x.bb.aaa.com", "deep"},
+		{"www.bb.aaa.com", "deep"},
 	}
 
 	for _, tc := range tests {
@@ -260,7 +245,7 @@ func TestVhostRoutesEveryDomainFormat(t *testing.T) {
 			if parts[0] != tc.want {
 				t.Errorf("%s reached backend %q, want %q", tc.host, parts[0], tc.want)
 			}
-			// The Host header must survive untouched: nothing is rewritten.
+
 			if !strings.EqualFold(strings.TrimSuffix(parts[1], "."), strings.TrimSuffix(tc.host, ".")) {
 				t.Errorf("backend saw Host %q, want %q unchanged", parts[1], tc.host)
 			}
@@ -271,8 +256,6 @@ func TestVhostRoutesEveryDomainFormat(t *testing.T) {
 	}
 }
 
-// TestVhostWildcardDoesNotCrossLabels is the frp-divergent behaviour, verified
-// through the full stack rather than only at the router.
 func TestVhostWildcardDoesNotCrossLabels(t *testing.T) {
 	host, port := startHTTPService(t, "wild")
 
@@ -289,7 +272,6 @@ func TestVhostWildcardDoesNotCrossLabels(t *testing.T) {
 		t.Errorf("one.aaa.com: status = %d, want 200", status)
 	}
 
-	// Two labels deep must NOT match, and with no catch-all it is a 404.
 	for _, host := range []string{"x.bb.aaa.com", "a.b.c.aaa.com", "aaa.com"} {
 		if status, _ := h.get(t, host, "/"); status != http.StatusNotFound {
 			t.Errorf("%s: status = %d, want 404 — a '*' label must not cross levels",
@@ -315,8 +297,6 @@ func TestVhostUnroutedHostGets404(t *testing.T) {
 	}
 }
 
-// TestVhostCatchAllServesEverythingElse confirms the opt-in fallback works
-// through the stack.
 func TestVhostCatchAllServesEverythingElse(t *testing.T) {
 	exactHost, exactPort := startHTTPService(t, "exact")
 	anyHost, anyPort := startHTTPService(t, "catchall")
@@ -342,8 +322,6 @@ func TestVhostCatchAllServesEverythingElse(t *testing.T) {
 	}
 }
 
-// TestVhostBodyRoundTrip pushes a request body and a large response through
-// the vhost path, which is where losing sniffed bytes would show up.
 func TestVhostBodyRoundTrip(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -354,8 +332,7 @@ func TestVhostBodyRoundTrip(t *testing.T) {
 	srv := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
-			// Reflect the request body length so a truncated head or body is
-			// immediately visible.
+
 			fmt.Fprintf(w, "received=%d\n", len(body))
 			w.Write(make([]byte, responseSize))
 		}),
@@ -407,10 +384,6 @@ func TestVhostBodyRoundTrip(t *testing.T) {
 	}
 }
 
-// TestVhostHTTPSPassthroughRoutesBySNI drives a real TLS client through the
-// https listener. The server must route on the SNI without decrypting: the
-// certificate is presented by the backend and validated end to end by the
-// client, which can only succeed if the ciphertext was forwarded untouched.
 func TestVhostHTTPSPassthroughRoutesBySNI(t *testing.T) {
 	cert, pool := selfSignedCert(t, "secure.aaa.com")
 
@@ -445,8 +418,7 @@ func TestVhostHTTPSPassthroughRoutesBySNI(t *testing.T) {
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
 			TLSClientConfig:   &tls.Config{RootCAs: pool},
-			// Point the connection at the vhost listener while keeping the SNI
-			// and certificate validation on the real name.
+
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				d := &net.Dialer{Timeout: 5 * time.Second}
 				return d.DialContext(ctx, network,
@@ -471,8 +443,6 @@ func TestVhostHTTPSPassthroughRoutesBySNI(t *testing.T) {
 	}
 }
 
-// TestVhostRejectsHTTPTunnelWithoutListener confirms the failure is explained
-// rather than silent when no vhost port is configured.
 func TestVhostRejectsHTTPTunnelWithoutListener(t *testing.T) {
 	host, port := startHTTPService(t, "orphan")
 

@@ -11,26 +11,16 @@ import (
 	"time"
 )
 
-// DefaultTimeout bounds a single provider API call.
-//
-// Generous, because these APIs are reached from a home router over whatever
-// path the operator's proxy chooses, and a certificate renewal failing on a
-// slow night is worse than one that waits.
 const DefaultTimeout = 30 * time.Second
 
-// maxErrorBody caps how much of a failure response is quoted back. Enough to
-// carry a provider's error message, not enough for an HTML error page to bury
-// the log.
 const maxErrorBody = 2 << 10
 
-// HTTPClient is the shared transport for provider APIs.
 type HTTPClient struct {
 	client *http.Client
-	// UserAgent identifies us to providers that log or rate-limit by client.
+
 	UserAgent string
 }
 
-// NewHTTPClient returns a client with sane timeouts.
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
 		client:    &http.Client{Timeout: DefaultTimeout},
@@ -38,16 +28,14 @@ func NewHTTPClient() *HTTPClient {
 	}
 }
 
-// Request describes one API call.
 type Request struct {
 	Method  string
 	URL     string
 	Headers map[string]string
-	// Body is sent as-is. Use JSONBody for the common case.
+
 	Body []byte
 }
 
-// JSONBody encodes v and sets the content type.
 func (r *Request) JSONBody(v any) error {
 	payload, err := json.Marshal(v)
 	if err != nil {
@@ -61,11 +49,6 @@ func (r *Request) JSONBody(v any) error {
 	return nil
 }
 
-// Do performs a request and decodes a JSON response into out.
-//
-// A non-2xx status is an error carrying the response body, because every one
-// of these providers reports its real complaint there while the status code
-// says only "400".
 func (c *HTTPClient) Do(ctx context.Context, req Request, out any) error {
 	method := req.Method
 	if method == "" {
@@ -122,8 +105,6 @@ func snippet(payload []byte) string {
 	return text
 }
 
-// hostOf extracts the host for error messages, so a signed URL's credentials
-// never reach a log.
 func hostOf(rawURL string) string {
 	trimmed := strings.TrimPrefix(strings.TrimPrefix(rawURL, "https://"), "http://")
 	if idx := strings.IndexAny(trimmed, "/?"); idx >= 0 {
@@ -132,12 +113,6 @@ func hostOf(rawURL string) string {
 	return trimmed
 }
 
-// NormaliseName converts a fully qualified name into the host portion a
-// provider expects, relative to its zone.
-//
-// Providers disagree about the apex: some want "@", some want an empty string,
-// some want the zone name repeated. Each provider applies its own convention
-// on top of this.
 func NormaliseName(fqdn, zone string) string {
 	fqdn = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(fqdn)), ".")
 	zone = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(zone)), ".")

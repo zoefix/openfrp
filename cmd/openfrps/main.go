@@ -1,8 +1,3 @@
-// Command openfrps is the OpenFrp server daemon.
-//
-// It runs on a public host and does one job: move tunnel traffic. Certificate
-// issuance and DNS management live on the client side, so nothing here needs
-// cloud credentials.
 package main
 
 import (
@@ -56,7 +51,6 @@ func run() error {
 		return err
 	}
 
-	// SIGTERM is what procd and systemd send; SIGINT is the interactive case.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

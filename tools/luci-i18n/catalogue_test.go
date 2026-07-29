@@ -8,20 +8,10 @@ import (
 	"testing"
 )
 
-// The app's translations live here, relative to this package.
 const appDir = "../../openwrt/luci/luci-app-openfrp"
 
-// languages are the catalogues that must stay complete. English is the source
-// language and needs none: LuCI falls back to the msgid.
 var languages = []string{"zh_Hans", "zh_Hant", "ja"}
 
-// TestHashMatchesLuCI pins SuperFastHash to values taken from a catalogue LuCI
-// itself compiled.
-//
-// These are not self-generated: each is the key under which a stock
-// base.zh-cn.lmo from a live OpenWrt router stores that string. If this test
-// fails, every catalogue this tool produces silently translates nothing, which
-// is a failure with no error message anywhere at runtime.
 func TestHashMatchesLuCI(t *testing.T) {
 	golden := map[string]uint32{
 		"Save":      0x219966c7,
@@ -39,12 +29,6 @@ func TestHashMatchesLuCI(t *testing.T) {
 	}
 }
 
-// TestCataloguesAreComplete fails when a string reachable from the UI has no
-// translation in some language.
-//
-// The source of truth is the JavaScript, not the .pot: a stale template would
-// otherwise let a newly added label pass unnoticed and render as English in an
-// otherwise translated page.
 func TestCataloguesAreComplete(t *testing.T) {
 	wanted := extractedMsgids(t)
 
@@ -74,16 +58,8 @@ func TestCataloguesAreComplete(t *testing.T) {
 	}
 }
 
-// formatSpecifier matches the placeholders LuCI's .format() substitutes, plus
-// the {arch}/{os} template slots the deploy view uses.
 var formatSpecifier = regexp.MustCompile(`%[sdq]|\{arch\}|\{os\}`)
 
-// TestFormatSpecifiersSurviveTranslation checks that a translation carries the
-// same placeholders as its source string.
-//
-// Dropping a %s from a translated string does not fail loudly; it renders a
-// label with a value missing, or shifts every later argument by one. Adding
-// one that the caller never supplies is worse.
 func TestFormatSpecifiersSurviveTranslation(t *testing.T) {
 	for _, lang := range languages {
 		path := filepath.Join(appDir, "po", lang, "openfrp.po")
@@ -96,8 +72,6 @@ func TestFormatSpecifiersSurviveTranslation(t *testing.T) {
 			want := formatSpecifier.FindAllString(msg.id, -1)
 			got := formatSpecifier.FindAllString(msg.str, -1)
 
-			// Order matters: .format() fills positionally, so swapping two
-			// specifiers silently swaps two values in the rendered string.
 			if len(want) != len(got) {
 				t.Errorf("%s: %q has %v but its translation %q has %v",
 					lang, msg.id, want, msg.str, got)
@@ -113,8 +87,6 @@ func TestFormatSpecifiersSurviveTranslation(t *testing.T) {
 	}
 }
 
-// TestCataloguesCompile builds each catalogue and reads its strings back,
-// which is the only way to catch a hash collision between two real msgids.
 func TestCataloguesCompile(t *testing.T) {
 	for _, lang := range languages {
 		source := filepath.Join(appDir, "po", lang, "openfrp.po")
@@ -147,7 +119,6 @@ func TestCataloguesCompile(t *testing.T) {
 	}
 }
 
-// extractedMsgids scans the app's JavaScript the way the extract command does.
 func extractedMsgids(t *testing.T) []string {
 	t.Helper()
 
@@ -185,13 +156,6 @@ func extractedMsgids(t *testing.T) []string {
 	return out
 }
 
-// TestKeyIsHashedTheWayTheBrowserAsksForIt pins the normalisation.
-//
-// LuCI's runtime collapses whitespace before hashing, so a message written
-// across several lines is asked for under its collapsed form. A catalogue keyed
-// by the literal text answers none of those questions, and does it silently:
-// the page loads, every single-line message translates, and the multi-line one
-// falls back to English with nothing logged anywhere.
 func TestKeyIsHashedTheWayTheBrowserAsksForIt(t *testing.T) {
 	multiline := "Configure the service first.\n\nFor nginx:\n" +
 		"    listen PORT proxy_protocol;\n    real_ip_header proxy_protocol;"
@@ -204,8 +168,6 @@ func TestKeyIsHashedTheWayTheBrowserAsksForIt(t *testing.T) {
 	}
 }
 
-// The trim and the collapse are different character sets, and swapping either
-// one moves every key.
 func TestWhitespaceCollapseMatchesTrimws(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"  padded  ", "padded"},
@@ -214,8 +176,7 @@ func TestWhitespaceCollapseMatchesTrimws(t *testing.T) {
 		{"line\nbreak", "line break"},
 		{"mixed \t\n run", "mixed run"},
 		{"\n\nleading and trailing\n\n", "leading and trailing"},
-		// A carriage return is not in the regex's class, so it survives the
-		// collapse — it is only removed at the ends, which JS trim does too.
+
 		{"kept\rhere", "kept\rhere"},
 		{"already single spaced", "already single spaced"},
 	}
@@ -227,13 +188,6 @@ func TestWhitespaceCollapseMatchesTrimws(t *testing.T) {
 	}
 }
 
-// A comment inside a wrapped message must not lose the message.
-//
-// The halves of a long label are joined with +, and the natural place to
-// explain an awkward one is between them. That used to stop the argument
-// reading as literal, and the message was dropped from the catalogue in
-// silence — not untranslated, absent, which no completeness check can see
-// because there is nothing left to check against.
 func TestCommentsInsideAMessageDoNotLoseIt(t *testing.T) {
 	cases := []struct{ name, source string }{
 		{"line comment between the halves", `

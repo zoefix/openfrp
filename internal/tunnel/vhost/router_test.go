@@ -14,13 +14,6 @@ func mustAdd(t *testing.T, r *Router, proxyName string, patterns ...string) {
 	}
 }
 
-// TestWildcardMatchesExactlyOneLabel is the defining behaviour of this package
-// and the point where it deliberately diverges from frp.
-//
-// frp rewrites successive leading labels to "*", so *.aaa.com there also
-// matches x.bb.aaa.com. Here it must not: our rule mirrors DNS and TLS
-// certificate scope, so a route can never resolve to a tunnel whose
-// certificate does not cover the name.
 func TestWildcardMatchesExactlyOneLabel(t *testing.T) {
 	r := NewRouter()
 	mustAdd(t, r, "one-level", "*.aaa.com")
@@ -32,12 +25,11 @@ func TestWildcardMatchesExactlyOneLabel(t *testing.T) {
 		}
 	}
 
-	// The whole point: a wildcard consumes one label and no more.
 	rejects := []string{
 		"x.bb.aaa.com",
 		"a.b.c.aaa.com",
-		"aaa.com",          // the bare domain is not a subdomain
-		"aaa.com.evil.com", // suffix confusion
+		"aaa.com",
+		"aaa.com.evil.com",
 		"notaaa.com",
 	}
 	for _, host := range rejects {
@@ -47,8 +39,6 @@ func TestWildcardMatchesExactlyOneLabel(t *testing.T) {
 	}
 }
 
-// TestMatchPriority pins the whole ordering with every pattern registered at
-// once, which is the configuration most likely to expose an ordering bug.
 func TestMatchPriority(t *testing.T) {
 	r := NewRouter()
 
@@ -65,18 +55,18 @@ func TestMatchPriority(t *testing.T) {
 		want string
 	}{
 		{"aaa.com", "bare"},
-		{"AAA.COM", "bare"},          // case-insensitive
-		{"aaa.com.", "bare"},         // trailing dot
-		{"aaa.com:8080", "bare"},     // port stripped
-		{"www.aaa.com", "exact-www"}, // exact beats wildcard
+		{"AAA.COM", "bare"},
+		{"aaa.com.", "bare"},
+		{"aaa.com:8080", "bare"},
+		{"www.aaa.com", "exact-www"},
 		{"other.aaa.com", "star-1"},
-		{"bb.aaa.com", "star-1"},              // one label deep
-		{"x.bb.aaa.com", "star-2"},            // deeper wildcard wins
-		{"www.bb.aaa.com", "star-2"},          // not exact-www: different depth
-		{"x.cc.bb.aaa.com", "star-3"},         // deepest wildcard wins
-		{"keep.cc.bb.aaa.com", "exact-deep"},  // exact beats the deepest wildcard
-		{"y.x.cc.bb.aaa.com", "fallback"},     // too deep for any wildcard
-		{"unrelated.example.org", "fallback"}, // nothing matches
+		{"bb.aaa.com", "star-1"},
+		{"x.bb.aaa.com", "star-2"},
+		{"www.bb.aaa.com", "star-2"},
+		{"x.cc.bb.aaa.com", "star-3"},
+		{"keep.cc.bb.aaa.com", "exact-deep"},
+		{"y.x.cc.bb.aaa.com", "fallback"},
+		{"unrelated.example.org", "fallback"},
 	}
 
 	for _, tc := range tests {
@@ -93,8 +83,6 @@ func TestMatchPriority(t *testing.T) {
 	}
 }
 
-// TestNoCatchAllMeansNoMatch confirms the fallback is opt-in rather than
-// implicit, so an unrouted host is a clean miss the caller can 404.
 func TestNoCatchAllMeansNoMatch(t *testing.T) {
 	r := NewRouter()
 	mustAdd(t, r, "only", "*.aaa.com")
@@ -113,7 +101,7 @@ func TestPatternValidation(t *testing.T) {
 		{"*.aaa.com", ""},
 		{"*.bb.aaa.com", ""},
 		{"a-b.aaa.com", ""},
-		{"*", ""}, // the catch-all
+		{"*", ""},
 
 		{"*.com", "too broad"},
 		{"a.*.com", "leftmost label"},
@@ -145,8 +133,6 @@ func TestPatternValidation(t *testing.T) {
 	}
 }
 
-// TestInternationalisedDomains checks a native-script config and a punycode
-// request agree, since browsers always send the latter.
 func TestInternationalisedDomains(t *testing.T) {
 	r := NewRouter()
 
@@ -162,7 +148,6 @@ func TestInternationalisedDomains(t *testing.T) {
 		t.Errorf("resolved to %q, want idn", route.ProxyName)
 	}
 
-	// The native-script form must resolve identically.
 	if _, ok := r.Lookup("www.例子.测试"); !ok {
 		t.Error("native-script host did not match")
 	}
@@ -180,8 +165,6 @@ func TestDomainCollisionIsRejected(t *testing.T) {
 		t.Errorf("error = %q, want it to mention the existing route", err)
 	}
 
-	// The rejected publish must not have claimed bbb.com either — a failed
-	// registration has to be all-or-nothing.
 	if route, ok := r.Lookup("bbb.com"); ok {
 		t.Errorf("bbb.com was claimed by a failed publish (route %q)", route.Pattern)
 	}
@@ -207,7 +190,6 @@ func TestRemoveWithdrawsRoutes(t *testing.T) {
 		t.Error("Remove took out an unrelated tunnel's route")
 	}
 
-	// The freed pattern must be claimable again.
 	if err := r.Add([]string{"aaa.com"}, Route{RunID: "run-9", ProxyName: "new"}); err != nil {
 		t.Errorf("re-adding a withdrawn pattern failed: %v", err)
 	}
@@ -238,8 +220,6 @@ func TestRemoveClientWithdrawsEverythingItOwned(t *testing.T) {
 	}
 }
 
-// TestConcurrentLookupsDuringRebuild is the reason the table is swapped
-// atomically rather than mutated. Run with -race.
 func TestConcurrentLookupsDuringRebuild(t *testing.T) {
 	r := NewRouter()
 	mustAdd(t, r, "stable", "stable.com", "*.stable.com")
@@ -257,8 +237,7 @@ func TestConcurrentLookupsDuringRebuild(t *testing.T) {
 					return
 				default:
 				}
-				// A route that is never touched must always resolve, even
-				// while the table is being rebuilt around it.
+
 				if _, ok := r.Lookup("x.stable.com"); !ok {
 					t.Error("a stable route vanished during a rebuild")
 					return

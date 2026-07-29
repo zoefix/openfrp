@@ -1,8 +1,3 @@
-// Command echo is the LAN service behind the tunnel in the benchmark.
-//
-// It echoes bytes with io.Copy, which on Linux means the backend itself is
-// spliced and contributes as little as possible to the measurement. The point
-// of the benchmark is to compare tunnels, not backends.
 package main
 
 import (

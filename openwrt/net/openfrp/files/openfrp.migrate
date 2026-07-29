@@ -1,18 +1,8 @@
 #!/bin/sh
-#
-# Move the single deployment section into the server it describes.
-#
-# Provisioning settings used to live in one "ssh" section named "deploy",
-# because there could only be one server. They now belong to the server they
-# provisioned, so a router with several keeps each one's SSH details with it.
-#
-# Runs once from uci-defaults and deletes itself. Nothing here overwrites a
-# value that already exists, so re-running is harmless.
 
 [ -n "$(uci -q get openfrp.deploy)" ] || exit 0
 
 carry() {
-	# $1 source option, $2 destination option
 	local value
 	value="$(uci -q get "openfrp.deploy.$1")"
 	[ -n "$value" ] || return 0

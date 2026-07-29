@@ -11,10 +11,8 @@ import (
 	"time"
 )
 
-// api is the Cloudflare endpoint. A variable so tests can answer.
 var api = "https://api.cloudflare.com/client/v4"
 
-// envelope is Cloudflare's uniform wrapper.
 type envelope struct {
 	Success bool `json:"success"`
 	Errors  []struct {
@@ -38,7 +36,6 @@ func (e envelope) err() error {
 	return fmt.Errorf("cloudflare: %s", strings.Join(messages, "; "))
 }
 
-// call makes one API request with the token from the login credential.
 func (c Credential) call(ctx context.Context, method, path string, out any) error {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -73,12 +70,6 @@ func (c Credential) call(ctx context.Context, method, path string, out any) erro
 	return json.Unmarshal(payload, out)
 }
 
-// ZoneName is the domain the login was authorised for.
-//
-// Looked up rather than asked for. The operator already chose it, in
-// Cloudflare's own dialog, and asking again would be asking them to retype a
-// decision they have made — with a typo turning every hostname into one that
-// resolves nowhere.
 func (c Credential) ZoneName(ctx context.Context) (string, error) {
 	var resp struct {
 		envelope
@@ -96,15 +87,6 @@ func (c Credential) ZoneName(ctx context.Context) (string, error) {
 	return resp.Result.Name, nil
 }
 
-// DeleteRecord removes the DNS record for a hostname.
-//
-// Used when a tunnel is deleted or renamed: the CNAME it was published under
-// would otherwise stay, pointing at a tunnel that no longer serves it, and the
-// name would answer with Cloudflare's own error rather than not resolving.
-//
-// Only a CNAME into a tunnel is removed. A record of any other kind at that
-// name was put there by somebody, for something, and this has no business
-// deciding it is rubbish.
 func (c Credential) DeleteRecord(ctx context.Context, hostname string) (bool, error) {
 	name := strings.TrimSuffix(strings.ToLower(hostname), ".")
 
@@ -137,5 +119,4 @@ func (c Credential) DeleteRecord(ctx context.Context, hostname string) (bool, er
 	return false, nil
 }
 
-// EdgeSuffix is what a hostname points at to reach a tunnel.
 const EdgeSuffix = ".cfargotunnel.com"

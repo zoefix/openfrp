@@ -1,9 +1,3 @@
-// Package detect inspects a target server before anything is installed on it.
-//
-// Every field here corresponds to a decision the installer has to make, and
-// each was chosen because a real test server made it necessary: one had ports
-// 80 and 443 already taken by an unrelated service, and both had the tcp_bbr
-// module present but not loaded, which makes setting the sysctl fail silently.
 package detect
 
 import (
@@ -13,16 +7,12 @@ import (
 	"strings"
 )
 
-// Runner is the subset of an SSH session this package needs. Declared here, on
-// the consuming side, so detect does not import the deploy package and create
-// a cycle.
 type Runner interface {
 	Output(ctx context.Context, command string) string
 	HasCommand(ctx context.Context, name string) bool
 	Exists(ctx context.Context, path string) bool
 }
 
-// InitSystem identifies how services are managed on the target.
 type InitSystem string
 
 const (
@@ -32,7 +22,6 @@ const (
 	InitUnknown  InitSystem = "unknown"
 )
 
-// Firewall identifies the packet filter in use.
 type Firewall string
 
 const (
@@ -43,11 +32,9 @@ const (
 	FirewallNone      Firewall = "none"
 )
 
-// Result is everything learned about the target.
 type Result struct {
-	// Arch is the Go architecture name, so it can select a release artefact.
 	Arch string
-	// RawArch is what uname reported, kept for diagnostics.
+
 	RawArch string
 
 	Distro  string
@@ -55,23 +42,18 @@ type Result struct {
 
 	Init     InitSystem
 	Firewall Firewall
-	// FirewallActive distinguishes "installed" from "running with rules".
+
 	FirewallActive bool
 
-	// BBRLoaded reports whether BBR is already usable.
 	BBRLoaded bool
-	// BBRAvailable reports whether the module exists and could be loaded.
+
 	BBRAvailable bool
 
-	// OccupiedPorts lists listening TCP ports, so the installer can refuse a
-	// conflict rather than fight for a port and fail obscurely at startup.
 	OccupiedPorts map[int]string
 
-	// HasSystemdResolved and similar quirks can be added here as they arise.
 	Root bool
 }
 
-// Detect probes the server.
 func Detect(ctx context.Context, r Runner) (*Result, error) {
 	res := &Result{OccupiedPorts: map[int]string{}}
 
@@ -92,7 +74,6 @@ func Detect(ctx context.Context, r Runner) (*Result, error) {
 	return res, nil
 }
 
-// goArch maps uname output onto a Go architecture name.
 func goArch(raw string) (string, error) {
 	switch strings.TrimSpace(raw) {
 	case "x86_64", "amd64":
@@ -131,8 +112,7 @@ func distro(ctx context.Context, r Runner) (name, version string) {
 }
 
 func initSystem(ctx context.Context, r Runner) InitSystem {
-	// /run/systemd/system exists only when systemd is the running init, which
-	// is a stronger signal than systemctl merely being installed.
+
 	if r.Exists(ctx, "/run/systemd/system") {
 		return InitSystemd
 	}
@@ -155,8 +135,7 @@ func firewall(ctx context.Context, r Runner) (Firewall, bool) {
 		return FirewallUFW, strings.Contains(out, "active")
 	}
 	if r.HasCommand(ctx, "nft") {
-		// An installed nft with an empty ruleset is the common case on a fresh
-		// VPS, and it means nothing needs opening.
+
 		rules := r.Output(ctx, "nft list ruleset 2>/dev/null | wc -l")
 		count, _ := strconv.Atoi(strings.TrimSpace(rules))
 		return FirewallNftables, count > 0
@@ -169,12 +148,6 @@ func firewall(ctx context.Context, r Runner) (Firewall, bool) {
 	return FirewallNone, false
 }
 
-// bbr reports whether BBR is usable now, and whether it could be.
-//
-// The distinction matters: on both test servers tcp_bbr shipped with the
-// kernel but was not loaded, so it was absent from
-// tcp_available_congestion_control and setting the sysctl would have failed
-// silently. The module has to be loaded first.
 func bbr(ctx context.Context, r Runner) (loaded, available bool) {
 	avail := r.Output(ctx, "sysctl -n net.ipv4.tcp_available_congestion_control 2>/dev/null")
 	loaded = strings.Contains(avail, "bbr")
@@ -186,7 +159,6 @@ func bbr(ctx context.Context, r Runner) (loaded, available bool) {
 	return false, modulePath != "" && !strings.Contains(modulePath, "ERROR")
 }
 
-// listeningPorts maps a TCP port onto the process holding it.
 func listeningPorts(ctx context.Context, r Runner) map[int]string {
 	ports := map[int]string{}
 
@@ -197,8 +169,6 @@ func listeningPorts(ctx context.Context, r Runner) map[int]string {
 			continue
 		}
 
-		// The local address column differs between ss and netstat; find the
-		// first field that parses as addr:port.
 		for _, field := range fields {
 			idx := strings.LastIndexByte(field, ':')
 			if idx < 0 {
@@ -215,7 +185,6 @@ func listeningPorts(ctx context.Context, r Runner) map[int]string {
 	return ports
 }
 
-// processName pulls a program name out of an ss or netstat line.
 func processName(line string) string {
 	if idx := strings.Index(line, `users:(("`); idx >= 0 {
 		rest := line[idx+len(`users:(("`):]
@@ -223,7 +192,7 @@ func processName(line string) string {
 			return rest[:end]
 		}
 	}
-	// netstat renders this as pid/name.
+
 	fields := strings.Fields(line)
 	if len(fields) > 0 {
 		last := fields[len(fields)-1]
@@ -234,7 +203,6 @@ func processName(line string) string {
 	return "unknown"
 }
 
-// Summary renders the findings for a progress event.
 func (r *Result) Summary() map[string]string {
 	bbrState := "loaded"
 	switch {
@@ -259,7 +227,6 @@ func (r *Result) Summary() map[string]string {
 	}
 }
 
-// PortConflict reports what is holding a port, if anything.
 func (r *Result) PortConflict(port int) (string, bool) {
 	holder, taken := r.OccupiedPorts[port]
 	return holder, taken

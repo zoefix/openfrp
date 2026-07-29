@@ -2,38 +2,22 @@ package dns
 
 import "sort"
 
-// Line is a carrier split — an answer served only to resolvers on a particular
-// network.
-//
-// Split-horizon answers by carrier are routine in China, where routing between
-// China Telecom, Unicom and Mobile is poor enough that operators point each at
-// a different address. Every provider supports it; no two agree on how to name
-// the lines. This abstract code is what the UI and the config speak, and each
-// provider maps it to whatever its API wants.
-//
-// The mapping tables below are ported from netcccyun/dnsmgr, which is the best
-// curated collection of these values in existence. They are facts about other
-// people's APIs, not design decisions, and getting one wrong produces a record
-// that silently answers the wrong audience.
 type Line string
 
 const (
-	// LineDefault answers everyone not matched by a more specific line.
 	LineDefault Line = "DEF"
-	// LineTelecom is China Telecom.
+
 	LineTelecom Line = "CT"
-	// LineUnicom is China Unicom.
+
 	LineUnicom Line = "CU"
-	// LineMobile is China Mobile.
+
 	LineMobile Line = "CM"
-	// LineOverseas is everything outside mainland China.
+
 	LineOverseas Line = "AB"
 )
 
-// AllLines lists the abstract lines in display order.
 var AllLines = []Line{LineDefault, LineTelecom, LineUnicom, LineMobile, LineOverseas}
 
-// Label returns a human name for a line.
 func (l Line) Label() string {
 	switch l {
 	case LineDefault, "":
@@ -51,12 +35,6 @@ func (l Line) Label() string {
 	}
 }
 
-// lineTables maps a provider key onto its own line identifiers.
-//
-// A line absent from a provider's table is one that provider does not offer;
-// callers must treat a missing entry as unsupported rather than substituting
-// the default, because silently serving the default to a carrier the operator
-// meant to split off is the opposite of what they asked for.
 var lineTables = map[string]map[Line]string{
 	"aliyun": {
 		LineDefault: "default", LineTelecom: "telecom", LineUnicom: "unicom",
@@ -98,7 +76,7 @@ var lineTables = map[string]map[Line]string{
 		LineDefault: "", LineTelecom: "84613316902921216",
 		LineUnicom: "84613316923892736", LineMobile: "84613316953252864",
 	},
-	// Providers with no carrier concept at all.
+
 	"cloudflare": {LineDefault: "0"},
 	"namesilo":   {LineDefault: "default"},
 	"henet":      {LineDefault: "default"},
@@ -109,10 +87,6 @@ var lineTables = map[string]map[Line]string{
 	"tencenteo":  {LineDefault: "Default"},
 }
 
-// ProviderLine maps an abstract line onto a provider's own identifier.
-//
-// An empty line is treated as the default. The second return value is false
-// when the provider does not offer that line at all.
 func ProviderLine(provider string, line Line) (string, bool) {
 	table, known := lineTables[provider]
 	if !known {
@@ -125,7 +99,6 @@ func ProviderLine(provider string, line Line) (string, bool) {
 	return value, ok
 }
 
-// LineFromProvider maps a provider's identifier back to an abstract line.
 func LineFromProvider(provider, value string) Line {
 	table, known := lineTables[provider]
 	if !known {
@@ -139,7 +112,6 @@ func LineFromProvider(provider, value string) Line {
 	return LineDefault
 }
 
-// SupportedLines lists the lines a provider offers, in display order.
 func SupportedLines(provider string) []Line {
 	table, known := lineTables[provider]
 	if !known {
@@ -158,7 +130,6 @@ func SupportedLines(provider string) []Line {
 	return lines
 }
 
-// KnownProviderTables lists the providers with a line mapping, for tests.
 func KnownProviderTables() []string {
 	names := make([]string, 0, len(lineTables))
 	for name := range lineTables {

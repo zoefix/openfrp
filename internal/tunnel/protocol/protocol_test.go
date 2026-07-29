@@ -14,8 +14,7 @@ import (
 )
 
 func TestCodecRoundTripsEveryMessageType(t *testing.T) {
-	// One representative value per type. If a new message is added to
-	// factories without a case here, the completeness check below fails.
+
 	cases := []Message{
 		&Login{Version: Version, ClientName: "router", Hostname: "OpenWrt",
 			OS: "linux", Arch: "amd64", Timestamp: 1700000000,
@@ -99,9 +98,6 @@ func TestCodecRejectsOversizedLengthPrefix(t *testing.T) {
 	}
 }
 
-// TestCodecSkipsUnknownTypeWithoutDesync covers forward compatibility: a newer
-// peer must be able to send a message we predate without corrupting the
-// framing of everything after it.
 func TestCodecSkipsUnknownTypeWithoutDesync(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -121,7 +117,6 @@ func TestCodecSkipsUnknownTypeWithoutDesync(t *testing.T) {
 		t.Fatalf("first read err = %v, want ErrUnknownType", err)
 	}
 
-	// The stream must still be aligned.
 	msg, err := codec.Read()
 	if err != nil {
 		t.Fatalf("second read: %v", err)
@@ -136,7 +131,7 @@ func TestCodecSkipsUnknownTypeWithoutDesync(t *testing.T) {
 }
 
 func TestCodecReturnsBareEOFOnCleanClose(t *testing.T) {
-	// An empty buffer stands in for a peer that closed at a frame boundary.
+
 	_, err := NewCodec(&bytes.Buffer{}).Read()
 	if err != io.EOF {
 		t.Fatalf("err = %v, want bare io.EOF so callers can spot a clean close", err)
@@ -171,9 +166,6 @@ func TestReadExpectRejectsWrongType(t *testing.T) {
 	}
 }
 
-// TestCodecConcurrentWritesStayFramed exercises the real reason Write holds a
-// mutex: the control loop writes heartbeats and responses from separate
-// goroutines.
 func TestCodecConcurrentWritesStayFramed(t *testing.T) {
 	client, server := net.Pipe()
 	defer client.Close()
@@ -243,14 +235,12 @@ func TestAuthKeyVerification(t *testing.T) {
 		t.Errorf("bad key: err = %v, want ErrAuthFailed", err)
 	}
 
-	// A key that was valid an hour ago must not be replayable now.
 	stale := now.Add(-time.Hour).Unix()
 	staleKey := AuthKey(token, stale)
 	if err := VerifyAuth(token, staleKey, stale, now, DefaultAuthSkew); !errors.Is(err, ErrAuthFailed) {
 		t.Errorf("stale timestamp: err = %v, want ErrAuthFailed", err)
 	}
 
-	// Clock drift within the window is tolerated in both directions.
 	for _, drift := range []time.Duration{-5 * time.Minute, 5 * time.Minute} {
 		skewed := now.Add(drift).Unix()
 		if err := VerifyAuth(token, AuthKey(token, skewed), skewed, now, DefaultAuthSkew); err != nil {
@@ -258,12 +248,10 @@ func TestAuthKeyVerification(t *testing.T) {
 		}
 	}
 
-	// An empty token disables authentication outright.
 	if err := VerifyAuth("", "anything", ts, now, DefaultAuthSkew); err != nil {
 		t.Errorf("empty token should disable auth, got %v", err)
 	}
 
-	// The token must not be recoverable from the wire value.
 	if strings.Contains(key, token) {
 		t.Error("auth key leaks the token")
 	}

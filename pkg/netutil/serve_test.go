@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-// TestServeDispatchesFromAllLoops proves the direct-dispatch path serves
-// connections across every SO_REUSEPORT listener without a merge channel.
 func TestServeDispatchesFromAllLoops(t *testing.T) {
 	if !reusePortSupported {
 		t.Skip("SO_REUSEPORT unavailable on this platform")
@@ -72,17 +70,11 @@ func TestServeDispatchesFromAllLoops(t *testing.T) {
 	}
 }
 
-// TestServeAndAcceptAreMutuallyExclusive: whichever consumer engages first
-// owns the listener; the other must be refused rather than silently racing
-// for the same accept queues.
 func TestServeAndAcceptAreMutuallyExclusive(t *testing.T) {
 	if !reusePortSupported {
 		t.Skip("SO_REUSEPORT unavailable on this platform")
 	}
 
-	// Serve first: Accept must be refused. take() is what Serve calls before
-	// its first accept, so claiming through it directly makes the ordering
-	// deterministic instead of racing two goroutines.
 	ln, err := Listen(context.Background(), "tcp", "127.0.0.1:0",
 		ListenOptions{ReusePort: true}, 2)
 	if err != nil {
@@ -96,7 +88,6 @@ func TestServeAndAcceptAreMutuallyExclusive(t *testing.T) {
 	}
 	ln.Close()
 
-	// Accept first: Serve must be refused.
 	ln2, err := Listen(context.Background(), "tcp", "127.0.0.1:0",
 		ListenOptions{ReusePort: true}, 2)
 	if err != nil {
@@ -119,7 +110,6 @@ func TestServeAndAcceptAreMutuallyExclusive(t *testing.T) {
 	}
 }
 
-// fakeListener scripts a sequence of Accept outcomes.
 type fakeListener struct {
 	mu      sync.Mutex
 	outcome []acceptResult
@@ -150,9 +140,6 @@ func (f *fakeListener) Addr() net.Addr {
 	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 }
 
-// TestServeSurvivesFdExhaustion: EMFILE from accept must be waited out, not
-// treated as fatal. The old behaviour tore the whole proxy down the moment
-// the process ran out of descriptors — precisely when it was busiest.
 func TestServeSurvivesFdExhaustion(t *testing.T) {
 	client, server := net.Pipe()
 	defer client.Close()
@@ -190,8 +177,6 @@ func TestServeSurvivesFdExhaustion(t *testing.T) {
 	}
 }
 
-// TestServeReportsFatalAcceptError: an error with no retry classification
-// must stop the loops and surface.
 func TestServeReportsFatalAcceptError(t *testing.T) {
 	fl := &fakeListener{
 		closed: make(chan struct{}),

@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-// fakeProvider records what a caller did, so the adapter above it can be
-// tested without touching a real API.
 type fakeProvider struct {
 	domains []Domain
 	records map[string]Record
@@ -105,10 +103,6 @@ func TestSolverPublishesAndRemovesChallenge(t *testing.T) {
 	}
 }
 
-// TestSolverWildcardSharesTheBaseChallengeName is the case that makes
-// tracking record IDs necessary rather than matching on name: a certificate
-// covering both example.com and *.example.com produces two challenges at the
-// same DNS name, and cleaning up by name would remove the wrong one.
 func TestSolverWildcardSharesTheBaseChallengeName(t *testing.T) {
 	provider := newFakeProvider("example.com")
 	solver := NewSolver(provider, "example.com")
@@ -130,7 +124,6 @@ func TestSolverWildcardSharesTheBaseChallengeName(t *testing.T) {
 		}
 	}
 
-	// Removing one must leave the other alone.
 	if err := solver.CleanUp(ctx, "*.example.com", "value-wildcard"); err != nil {
 		t.Fatalf("CleanUp wildcard: %v", err)
 	}
@@ -148,9 +141,6 @@ func TestSolverCleanUpIsSafeWithoutPresent(t *testing.T) {
 	provider := newFakeProvider("example.com")
 	solver := NewSolver(provider, "example.com")
 
-	// Present failed, so there is nothing to remove and nothing to complain
-	// about — an issuance must not be failed by tidy-up of a record that was
-	// never created.
 	if err := solver.CleanUp(context.Background(), "www.example.com", "v"); err != nil {
 		t.Errorf("CleanUp without Present: %v", err)
 	}
@@ -195,14 +185,10 @@ func TestLineMappingsAreConsistent(t *testing.T) {
 			t.Errorf("provider %q reports no lines at all", key)
 		}
 
-		// Every provider must offer a default; a record with no carrier split
-		// has to be expressible everywhere.
 		if _, ok := ProviderLine(key, LineDefault); !ok {
 			t.Errorf("provider %q has no default line", key)
 		}
 
-		// The round trip has to be stable, or a record read back would change
-		// which carrier it claims to serve.
 		for _, line := range lines {
 			value, ok := ProviderLine(key, line)
 			if !ok {
@@ -218,9 +204,7 @@ func TestLineMappingsAreConsistent(t *testing.T) {
 }
 
 func TestUnsupportedLineIsRefusedNotSubstituted(t *testing.T) {
-	// Cloudflare has no carrier concept. Asking for a telecom-only record must
-	// fail rather than quietly become a default record served to everyone,
-	// which is the opposite of what the operator asked for.
+
 	if _, ok := ProviderLine("cloudflare", LineTelecom); ok {
 		t.Error("cloudflare should not claim to support a telecom line")
 	}

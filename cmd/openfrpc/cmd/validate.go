@@ -16,11 +16,6 @@ func init() {
 	})
 }
 
-// runValidate parses and validates a config without starting anything.
-//
-// The init script calls this after rendering UCI, so a bad configuration is
-// reported once, clearly, at the point the user changed it — rather than as a
-// procd respawn loop that has to be dug out of syslog.
 func runValidate(_ context.Context, args []string) error {
 	fs := flag.NewFlagSet("validate", flag.ExitOnError)
 	configPath := fs.String("c", "/var/etc/openfrp.json", "path to the configuration file")

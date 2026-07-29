@@ -5,20 +5,6 @@
 'require ui';
 'require dom';
 
-/*
- * Live status.
- *
- * Everything here comes from one cheap rpcd call on a timer. The backend
- * deliberately does no network work in `status`, so polling it every few
- * seconds costs nothing on the router.
- *
- * The render helpers return ARRAYS of child nodes rather than a wrapper
- * element. That is not a style preference: dom.content() accepts a string, a
- * Node or an Array, and anything else is stringified. Passing a live NodeList
- * — the obvious thing to reach for when refreshing a container — renders the
- * literal text "[object NodeList]" with no error anywhere.
- */
-
 var callStatus = rpc.declare({
 	object: 'luci.openfrp',
 	method: 'status',
@@ -42,14 +28,6 @@ var callLogTail = rpc.declare({
 	expect: { log: '' }
 });
 
-/*
- * Rates are derived here rather than reported by the daemon.
- *
- * The daemon publishes cumulative byte counts and the timestamp it wrote them.
- * A rate it computed would be an average over whatever interval it happened to
- * run on; computed from two consecutive readings it is an average over exactly
- * the period between them, which is what "current speed" means to a reader.
- */
 var previous = null;
 
 function formatBytes(value) {
@@ -69,24 +47,17 @@ function formatRate(bytesPerSecond) {
 	return formatBytes(bytesPerSecond) + '/s';
 }
 
-// rates returns per-tunnel and total byte rates between two status readings.
 function rates(status) {
 	var now = status.traffic && status.traffic.updated_at;
 	var out = { tunnels: {}, total: { in: 0, out: 0 } };
 
 	if (!now || !previous || !previous.at || now <= previous.at) {
-		// No second sample yet, or the daemon has not republished since the
-		// last poll. Reporting a rate from a single reading, or dividing by a
-		// zero interval, would invent a number.
 		return out;
 	}
 
 	var elapsed = now - previous.at;
 
 	function rate(current, before) {
-		// Counters reset when the daemon restarts. A negative delta means that
-		// happened, and reporting it as a huge negative rate would be worse
-		// than reporting nothing for one interval.
 		var delta = (current || 0) - (before || 0);
 		return delta > 0 ? delta / elapsed : 0;
 	}
@@ -110,7 +81,6 @@ function rates(status) {
 	return out;
 }
 
-// remember stores this reading so the next one can be differenced against it.
 function remember(status) {
 	var snapshot = { at: (status.traffic && status.traffic.updated_at) || 0, tunnels: {} };
 
@@ -129,23 +99,6 @@ function badge(ok, okText, badText) {
 	}, ok ? okText : badText);
 }
 
-// restartButton restarts the client.
-//
-// A restart is what picks up anything the daemon reads only at startup, and
-// what clears a session the server still believes in. It runs as a job rather
-// than an rpcd call because the daemon has to stop, republish every tunnel and
-// reconnect, which outlives the thirty seconds rpcd allows.
-// hiddenLog is everything the operator has already dismissed.
-//
-// syslog is the whole router's, and emptying it would throw away every other
-// service's output to tidy one panel. So this hides rather than deletes: what
-// was on screen when the button was pressed stops being shown, and anything
-// logged afterwards appears as it arrives.
-//
-// Kept in the browser, because a clear that a page reload undoes is not a
-// clear — it is the panel disagreeing with itself about what was dismissed.
-// The browser is also the right place for it: nothing was deleted, so this is
-// one reader's view and not a change to the router.
 var hiddenLogKey = 'openfrp.log.dismissed';
 var hiddenLog = readHiddenLog();
 
@@ -153,8 +106,6 @@ function readHiddenLog() {
 	try {
 		return window.localStorage.getItem(hiddenLogKey) || '';
 	} catch (e) {
-		// Private browsing, or storage turned off. The clear still works for
-		// as long as the page is open, which is better than not offering it.
 		return '';
 	}
 }
@@ -167,7 +118,6 @@ function rememberHiddenLog(text) {
 		else
 			window.localStorage.removeItem(hiddenLogKey);
 	} catch (e) {
-		/* Nothing to do: the value is still held for this page. */
 	}
 }
 
@@ -181,9 +131,6 @@ function clearLogButton(logBox) {
 	}, _('Clear'));
 }
 
-// visibleLog drops the part that was dismissed, while it is still the start of
-// what syslog returns. Once the ring buffer has moved past it there is nothing
-// left to hide, and it stops trying.
 function visibleLog(text) {
 	if (hiddenLog && text.indexOf(hiddenLog) === 0)
 		return text.slice(hiddenLog.length).replace(/^\n+/, '');
@@ -195,9 +142,6 @@ function visibleLog(text) {
 var restartControl = null;
 
 function restartButton() {
-	// Built once and reused. The overview is re-rendered on every poll, and a
-	// button rebuilt each time loses whatever it was in the middle of saying —
-	// including "Restarting…", at exactly the moment it is true.
 	if (restartControl)
 		return restartControl;
 
@@ -205,8 +149,6 @@ function restartButton() {
 	var note = E('span', { 'style': 'margin-left:1em' }, '');
 
 	button.addEventListener('click', function () {
-		// Said out loud, because a restart drops every connection in flight —
-		// which for a tunnel means somebody's download.
 		if (!confirm(_('Restart the client? Every connection in progress is dropped.')))
 			return;
 
@@ -233,8 +175,7 @@ function restartButton() {
 				button.disabled = false;
 				note.textContent = res.state === 'succeeded'
 					? _('Restarted.')
-					// The log below this is where the reason will be, now that
-					// a refusal to start reaches it.
+
 					: _('Did not come back up — see the log below.');
 			});
 		}
@@ -253,7 +194,6 @@ function infoRow(label, value) {
 	]);
 }
 
-// Returns the children of the overview section.
 function overviewChildren(status, speed) {
 	speed = speed || { total: { in: 0, out: 0 } };
 	var serviceState;
@@ -270,20 +210,12 @@ function overviewChildren(status, speed) {
 			'↑ ' + formatBytes(total.bytes_out) + ' (' + formatRate(speed.total.out) + ')')
 	]);
 
-	// The address and transport of one server are gone from here. A router
-	// connects to several, and a Cloudflare tunnel has neither — showing the
-	// first one's was showing a fact about a part of the setup while implying
-	// it was a fact about all of it. The servers page has them, per server.
-	// The restart sits beside the state it changes, rather than on a row of
-	// its own with an empty label. What it acts on is the badge next to it.
 	var rows = [
 		infoRow(_('Service'), E('span', {}, [
 			serviceState,
 			E('span', { 'style': 'margin-left:1em' }, restartButton())
 		])),
-		// What is running, not what is installed: the daemon reports its own
-		// version while it is up, and the backend falls back to asking the
-		// binary only when it is not.
+
 		infoRow(_('Client version'), status.client_version
 			? E('code', {}, status.client_version)
 			: E('em', {}, _('unknown'))),
@@ -293,7 +225,6 @@ function overviewChildren(status, speed) {
 	return [E('h3', {}, _('Overview')), E('table', { 'class': 'table' }, rows)];
 }
 
-// Returns the children of the tunnels section.
 function tunnelsChildren(tunnels, speed) {
 	speed = speed || { tunnels: {} };
 	if (!tunnels || !tunnels.length)
@@ -325,9 +256,6 @@ function tunnelsChildren(tunnels, speed) {
 		var traffic = tunnel.traffic || {};
 		var rate = speed.tunnels[tunnel.name] || { in: 0, out: 0 };
 
-		// Cumulative on top, current rate underneath: the total answers "how
-		// much has this moved", the rate answers "is it moving now", and a
-		// status page is asked both.
 		function cell(bytes, perSecond) {
 			return E('td', { 'class': 'td', 'style': 'white-space:nowrap' }, [
 				E('div', {}, formatBytes(bytes)),
@@ -361,10 +289,6 @@ function fetch() {
 	]);
 }
 
-// stylesheet returns the app's shared presentation, loaded as part of the view
-// so it applies while one of these pages is open and nowhere else. Dialogs
-// render outside this node, but the link is in the document for as long as the
-// page is, so they pick it up too.
 function stylesheet() {
 	return E('link', {
 		'rel': 'stylesheet',
@@ -397,16 +321,11 @@ return view.extend({
 				'font-size:90%;background:#1e1e1e;color:#ddd;padding:0.6em;border-radius:3px'
 		}, data[1] || _('No log output yet.'));
 
-		// Refresh on a timer rather than requiring a page reload. Five seconds
-		// is frequent enough to feel live and slow enough to stay invisible on
-		// the router's CPU.
 		poll.add(function () {
 			return fetch().then(function (fresh) {
 				if (!fresh[0])
 					return;
 
-				// rates() differences against the previous reading, so it has
-				// to run before remember() replaces it.
 				var speed = rates(fresh[0]);
 				dom.content(overview, overviewChildren(fresh[0], speed));
 				dom.content(tunnels, tunnelsChildren(fresh[0].tunnels, speed));

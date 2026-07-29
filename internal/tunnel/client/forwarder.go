@@ -11,22 +11,10 @@ import (
 	"github.com/zoefix/openfrp/pkg/netutil"
 )
 
-// localDialTimeout bounds connecting to the LAN service. It is short because
-// the target is on the local network: a slow dial means it is down, and the
-// remote user is waiting.
 const localDialTimeout = 10 * time.Second
 
-// forward connects to the tunnel's local target and relays until either side
-// closes.
 func (s *session) forward(ctx context.Context, workConn net.Conn, start *protocol.StartWorkConn) {
-	// The logger is built where it is used, not up front.
-	//
-	// slog.Logger.With allocates a clone whether or not anything is ever
-	// logged through it, and this function runs once per visitor connection.
-	// It was the largest single allocation site on this path, and on a
-	// production log level every byte of it went to records that were
-	// immediately discarded. Memoised, so an error path that logs twice still
-	// only clones once.
+
 	var built *slog.Logger
 	logger := func() *slog.Logger {
 		if built == nil {
@@ -41,24 +29,14 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 		return
 	}
 
-	// Count the connection from here, where the tunnel is known, and release
-	// it on every exit path below. Opening later would leave a failed dial
-	// uncounted; releasing anywhere but a defer would leak the active count on
-	// the error returns.
 	s.client.traffic.Open(start.ProxyName)
 	defer s.client.traffic.Close(start.ProxyName)
 
-	// UDP is framed rather than streamed, so it takes a different path. It
-	// accounts per packet rather than returning a total: it has several exit
-	// paths and a reply goroutine that outlives the call.
 	if tunnel.Type == config.TunnelUDP {
 		s.forwardUDP(ctx, workConn, tunnel, start.ProxyName, logger())
 		return
 	}
 
-	// Joined once when the tunnel was published, not per connection: this ran
-	// a JoinHostPort and an Itoa for every visitor to produce a string that
-	// never changes.
 	target := s.target(start.ProxyName)
 
 	dialer := &net.Dialer{Timeout: localDialTimeout}
@@ -69,22 +47,10 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 	}
 	defer localConn.Close()
 
-	// NoDelay only. Keepalives are for detecting a peer that vanished without
-	// closing, which is a hazard on the internet-facing hops; this socket is
-	// on the LAN and lives exactly as long as the visitor connection it
-	// serves, whose own end is what tears it down. Two setsockopt syscalls
-	// per connection to guard against a case that cannot arise.
 	if err := netutil.TuneConn(localConn, netutil.TCPOptions{NoDelay: true}); err != nil {
 		logger().Debug("tune local connection", "error", err)
 	}
 
-	// Announce the visitor before any payload. Without this the local service
-	// sees the connection coming from this router and logs every visitor as
-	// the same address.
-	//
-	// Written straight to the socket rather than through a wrapper, so the
-	// relay below still hands the kernel a raw *net.TCPConn and keeps the
-	// splice path. The header costs one small write per connection.
 	if tunnel.ProxyProtocol != "" {
 		source, err := netutil.ParseProxyAddr(start.SourceAddr)
 		if err != nil {
@@ -99,16 +65,11 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 		}
 	}
 
-	// AToB is work connection to local service: traffic arriving from the
-	// internet. BToA is the reply. Naming them from the tunnel's point of view
-	// keeps "in" meaning the same thing on both ends.
 	transferred := netutil.Relay(workConn, localConn)
 
 	s.client.traffic.RecordTransfer(start.ProxyName,
 		transferred.AToB, transferred.BToA, transferred.Spliced)
 
-	// Guarded: per-connection, and the attribute boxing allocates even with
-	// debug logging off.
 	if s.logger.Enabled(ctx, slog.LevelDebug) {
 		logger().Debug("transfer complete",
 			"target", target,

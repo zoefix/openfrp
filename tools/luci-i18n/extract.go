@@ -9,11 +9,6 @@ import (
 	"strings"
 )
 
-// extract scans JavaScript for _() calls and writes a .pot.
-//
-// LuCI does this with i18n-scan.pl inside a buildroot. The grammar that
-// actually matters is small: a _( call whose argument is one or more string
-// literals joined by +, which is how a long label is wrapped across lines.
 func extract(output string, roots []string) error {
 	found := map[string]*message{}
 
@@ -58,20 +53,11 @@ func extract(output string, roots []string) error {
 	return writePOT(output, messages)
 }
 
-// occurrence is one _() call site.
 type occurrence struct {
 	text string
 	line int
 }
 
-// scanJS finds _() calls.
-//
-// It is a scanner rather than a regexp because it has to know when it is
-// inside a comment or a string: a regexp matches the _( in a comment that
-// mentions one, and puts a string into the catalogue that no code ever asks
-// for. Template literals are skipped entirely — LuCI's _() cannot translate
-// an interpolated string, so accepting one would only produce a msgid that
-// never matches at runtime.
 func scanJS(source string) []occurrence {
 	var out []occurrence
 
@@ -109,7 +95,7 @@ func scanJS(source string) []occurrence {
 			continue
 
 		case c == '_':
-			// Only a bare _ identifier, not the tail of another name.
+
 			if i > 0 && isIdentChar(source[i-1]) {
 				continue
 			}
@@ -118,10 +104,6 @@ func scanJS(source string) []occurrence {
 				continue
 			}
 
-			// The cursor deliberately does not advance past the argument.
-			// The literals are re-visited by the string case above, which is
-			// what keeps the line counter honest; counting them here as well
-			// would double every newline inside a wrapped label.
 			if text, ok, _ := readConcatenatedStrings(source, j+1); ok {
 				out = append(out, occurrence{text: text, line: line})
 			}
@@ -132,8 +114,6 @@ func scanJS(source string) []occurrence {
 	return out
 }
 
-// readConcatenatedStrings reads `'a' + 'b' + 'c'` starting just after the
-// opening parenthesis, and reports whether the whole argument was literal.
 func readConcatenatedStrings(source string, pos int) (string, bool, int) {
 	var (
 		parts    strings.Builder
@@ -149,7 +129,7 @@ func readConcatenatedStrings(source string, pos int) (string, bool, int) {
 
 		if wantStr {
 			c := source[pos]
-			// A backtick string may interpolate, so it is not a candidate.
+
 			if c != '\'' && c != '"' {
 				return "", false, newlines
 			}
@@ -166,8 +146,7 @@ func readConcatenatedStrings(source string, pos int) (string, bool, int) {
 			pos++
 			wantStr = true
 		case ')', ',':
-			// A trailing argument (LuCI's context form) still leaves the
-			// first argument usable as the msgid.
+
 			return parts.String(), parts.Len() > 0, newlines
 		default:
 			return "", false, newlines
@@ -175,8 +154,6 @@ func readConcatenatedStrings(source string, pos int) (string, bool, int) {
 	}
 }
 
-// readJSString reads a quoted literal and returns its decoded value, the index
-// just past the closing quote, and how many newlines it spanned.
 func readJSString(source string, pos int) (string, int, int) {
 	quote := source[pos]
 	pos++
@@ -198,7 +175,7 @@ func readJSString(source string, pos int) (string, int, int) {
 			case 'r':
 				b.WriteByte('\r')
 			case '\n':
-				// A line continuation contributes nothing but a newline.
+
 				newlines++
 			default:
 				b.WriteByte(source[pos+1])
@@ -220,14 +197,6 @@ func readJSString(source string, pos int) (string, int, int) {
 	return b.String(), pos, newlines
 }
 
-// skipSpace advances past anything that separates the parts of an expression.
-//
-// Comments count. A note written between two halves of a wrapped message —
-// which is a natural place to explain the awkward half — otherwise stopped the
-// argument from reading as literal, and the whole message was dropped without
-// a word. Nothing downstream can catch that: a message that was never
-// extracted is not missing a translation, it simply does not exist, and the
-// page falls back to English for that one string alone.
 func skipSpace(source string, pos int) int {
 	for pos < len(source) {
 		switch {

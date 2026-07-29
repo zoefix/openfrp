@@ -17,16 +17,8 @@ import (
 	"github.com/zoefix/openfrp/pkg/netutil"
 )
 
-// vhostSniffTimeout bounds how long we will wait for a client to send enough
-// to identify itself. It must be cleared before relaying begins.
 const vhostSniffTimeout = 15 * time.Second
 
-// vhostListener serves one shared domain-routed port.
-//
-// One of these covers every http tunnel across every client, and another
-// covers every https tunnel. Routing happens per connection against the
-// atomic route table, so publishing or withdrawing a tunnel never disturbs
-// traffic already in flight and never requires a restart.
 type vhostListener struct {
 	scheme   vhost.Scheme
 	port     int
@@ -42,8 +34,6 @@ type vhostListener struct {
 	acceptLoops int
 	reusePort   bool
 
-	// listenOpts is remembered so accepted connections can be tuned to match
-	// on platforms that do not inherit the listener's options.
 	listenOpts netutil.ListenOptions
 
 	mu       sync.Mutex
@@ -56,8 +46,7 @@ func (v *vhostListener) listen(ctx context.Context) error {
 	v.listenOpts = netutil.ListenOptions{
 		ReusePort: v.reusePort,
 		KeepAlive: 30 * time.Second,
-		// HTTP and TLS are both client-first, so accept can wait for the
-		// request bytes — the sniffer needs them immediately anyway.
+
 		DeferAccept: 5 * time.Second,
 	}
 
@@ -94,8 +83,6 @@ func (v *vhostListener) serve(ctx context.Context) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	// One accept loop per underlying SO_REUSEPORT listener; handlers spawn
-	// straight off the accept goroutine with no intermediary.
 	err := netutil.Serve(ln, func(conn net.Conn) {
 		wg.Add(1)
 		go func() {
@@ -112,12 +99,9 @@ func (v *vhostListener) serve(ctx context.Context) error {
 	return nil
 }
 
-// handle identifies, routes and relays one inbound connection.
 func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	defer userConn.Close()
 
-	// Free on Linux: the listener was tuned at bind time and this connection
-	// was cloned from it.
 	if err := netutil.TuneAccepted(userConn, v.listenOpts); err != nil {
 		v.logger.Debug("tune vhost connection", "error", err)
 	}
@@ -129,11 +113,6 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 
 	host, path, consumed, err := v.sniff(userConn)
 
-	// The sniffed head lives in a pooled buffer. It is finished with the
-	// moment it has been replayed to the tunnel — long before the relay ends —
-	// and returning it then lets it serve the next arriving connection. The
-	// termination path opts out by clearing the flag: its TLS wrapper may
-	// keep serving surplus sniffed bytes for the life of the connection.
 	consumedPooled := true
 	defer func() {
 		if consumedPooled {
@@ -148,10 +127,6 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 		return
 	}
 
-	// An ACME validation is answered here, before routing. The name being
-	// validated need not have a tunnel yet — and usually does not, since the
-	// certificate is being obtained in order to serve it — so looking up a
-	// route first would reject exactly the request this exists to serve.
 	if v.scheme == vhost.SchemeHTTP && v.challenges != nil {
 		if keyAuth, ok := v.challenges.Answer(path); ok {
 			v.logger.Info("answered an ACME challenge",
@@ -171,8 +146,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 
 	session, err := v.registry.Get(route.RunID)
 	if err != nil {
-		// The route outlived its client by a moment. Withdraw it so the next
-		// request does not repeat the work.
+
 		v.logger.Warn("route points at a disconnected client",
 			"host", host, "run_id", route.RunID, "proxy", route.ProxyName)
 		v.router.RemoveClient(route.RunID)
@@ -189,20 +163,12 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	}
 	defer workConn.Close()
 
-	// Edge termination is a different shape entirely: instead of forwarding
-	// ciphertext, decrypt here and send plaintext down the tunnel. It costs
-	// splice(2) for this connection — a tls.Conn is not a *net.TCPConn — which
-	// is exactly why passthrough remains the default and this is opt-in.
 	if v.scheme == vhost.SchemeHTTPS && terminationRoute(route) {
 		consumedPooled = false
 		v.terminate(ctx, userConn, workConn, consumed, route, host, source)
 		return
 	}
 
-	// Replay what the sniffer consumed. This is the step that lets both sides
-	// stay bare sockets: the alternative — wrapping userConn in a reader that
-	// replays — would hide the *net.TCPConn and cost splice(2) for every byte
-	// of the transfer, not just the head.
 	if len(consumed) > 0 {
 		if _, err := workConn.Write(consumed); err != nil {
 			v.logger.Warn("replay request head", "host", host, "error", err)
@@ -210,11 +176,9 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 		}
 	}
 
-	// Replayed in full: hand the buffer back before settling in to relay.
 	consumedPooled = false
 	vhost.PutConsumed(consumed)
 
-	// The transfer may be long lived, so the sniff deadline has to go.
 	if err := userConn.SetDeadline(time.Time{}); err != nil {
 		return
 	}
@@ -222,8 +186,6 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	transferred := netutil.Relay(userConn, workConn)
 	v.record(route.ProxyName, transferred)
 
-	// Guarded: per-connection, and the attribute boxing allocates even with
-	// debug logging off.
 	if v.logger.Enabled(ctx, slog.LevelDebug) {
 		v.logger.Debug("vhost connection closed",
 			"scheme", string(v.scheme),
@@ -236,7 +198,6 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	}
 }
 
-// record accounts for one completed transfer.
 func (v *vhostListener) record(proxyName string, transferred netutil.RelayStats) {
 	if v.stats == nil {
 		return
@@ -244,7 +205,6 @@ func (v *vhostListener) record(proxyName string, transferred netutil.RelayStats)
 	v.stats.RecordTransfer(proxyName, transferred.AToB, transferred.BToA, transferred.Spliced)
 }
 
-// sniff recovers the target host and the bytes consumed doing so.
 func (v *vhostListener) sniff(conn net.Conn) (host, path string, consumed []byte, err error) {
 	switch v.scheme {
 	case vhost.SchemeHTTP:
@@ -257,8 +217,7 @@ func (v *vhostListener) sniff(conn net.Conn) (host, path string, consumed []byte
 			return "", "", info.Consumed, err
 		}
 		if info.ServerName == "" {
-			// No SNI. Only a catch-all route can serve this, and Lookup will
-			// find it if one exists.
+
 			return "", "", info.Consumed, nil
 		}
 		return info.ServerName, "", info.Consumed, nil
@@ -268,29 +227,15 @@ func (v *vhostListener) sniff(conn net.Conn) (host, path string, consumed []byte
 	}
 }
 
-// Minimal responses for the failure paths. Kept deliberately terse: this is an
-// edge proxy, and a verbose error page would leak topology to anyone probing.
 const (
 	statusBadRequest = "400 Bad Request"
 	statusNotFound   = "404 Not Found"
 	statusBadGateway = "502 Bad Gateway"
 )
 
-// unclaimed answers a request for a name no tunnel serves.
-//
-// A bare 404 with no body is the correct status and a useless answer: someone
-// who has just pointed a name here sees an empty page and cannot tell whether
-// DNS is wrong, the server is wrong, or the tunnel is. Saying which of those
-// is true costs one page and removes the guesswork.
-//
-// It names nothing about the other tunnels on this server. Confirming that a
-// request reached OpenFrp is unavoidable — it is answering, after all — but
-// which names it serves is not this visitor's business.
 func (v *vhostListener) unclaimed(conn net.Conn, host string) {
 	if v.scheme != vhost.SchemeHTTP {
-		// Over TLS there is nothing useful to say: the handshake needs a
-		// certificate this server does not have for a name it does not serve,
-		// so the connection is closed and the browser reports it.
+
 		return
 	}
 
@@ -330,9 +275,6 @@ is a tunnel claiming this name.</p>
 		statusNotFound, len(body), body)
 }
 
-// reject answers a failed request. Only HTTP gets a response body — speaking
-// HTTP over a port the client opened for TLS would just produce a confusing
-// protocol error, so HTTPS connections are simply closed.
 func (v *vhostListener) reject(conn net.Conn, status string) {
 	if v.scheme != vhost.SchemeHTTP {
 		return
@@ -352,7 +294,6 @@ func (v *vhostListener) close() error {
 	return err
 }
 
-// addr reports the bound address, or nil before listen.
 func (v *vhostListener) addr() net.Addr {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -363,7 +304,6 @@ func (v *vhostListener) addr() net.Addr {
 	return v.listener.Addr()
 }
 
-// newVhostListener builds a listener for one scheme.
 func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 	router *vhost.Router, registry *Registry, certs *CertStore,
 	challenges *ChallengeStore, traffic *stats.Registry,
@@ -384,13 +324,6 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 	}
 }
 
-// terminate decrypts at the edge and forwards plaintext to the tunnel.
-//
-// The ClientHello the sniffer already consumed has to be replayed into the TLS
-// server, since the handshake cannot start without it. That is what replayConn
-// exists for — and note it deliberately does NOT implement netutil.Unwrapper,
-// because handing the raw socket to splice would bypass the decryption this
-// whole path exists to perform.
 func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Conn,
 	consumed []byte, route *vhost.Route, host, source string) {
 
@@ -422,12 +355,6 @@ func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Co
 		"spliced", transferred.Spliced)
 }
 
-// replayConn re-serves bytes already read from the connection.
-//
-// It intentionally omits netutil.Unwrapper. A transparent wrapper may expose
-// the socket underneath so the relay can splice it; this one transforms the
-// stream by replaying a prefix, and the TLS layer above it transforms it
-// further, so exposing the raw socket would skip both.
 type replayConn struct {
 	net.Conn
 	replay []byte

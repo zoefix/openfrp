@@ -7,24 +7,6 @@
 'require poll';
 'require dom';
 
-/*
- * Servers.
- *
- * A router can connect to several, each with its own control connection,
- * token and transport settings; a tunnel names the one that publishes it.
- * They are UCI sections of type "server", so the single section named
- * "server" that older configurations have is simply the first of them and
- * needs no migration.
- *
- * Adding one is either describing a server that already runs OpenFrp, or
- * provisioning a fresh one over SSH — which fills the connection details in
- * by itself, because they are whatever it just installed.
- *
- * Deployment runs detached: rpcd kills any call past 30 seconds and an SSH
- * deploy takes longer, so job_start returns immediately and this view polls
- * job_status. Navigating away does not interrupt it.
- */
-
 var callStatus = rpc.declare({
 	object: 'luci.openfrp', method: 'status', expect: {}
 });
@@ -34,13 +16,6 @@ var callJobStart = rpc.declare({
 	params: ['kind', 'args'], expect: {}
 });
 
-/*
- * The daemon's live view of each server, fetched once per page load. The
- * version column reads it: which openfrps actually answered the login, and
- * whether the control connection is up right now. A config form does not
- * poll — the figure is from when the page was opened, which is what the rest
- * of the page's facts are too.
- */
 var liveStatus = null;
 
 var callJobStatus = rpc.declare({
@@ -73,9 +48,6 @@ function input(attrs, value) {
 		'value': value || ''
 	}, attrs || {}));
 }
-
-/* ------------------------------------------------------------------ */
-/* Job log                                                             */
 
 function showJobModal(title, jobId, onFinished) {
 	var offset = 0;
@@ -142,13 +114,6 @@ function showJobModal(title, jobId, onFinished) {
 	tick();
 }
 
-/* ------------------------------------------------------------------ */
-/* Adding a server                                                     */
-
-// sectionName makes a UCI section id from what the operator typed.
-//
-// The name is the identity a tunnel points at, so it has to survive as an
-// anonymous-section-free UCI name: letters, digits and underscore only.
 function sectionName(label) {
 	var name = String(label || '').toLowerCase()
 		.replace(/[^a-z0-9_]+/g, '_')
@@ -164,7 +129,6 @@ function uniqueSectionName(base) {
 	return name;
 }
 
-// radio builds one labelled choice in a group.
 function radio(group, value, checked, label, help, onchange) {
 	var control = E('input', {
 		'type': 'radio', 'name': group, 'value': value,
@@ -187,7 +151,6 @@ function radio(group, value, checked, label, help, onchange) {
 	};
 }
 
-// existingFields collects the details of a server that is already running.
 function existingFields() {
 	var nameInput = input({ 'placeholder': 'main' });
 	var addrInput = input({ 'placeholder': '203.0.113.10' });
@@ -223,14 +186,6 @@ function existingFields() {
 	};
 }
 
-// cloudflareFields publishes through a Cloudflare tunnel instead of a server.
-//
-// Nothing is asked for beyond a name. Authorisation is cloudflared's own: it
-// prints a link, the operator opens it wherever they are and picks the domain,
-// and Cloudflare hands back a credential scoped to that. The alternative was an
-// API token assembled out of the right permission boxes, which fails as a bare
-// "Authentication error" when the set is wrong — and the wrong set is the
-// normal outcome of guessing at it.
 function cloudflareFields() {
 	var nameInput = input({ 'placeholder': 'cloudflare' });
 
@@ -247,8 +202,6 @@ function cloudflareFields() {
 		submit: function (view) {
 			var name = uniqueSectionName(sectionName(nameInput.value || 'cloudflare'));
 
-			// Created before the job runs, so the worker has somewhere to
-			// write the tunnel id it makes.
 			uci.add('openfrp', 'server', name);
 			uci.set('openfrp', name, 'kind', 'cloudflare');
 
@@ -277,11 +230,6 @@ function cloudflareFields() {
 	};
 }
 
-// deployFields provisions a server over SSH.
-//
-// section is null when adding, or the name of an existing server being
-// redeployed. Redeploying reuses the stored token, so the tunnels already
-// pointing at it keep working.
 function deployFields(section) {
 	var adding = !section;
 
@@ -294,11 +242,6 @@ function deployFields(section) {
 	var portInput = input({ 'type': 'number' }, stored('ssh_port', '22'));
 	var userInput = input({}, stored('ssh_user', 'root'));
 
-	// The stored password is filled in rather than hinted at, so the field
-	// shows what will actually be used and a second deployment needs nothing
-	// typed. This costs no exposure: LuCI hands the whole openfrp config to
-	// this page on load, so the value was already here — it was merely being
-	// withheld from the one field whose job is to show it.
 	var storedPassword = stored('ssh_pass');
 	var passwordInput = input({
 		'type': 'password', 'class': 'cbi-input-password', 'autocomplete': 'off'
@@ -312,9 +255,6 @@ function deployFields(section) {
 	]);
 	authSelect.value = stored('ssh_auth', 'password');
 
-	// Masked by default and revealable, which is the point of filling it in:
-	// an operator who has forgotten the password of a server they provisioned
-	// months ago can read it back here rather than from a shell.
 	var revealButton = E('button', {
 		'class': 'btn',
 		'style': 'margin-left:0.5em;white-space:nowrap',
@@ -372,16 +312,12 @@ function deployFields(section) {
 				ui.addNotification(null, E('p', {}, _('Enter the SSH host.')), 'warning');
 				return;
 			}
-			// The field is now the whole truth: it arrives holding whatever is
-			// stored, so empty means there is no password rather than "reuse
-			// the one you cannot see".
+
 			if (authSelect.value === 'password' && !passwordInput.value) {
 				ui.addNotification(null, E('p', {}, _('Enter the SSH password.')), 'warning');
 				return;
 			}
 
-			// The section is created before the job runs, so the worker has
-			// somewhere to write the token and fingerprint it produces.
 			var name = section;
 			if (adding) {
 				name = uniqueSectionName(sectionName(nameInput.value || hostInput.value));
@@ -396,14 +332,10 @@ function deployFields(section) {
 			uci.set('openfrp', name, 'ssh_auth', authSelect.value);
 			if (authSelect.value === 'key')
 				uci.set('openfrp', name, 'ssh_key_path', keyInput.value);
-			// Kept, so a later deployment — including one nobody started —
-			// has it. Only when something was typed: an empty field means
-			// "reuse what is stored", not "forget it".
+
 			else if (passwordInput.value)
 				uci.set('openfrp', name, 'ssh_pass', passwordInput.value);
 
-			// Saved before deploying: the worker writes the results straight
-			// into this section, and it has to exist on disk for that to land.
 			uci.save().then(function () {
 				var args = {
 					server: name,
@@ -413,16 +345,6 @@ function deployFields(section) {
 					bind_port: parseInt(controlPort.value, 10) || 7000
 				};
 
-				// Only what was typed here. Everything else the deployment
-				// needs — the stored password, the token that must survive a
-				// redeploy, the host fingerprint, which binary to upload — the
-				// job worker reads from UCI on the router. It has to know how
-				// to do that anyway for a deployment nobody started, and doing
-				// it in one place means the two paths cannot disagree.
-				//
-				// An unchanged password is deliberately not sent: the worker
-				// already reads it from UCI, and sending it would put it in
-				// the job's argument file for no gain.
 				if (authSelect.value === 'password' &&
 					passwordInput.value && passwordInput.value !== storedPassword)
 					args.password = passwordInput.value;
@@ -440,9 +362,6 @@ function deployFields(section) {
 					}
 
 					showJobModal(_('Deploying server'), res.id, function (ok) {
-						// The worker wrote the token and fingerprint into UCI,
-						// so the page has to re-read rather than trust what it
-						// holds.
 						if (ok)
 							view.reload();
 					});
@@ -452,11 +371,6 @@ function deployFields(section) {
 	};
 }
 
-// addDialog offers both ways of adding a server in one place.
-//
-// Installing is the default because it is the one that needs a decision made
-// in advance — the other path is for a server that already exists, which the
-// operator would have to go and find the token for.
 function addDialog(view) {
 	var mode = 'deploy';
 
@@ -519,11 +433,6 @@ function addDialog(view) {
 	refresh();
 }
 
-// cloudflareSetup re-runs the authorisation and tunnel creation for a row.
-//
-// Idempotent by design: an install already present, an authorisation already
-// held, a tunnel already made. Running it again is what happens after a first
-// attempt failed halfway, which is exactly when starting over would hurt most.
 function cloudflareSetup(view, section) {
 	callJobStart('cf_setup', JSON.stringify({
 		server: section,
@@ -542,7 +451,6 @@ function cloudflareSetup(view, section) {
 	});
 }
 
-// deployDialog redeploys an existing server, where there is no choice to make.
 function deployDialog(view, section) {
 	var deploy = deployFields(section);
 
@@ -559,12 +467,6 @@ function deployDialog(view, section) {
 	deploy.focus();
 }
 
-/* ------------------------------------------------------------------ */
-
-// stylesheet returns the app's shared presentation, loaded as part of the view
-// so it applies while one of these pages is open and nowhere else. Dialogs
-// render outside this node, but the link is in the document for as long as the
-// page is, so they pick it up too.
 function stylesheet() {
 	return E('link', {
 		'rel': 'stylesheet',
@@ -581,9 +483,6 @@ return view.extend({
 		]);
 	},
 
-	// reload re-reads UCI and re-renders, which is what the deploy job needs:
-	// it writes the token and fingerprint itself. The live status comes along
-	// so a just-deployed server's version appears with its token.
 	reload: function () {
 		var self = this;
 		uci.unload('openfrp');
@@ -607,8 +506,6 @@ return view.extend({
 		m = new form.Map('openfrp', _('Servers'),
 			_('Each has its own control connection; a tunnel names the one that publishes it.'));
 
-		/* ---------------------------------------------------------------- */
-
 		s = m.section(form.NamedSection, 'global', 'global', _('Service'));
 
 		o = s.option(form.Flag, 'enabled', _('Enable OpenFrp'));
@@ -621,16 +518,11 @@ return view.extend({
 		o.value('error', 'error');
 		o.default = 'info';
 
-		/* ---------------------------------------------------------------- */
-
 		s = m.section(form.GridSection, 'server', _('Servers'));
 		s.addremove = true;
 		s.anonymous = false;
 		s.nodescriptions = true;
 
-		// Adding goes through the dialog, which asks whether this is an
-		// existing server or one to install. The built-in "add" would create a
-		// blank section with neither path taken.
 		s.renderSectionAdd = function (extra_class) {
 			return E('div', { 'class': 'cbi-section-create' },
 				button(_('Add a server'), 'cbi-button-add', function () {
@@ -638,11 +530,6 @@ return view.extend({
 				}));
 		};
 
-		// A Cloudflare row has nothing to edit. It has no address, no control
-		// port and no token, and the one thing it does hold — the tunnel — is
-		// made by Set up rather than typed in. The dialog would open on a form
-		// of fields that do not apply to it, every one of them saveable and
-		// none of them read by anything.
 		s.renderRowActions = function (section_id, more_label, trEl) {
 			var label = uci.get('openfrp', section_id, 'kind') === 'cloudflare'
 				? null : _('Edit');
@@ -657,9 +544,7 @@ return view.extend({
 		o = s.option(form.Value, 'addr', _('Address'));
 		o.datatype = 'or(host,ipaddr)';
 		o.rmempty = false;
-		// A Cloudflare row has no address to show and never will: cloudflared
-		// dials outward, so there is nothing here to dial. Left alone the cell
-		// is blank, which reads as a server whose address was forgotten.
+
 		o.textvalue = function (section_id) {
 			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare')
 				return _('Cloudflare Tunnel');
@@ -670,9 +555,6 @@ return view.extend({
 		o.datatype = 'port';
 		o.default = '7000';
 		o.textvalue = function (section_id) {
-			// Nothing dials a Cloudflare tunnel, so it has no port to show.
-			// The default rendered as 7000, which is a number that means
-			// nothing here and looks like a setting that was chosen.
 			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare')
 				return '—';
 			return uci.get('openfrp', section_id, 'port') || '7000';
@@ -681,8 +563,6 @@ return view.extend({
 		o = s.option(form.DummyValue, '_tunnels', _('Tunnels'));
 		o.modalonly = false;
 		o.cfgvalue = function (section_id) {
-			// Which tunnels this server publishes. A tunnel naming no server
-			// belongs to the first one, which is the rule the daemon applies.
 			var first = null;
 			uci.sections('openfrp', 'server', function (server) {
 				if (first === null)
@@ -701,8 +581,6 @@ return view.extend({
 		o = s.option(form.DummyValue, '_version', _('Version'));
 		o.modalonly = false;
 		o.cfgvalue = function (section_id) {
-			// cloudflared owns a Cloudflare server's connection; this daemon
-			// has no login to learn a version from.
 			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare')
 				return '—';
 
@@ -710,16 +588,12 @@ return view.extend({
 				liveStatus.servers[section_id];
 
 			if (!info) {
-				// The daemon is not running, predates the field, or has no
-				// client for this server. Only the first is worth words.
 				return (liveStatus && liveStatus.running)
 					? _('not connected') : '—';
 			}
 			if (!info.version)
 				return info.connected ? _('connected') : _('not connected');
 
-			// The version the server announced at login. Kept after a drop,
-			// annotated so a stale figure cannot pass for a live connection.
 			return info.connected
 				? info.version
 				: '%s (%s)'.format(info.version, _('not connected'));
@@ -729,22 +603,11 @@ return view.extend({
 		o.modalonly = false;
 		o.cfgvalue = function (section_id) {
 			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare') {
-				// Two different states, and calling both "not authorised"
-				// sends the operator to re-authorise a router that already
-				// is. The credential belongs to the router; the tunnel
-				// belongs to this row, and only the second can be missing
-				// once the first is held.
 				var tunnel = uci.get('openfrp', section_id, 'tunnel_id');
 				return tunnel ? _('Tunnel %s').format(tunnel)
 					: _('No tunnel yet — press Set up');
 			}
 
-			// A server with SSH details but no token is a deployment that
-			// started and never finished: the section is created up front so
-			// the worker has somewhere to write the token, and a failure
-			// leaves the address behind without one. It looks configured and
-			// can never log in, so it is named here rather than left to
-			// surface as an authentication failure somewhere else entirely.
 			if (!uci.get('openfrp', section_id, 'token')) {
 				return uci.get('openfrp', section_id, 'ssh_host')
 					? _('Deployment did not finish — no token yet')
@@ -756,10 +619,7 @@ return view.extend({
 
 		o = s.option(form.Button, '_redeploy', _('Deploy'));
 		o.modalonly = false;
-		// A grid cell is plain text unless the option declares itself editable.
-		// Without this the column rendered the button's value instead of the
-		// button, so the one control that repairs a half-finished deployment
-		// was not reachable from the page that reports it.
+
 		o.editable = true;
 		o.inputtitle = function (section_id) {
 			return uci.get('openfrp', section_id, 'kind') === 'cloudflare'
@@ -767,9 +627,6 @@ return view.extend({
 		};
 		o.inputstyle = 'apply';
 		o.onclick = function (ev, section_id) {
-			// A Cloudflare row has nothing to deploy over SSH. The same button
-			// re-runs its setup, which is idempotent and is what repairs an
-			// authorisation that was never finished.
 			if (uci.get('openfrp', section_id, 'kind') === 'cloudflare') {
 				cloudflareSetup(self, section_id);
 				return false;
@@ -777,8 +634,7 @@ return view.extend({
 			deployDialog(self, section_id);
 			return false;
 		};
-		// A control, not a setting: being editable would otherwise put it in
-		// front of the parser, which would write it out as a server option.
+
 		o.parse = function () {
 			return Promise.resolve();
 		};
@@ -831,7 +687,6 @@ return view.extend({
 		o.placeholder = 'https://example.com/openfrps_{os}_{arch}';
 		o.modalonly = true;
 
-		// The map renders one node; the stylesheet rides along with it.
 		return m.render().then(function (node) {
 			return E('div', {}, [stylesheet(), node]);
 		});

@@ -1,8 +1,3 @@
-// Package e2e drives a real server and a real client over loopback sockets.
-//
-// These tests are the acceptance gate for P0: they prove a user connection is
-// carried end to end, and that the relay reaches the kernel fast path on the
-// platform we actually ship to.
 package e2e
 
 import (
@@ -27,14 +22,12 @@ import (
 
 const testToken = "integration-token"
 
-// harness is a running server, a running client, and a LAN service behind it.
 type harness struct {
 	server     *server.Server
 	serverPort int
 	localAddr  string
 }
 
-// startEchoService stands in for the LAN service behind the router.
 func startEchoService(t testing.TB) string {
 	t.Helper()
 
@@ -60,7 +53,6 @@ func startEchoService(t testing.TB) string {
 	return ln.Addr().String()
 }
 
-// start brings up a server and a client wired to one tcp tunnel.
 func start(t testing.TB, mux bool) *harness {
 	t.Helper()
 
@@ -78,14 +70,11 @@ func start(t testing.TB, mux bool) *harness {
 
 	serverCfg := &config.Server{
 		BindAddr: "127.0.0.1",
-		BindPort: 0, // let the kernel choose
+		BindPort: 0,
 		Token:    testToken,
-		// AcceptLoops stays at the default (one per CPU, SO_REUSEPORT) so
-		// these tests and benchmarks exercise the accept path production runs.
 	}
 	serverCfg.ApplyDefaults()
-	// ApplyDefaults would substitute the standard port for zero, so restore
-	// the ephemeral request afterwards.
+
 	serverCfg.BindPort = 0
 
 	srv, err := server.New(serverCfg, logger, "test")
@@ -130,7 +119,7 @@ func start(t testing.TB, mux bool) *harness {
 			Type:       config.TunnelTCP,
 			LocalIP:    localHost,
 			LocalPort:  localPort,
-			RemotePort: 0, // ask the server to allocate
+			RemotePort: 0,
 		}},
 	}
 	clientCfg.ApplyDefaults()
@@ -164,7 +153,6 @@ func start(t testing.TB, mux bool) *harness {
 	}
 }
 
-// proxyPort waits for the tunnel to be published and returns its public port.
 func (h *harness) proxyPort(t testing.TB, name string) int {
 	t.Helper()
 
@@ -182,14 +170,11 @@ func (h *harness) proxyPort(t testing.TB, name string) int {
 	return 0
 }
 
-// dialTunnel opens a connection to the published tunnel.
 func (h *harness) dialTunnel(t testing.TB, port int) net.Conn {
 	t.Helper()
 
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 
-	// The proxy listener is up before the warm pool necessarily is, so allow a
-	// couple of attempts rather than flaking on a cold start.
 	var lastErr error
 	for range 50 {
 		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
@@ -205,7 +190,6 @@ func (h *harness) dialTunnel(t testing.TB, port int) net.Conn {
 	return nil
 }
 
-// TestTunnelCarriesTraffic is the P0 acceptance test.
 func TestTunnelCarriesTraffic(t *testing.T) {
 	h := start(t, false)
 	port := h.proxyPort(t, "echo")
@@ -229,8 +213,6 @@ func TestTunnelCarriesTraffic(t *testing.T) {
 	}
 }
 
-// TestTunnelCarriesBulkPayload pushes enough data to exercise the relay past
-// any single buffer, which is where an off-by-one in the copy path shows up.
 func TestTunnelCarriesBulkPayload(t *testing.T) {
 	h := start(t, false)
 	port := h.proxyPort(t, "echo")
@@ -240,7 +222,7 @@ func TestTunnelCarriesBulkPayload(t *testing.T) {
 		t.Fatalf("SetDeadline: %v", err)
 	}
 
-	payload := make([]byte, 4<<20) // 4 MiB
+	payload := make([]byte, 4<<20)
 	if _, err := rand.Read(payload); err != nil {
 		t.Fatalf("rand: %v", err)
 	}
@@ -265,8 +247,6 @@ func TestTunnelCarriesBulkPayload(t *testing.T) {
 	}
 }
 
-// TestTunnelHandlesConcurrentConnections proves the warm pool refills under
-// load rather than serving the first few connections and then stalling.
 func TestTunnelHandlesConcurrentConnections(t *testing.T) {
 	h := start(t, false)
 	port := h.proxyPort(t, "echo")
@@ -311,8 +291,6 @@ func TestTunnelHandlesConcurrentConnections(t *testing.T) {
 	}
 }
 
-// TestTunnelOverMuxTransport covers the opt-in multiplexed path. It is the
-// slow path by design, but it still has to be correct.
 func TestTunnelOverMuxTransport(t *testing.T) {
 	h := start(t, true)
 	port := h.proxyPort(t, "echo")
@@ -335,10 +313,9 @@ func TestTunnelOverMuxTransport(t *testing.T) {
 	}
 }
 
-// TestServerRejectsBadToken confirms authentication is actually enforced.
 func TestServerRejectsBadToken(t *testing.T) {
 	h := start(t, false)
-	h.proxyPort(t, "echo") // wait until the good client is established
+	h.proxyPort(t, "echo")
 
 	logger := log.Discard()
 	badCfg := &config.Client{
@@ -363,8 +340,6 @@ func TestServerRejectsBadToken(t *testing.T) {
 	go cli.Run(ctx)
 	<-ctx.Done()
 
-	// The impostor must never appear as a session, and the legitimate client
-	// must still be connected.
 	for _, session := range h.server.Registry().Sessions() {
 		if session.Name() == "impostor" {
 			t.Fatal("a client with the wrong token established a session")
@@ -376,10 +351,6 @@ func TestServerRejectsBadToken(t *testing.T) {
 	}
 }
 
-// TestEndToEndUsesKernelFastPath is the performance regression guard at the
-// integration level. The unit test in netutil proves the eligibility rules;
-// this proves the assembled server and client actually satisfy them, which is
-// what a refactor would silently break.
 func TestEndToEndUsesKernelFastPath(t *testing.T) {
 	if !netutil.ReusePortSupported() {
 		t.Skip("platform without the socket features this exercises")
@@ -408,8 +379,6 @@ func TestEndToEndUsesKernelFastPath(t *testing.T) {
 		t.Fatal("no relays were recorded")
 	}
 
-	// Two relays serve one tunnelled connection: the server joins user to work
-	// connection, the client joins work connection to the local service.
 	if runtime.GOOS != "linux" {
 		t.Logf("splice(2) is Linux-only; recorded %d buffered relays here", buffered)
 		return

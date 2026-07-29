@@ -1,5 +1,3 @@
-// Package powerdns manages records in a self-hosted PowerDNS authoritative
-// server.
 package powerdns
 
 import (
@@ -29,8 +27,7 @@ func init() {
 		}},
 		Capabilities: dns.Capabilities{
 			Remark: dns.RemarkUnsupported,
-			// PowerDNS has no notion of a disabled record set; it exists or it
-			// does not.
+
 			Status:    false,
 			Paginated: false,
 			MinTTL:    1,
@@ -101,7 +98,6 @@ func (p *provider) ListDomains(ctx context.Context, _ dns.ListOptions) ([]dns.Do
 	return out, nil
 }
 
-// canonical renders a zone the way PowerDNS names them, with a trailing dot.
 func canonical(zone string) string {
 	return strings.TrimSuffix(zone, ".") + "."
 }
@@ -123,8 +119,6 @@ func (p *provider) ListRecords(ctx context.Context, zone string, _ dns.ListOptio
 		return nil, err
 	}
 
-	// PowerDNS groups by name and type, like Huawei. Flatten so it looks the
-	// same as every other provider; the index makes each row addressable.
 	var out []dns.Record
 	for _, set := range payload.RRSets {
 		for index, record := range set.Records {
@@ -142,8 +136,6 @@ func (p *provider) ListRecords(ctx context.Context, zone string, _ dns.ListOptio
 	return out, nil
 }
 
-// patch sends an rrset change. PowerDNS models create, update and delete as
-// one PATCH with a changetype, so all three share this.
 func (p *provider) patch(ctx context.Context, zone string, rrset map[string]any) error {
 	body := map[string]any{"rrsets": []map[string]any{rrset}}
 	return p.call(ctx, http.MethodPatch, "/zones/"+canonical(zone), body, nil)
@@ -164,7 +156,7 @@ func (p *provider) rrsetFor(zone string, record dns.Record) (map[string]any, err
 
 	content := record.Value
 	if record.Type == dns.TypeTXT && !strings.HasPrefix(content, `"`) {
-		// PowerDNS requires TXT content to be a quoted character-string.
+
 		content = `"` + content + `"`
 	}
 

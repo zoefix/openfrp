@@ -1,21 +1,4 @@
 #!/bin/sh /etc/rc.common
-#
-# procd service for the cloudflared processes.
-#
-# Separate from the openfrp service on purpose, and this is the whole reason
-# the file exists. cloudflared exits on its own: when its last connection to
-# Cloudflare's edge goes away it logs "no more connections active and exiting"
-# and stops. While it was an instance of the openfrp service that exit was an
-# event in openfrpc's life too, and every tunnel this router publishes through
-# its own servers went down with a tunnel that has nothing to do with them.
-#
-# procd restarts instances one at a time, so each Cloudflare server here fails
-# and recovers by itself. What they still share is this script: restarting the
-# service, or a configuration apply that changes what they serve, restarts all
-# of them. Nothing openfrpc does reaches any of them.
-#
-# shellcheck shell=ash disable=SC2034
-#
 
 START=99
 STOP=10
@@ -28,13 +11,6 @@ RUNDIR=/var/run/openfrp
 CLOUDFLARED=/usr/lib/openfrp/cloudflared
 CFDIR=/etc/openfrp/cloudflared
 
-# CONF is this service's own rendered copy of the configuration.
-#
-# Not /var/etc/openfrp.json, which belongs to the openfrp service and is
-# deleted when it stops. Reading that one would mean a router whose client is
-# stopped could not start or restart its Cloudflare tunnels — the coupling
-# this split exists to remove, reintroduced through a filename. Both come from
-# the same renderer and the same UCI, so they say the same thing.
 CONF=$RUNDIR/cloudflared.json
 
 say() {
@@ -53,8 +29,6 @@ start_service() {
 		return 0
 	fi
 
-	# Nothing to do on a router with no Cloudflare server, which is most of
-	# them. Checked before rendering so the common case costs one UCI pass.
 	CF_FOUND=0
 	config_foreach count_cloudflare server
 	[ "$CF_FOUND" = "1" ] || return 0
@@ -78,12 +52,6 @@ count_cloudflare() {
 	return 0
 }
 
-# start_cloudflared runs one cloudflared for one Cloudflare tunnel server.
-#
-# A separate process from openfrpc because it is a separate product:
-# cloudflared speaks Cloudflare's protocol to their edge, and this project's
-# daemon speaks its own to an openfrps. Neither can carry the other's traffic,
-# so a router publishing both ways runs both.
 start_cloudflared() {
 	local section="$1"
 	local kind tunnel_id config
@@ -102,26 +70,15 @@ start_cloudflared() {
 		return 0
 	fi
 
-	# Rendering the ingress and routing the hostnames happens here rather than
-	# at setup: a domain added to a tunnel afterwards needs its own DNS record,
-	# and cloudflared needs to be told where the new hostname goes. Failure is
-	# reported and not fatal — a name that could not be routed should not stop
-	# the names that could, and at boot this runs before there is any route to
-	# Cloudflare to make the call over.
 	local applied
 	if ! applied="$("$PROG" cftunnel apply -server "$section" -config "$CONF" \
 		-binary "$CLOUDFLARED" -dir "$CFDIR" 2>&1)"; then
 		say "$section could not be published to Cloudflare: $applied"
 	fi
 
-	# One configuration per server, so applying one server's tunnels cannot
-	# rewrite what another one is serving. The path is the one openfrpc's
-	# WriteConfig picks; it is spelled out in both places because a shell
-	# script cannot ask a Go function.
 	config="$CFDIR/config-$section.yml"
 	if [ ! -f "$config" ]; then
-		# Without this the instance is a respawn loop against a missing file,
-		# five times, and then silence. The apply above has already said why.
+
 		say "$section has no configuration at $config, not starting it"
 		return 0
 	fi
@@ -132,9 +89,6 @@ start_cloudflared() {
 		--no-autoupdate \
 		tunnel run "$tunnel_id"
 
-	# procd hashes this and restarts just this instance when it changes, so a
-	# reload that publishes a new hostname reaches cloudflared without touching
-	# the other servers' processes.
 	procd_set_param file "$config"
 
 	procd_set_param stdout 1
@@ -147,10 +101,6 @@ start_cloudflared() {
 stop_service() {
 	rm -f "$CONF"
 }
-
-# reload_service is deliberately absent, as it is in the openfrp service: the
-# default reload hands procd the whole definition and lets it restart only the
-# instances whose configuration actually changed.
 
 service_triggers() {
 	procd_add_reload_trigger "openfrp"

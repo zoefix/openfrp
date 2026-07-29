@@ -31,9 +31,6 @@ func TestPreambleRoundTrip(t *testing.T) {
 	}
 }
 
-// TestPreambleRejectsNonProtocolTraffic is the reason the magic exists: a port
-// scan or a stray HTTP request must be turned away immediately rather than
-// occupying a goroutine until it times out.
 func TestPreambleRejectsNonProtocolTraffic(t *testing.T) {
 	cases := map[string]string{
 		"http request": "GET / HTTP/1.1\r\nHost: x\r\n\r\n",
@@ -82,8 +79,6 @@ func TestPreambleTruncated(t *testing.T) {
 	}
 }
 
-// TestPreambleThenCodecShareOneStream confirms the framed protocol picks up
-// cleanly right after the preamble, with no stray bytes between them.
 func TestPreambleThenCodecShareOneStream(t *testing.T) {
 	var buf bytes.Buffer
 

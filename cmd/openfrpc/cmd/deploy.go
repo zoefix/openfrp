@@ -21,11 +21,6 @@ func init() {
 	})
 }
 
-// stdinArgs is the JSON the LuCI job worker pipes in.
-//
-// Credentials arrive this way rather than as flags because /proc/*/cmdline is
-// readable by every local process on the router. A password passed as an
-// argument is a password published to anyone with a shell.
 type stdinArgs struct {
 	deploy.Credentials
 	Token          string `json:"token,omitempty"`
@@ -37,9 +32,6 @@ type stdinArgs struct {
 	SHA256         string `json:"sha256,omitempty"`
 	EnableBBR      *bool  `json:"enable_bbr,omitempty"`
 
-	// Server names the UCI section this deployment belongs to. It is used by
-	// the job worker to write the results back to the right server and is
-	// accepted here only so the strict decoder does not reject it.
 	Server string `json:"server,omitempty"`
 }
 
@@ -97,8 +89,6 @@ func runDeploy(ctx context.Context, args []string) error {
 		DryRun:         *dryRun,
 	}
 
-	// The LuCI worker always uses this path. It is also how a password reaches
-	// us from an interactive shell without ever touching argv.
 	if *readStdin {
 		payload, err := io.ReadAll(os.Stdin)
 		if err != nil {
@@ -127,8 +117,7 @@ func runDeploy(ctx context.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		// The final line is the machine-readable result: the caller needs the
-		// generated token and the host fingerprint to store in UCI.
+
 		summary, _ := json.Marshal(map[string]any{"result": result})
 		fmt.Println(string(summary))
 	} else if !opts.DryRun {
@@ -140,7 +129,6 @@ func runDeploy(ctx context.Context, args []string) error {
 	return nil
 }
 
-// applyStdin merges JSON settings over the flag-derived options.
 func applyStdin(opts *deploy.Options, payload []byte) error {
 	if len(bytes.TrimSpace(payload)) == 0 {
 		return nil

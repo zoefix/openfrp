@@ -12,35 +12,22 @@ import (
 	"time"
 )
 
-// AliyunRPCRequest signs a call to one of Alibaba Cloud's older RPC-style
-// endpoints, which is what the DNS, ESA and CDN APIs still use.
-//
-// The scheme predates SigV4 and is unusual in two ways worth flagging, because
-// both produce a signature error that says nothing about which part was wrong:
-//
-//   - The string to sign wraps a percent-encoded copy of the whole canonical
-//     query, so every parameter ends up encoded twice.
-//   - The HMAC key is the secret with a trailing "&" appended.
 type AliyunRPCRequest struct {
-	// Endpoint is the host, e.g. "alidns.aliyuncs.com".
 	Endpoint string
-	// Action is the RPC method, e.g. "DescribeDomainRecords".
+
 	Action string
-	// Version is the API version, e.g. "2015-01-09".
+
 	Version string
-	// Params carries the call's own arguments. The common parameters are
-	// added here.
+
 	Params map[string]string
 
 	AccessKeyID     string
 	AccessKeySecret string
 
-	// Now and Nonce are injectable so the signature is testable.
 	Now   time.Time
 	Nonce string
 }
 
-// SignedURL returns the fully signed GET URL for the call.
 func (r AliyunRPCRequest) SignedURL() (string, error) {
 	if r.Endpoint == "" || r.Action == "" || r.Version == "" {
 		return "", fmt.Errorf("cloudapi: aliyun request needs an endpoint, action and version")
@@ -78,9 +65,6 @@ func (r AliyunRPCRequest) SignedURL() (string, error) {
 
 	canonical := CanonicalQuery(values)
 
-	// The canonical query is percent-encoded again as a whole before being
-	// signed. This double encoding is the single most common reason an
-	// otherwise correct Aliyun signature is rejected.
 	stringToSign := "GET&" + PercentEncode("/") + "&" + PercentEncode(canonical)
 
 	mac := hmac.New(sha1.New, []byte(r.AccessKeySecret+"&"))
@@ -91,11 +75,6 @@ func (r AliyunRPCRequest) SignedURL() (string, error) {
 		r.Endpoint, PercentEncode(signature), canonical), nil
 }
 
-// BaiduBCERequest signs a Baidu Cloud call.
-//
-// Baidu uses its own bce-auth-v1 scheme: an authorization string that embeds
-// the timestamp and expiry, with the signing key derived from that same
-// prefix. It resembles SigV4 without matching it closely enough to share code.
 type BaiduBCERequest struct {
 	Method  string
 	Host    string
@@ -106,12 +85,10 @@ type BaiduBCERequest struct {
 	AccessKeyID     string
 	SecretAccessKey string
 
-	// ExpiresSeconds bounds how long the signature stays valid.
 	ExpiresSeconds int
 	Now            time.Time
 }
 
-// AuthorizationHeader returns the value for the Authorization header.
 func (r BaiduBCERequest) AuthorizationHeader() string {
 	now := r.Now
 	if now.IsZero() {
@@ -132,8 +109,6 @@ func (r BaiduBCERequest) AuthorizationHeader() string {
 		path = "/"
 	}
 
-	// Baidu signs the host header plus anything explicitly supplied, lowercased
-	// and sorted.
 	headers := map[string]string{"host": r.Host}
 	for key, value := range r.Headers {
 		headers[strings.ToLower(key)] = value

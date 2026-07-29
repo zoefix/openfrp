@@ -6,10 +6,6 @@ import (
 	"testing"
 )
 
-// The renderer emits every field a server section carries, and the loader
-// rejects one it does not know — which is the point, but it means a field
-// added to one side and not the other does not misbehave, it stops the daemon
-// from starting at all. This is the pair that did exactly that.
 func TestACloudflareServerLoadsWithItsZone(t *testing.T) {
 	const rendered = `{
 		"servers": [

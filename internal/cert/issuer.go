@@ -16,7 +16,6 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 )
 
-// Well-known ACME directories.
 const (
 	DirectoryLetsEncrypt        = "https://acme-v02.api.letsencrypt.org/directory"
 	DirectoryLetsEncryptStaging = "https://acme-staging-v02.api.letsencrypt.org/directory"
@@ -24,17 +23,14 @@ const (
 	DirectoryGoogle             = "https://dv.acme-v02.api.pki.goog/directory"
 )
 
-// CA describes a certificate authority.
 type CA struct {
 	Key       string `json:"key"`
 	Label     string `json:"label"`
 	Directory string `json:"directory"`
-	// RequiresEAB is true for CAs that will not issue without external account
-	// binding credentials.
+
 	RequiresEAB bool `json:"requires_eab"`
 }
 
-// CAs lists the supported authorities.
 func CAs() []CA {
 	return []CA{
 		{Key: "letsencrypt", Label: "Let's Encrypt", Directory: DirectoryLetsEncrypt},
@@ -45,7 +41,6 @@ func CAs() []CA {
 	}
 }
 
-// LookupCA finds a CA by key.
 func LookupCA(key string) (CA, bool) {
 	for _, ca := range CAs() {
 		if ca.Key == key {
@@ -55,18 +50,11 @@ func LookupCA(key string) (CA, bool) {
 	return CA{}, false
 }
 
-// Account is an ACME account and its key.
-//
-// The key is what proves ownership of the account to the CA. Losing it means
-// losing the ability to revoke, and re-registering the same email creates a
-// second account against the same rate limits — so it is persisted alongside
-// the certificates rather than regenerated per issuance.
 type Account struct {
 	Email        string `json:"email"`
 	PrivateKey   []byte `json:"private_key"`
 	Registration []byte `json:"registration,omitempty"`
 
-	// EAB credentials, for CAs that require them.
 	EABKeyID string `json:"eab_key_id,omitempty"`
 	EABHMAC  string `json:"eab_hmac,omitempty"`
 
@@ -74,16 +62,12 @@ type Account struct {
 	registration *registration.Resource
 }
 
-// GetEmail implements lego's registration.User.
 func (a *Account) GetEmail() string { return a.Email }
 
-// GetRegistration implements lego's registration.User.
 func (a *Account) GetRegistration() *registration.Resource { return a.registration }
 
-// GetPrivateKey implements lego's registration.User.
 func (a *Account) GetPrivateKey() crypto.PrivateKey { return a.key }
 
-// ensureKey loads or creates the account key.
 func (a *Account) ensureKey() error {
 	if a.key != nil {
 		return nil
@@ -121,37 +105,26 @@ func (a *Account) ensureKey() error {
 	return nil
 }
 
-// IssueRequest describes one certificate order.
 type IssueRequest struct {
-	// Domains are the names to cover. A wildcard forces DNS-01 for the order.
 	Domains []string
-	// CA selects the authority: either a key from CAs(), or an ACME directory
-	// URL for one that is not listed. Empty means Let's Encrypt.
+
 	CA string
-	// KeyType is the certificate key algorithm. Empty means ECDSA P-256.
+
 	KeyType KeyType
-	// Account carries the ACME account. Its key is created if absent.
+
 	Account *Account
-	// Solver answers a DNS-01 challenge. Required for a wildcard, which no
-	// other challenge type can prove.
+
 	Solver ChallengeSolver
 
-	// HTTPSolver answers an HTTP-01 challenge, used when no DNS solver is
-	// supplied. It needs no credentials for the zone — only that the name
-	// already resolves to the tunnel server, which it does, because that is
-	// what the certificate is for.
 	HTTPSolver HTTPSolver
-	// PreferredChain selects an issuer chain by root common name, for clients
-	// that still distrust a newer root.
+
 	PreferredChain string
 }
 
-// Issuer obtains certificates from an ACME CA.
 type Issuer struct {
 	logger *slog.Logger
 }
 
-// NewIssuer returns an issuer.
 func NewIssuer(logger *slog.Logger) *Issuer {
 	if logger == nil {
 		logger = slog.Default()
@@ -159,16 +132,12 @@ func NewIssuer(logger *slog.Logger) *Issuer {
 	return &Issuer{logger: logger}
 }
 
-// Issue obtains a certificate.
 func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, error) {
 	domains := NormaliseDomains(req.Domains)
 	if len(domains) == 0 {
 		return nil, fmt.Errorf("cert: no domains requested")
 	}
 
-	// The wildcard case first: it is the more specific diagnosis, and telling
-	// someone to "supply a solver" when the real constraint is that only DNS
-	// can prove a wildcard sends them down the wrong path.
 	if NeedsDNSChallenge(domains) && req.Solver == nil {
 		wildcards := make([]string, 0, 1)
 		for _, domain := range domains {
@@ -209,8 +178,7 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 	config := lego.NewConfig(account)
 	config.CADirURL = ca.Directory
 	config.Certificate.KeyType = keyType
-	// Issuance is slow by nature — DNS propagation dominates — and a short
-	// timeout here turns a working setup into a flapping one.
+
 	config.Certificate.Timeout = 15 * time.Minute
 
 	client, err := lego.NewClient(config)
@@ -218,14 +186,9 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 		return nil, fmt.Errorf("cert: create ACME client: %w", err)
 	}
 
-	// DNS-01 takes precedence where both are available: it is the only one
-	// that can prove a wildcard, and it does not depend on the name already
-	// resolving anywhere.
 	switch {
 	case req.Solver != nil:
-		// The context is bound here rather than stored on the request, so a
-		// cancelled issuance stops the solver mid-propagation instead of
-		// leaving challenge records behind.
+
 		solver := legoSolver{ctx: ctx, inner: req.Solver}
 		if err := client.Challenge.SetDNS01Provider(solver); err != nil {
 			return nil, fmt.Errorf("cert: configure DNS challenge: %w", err)
@@ -271,7 +234,6 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 	return issued, nil
 }
 
-// register creates or reuses the ACME account.
 func (i *Issuer) register(_ context.Context, client *lego.Client, account *Account, ca CA) error {
 	if account.registration != nil {
 		return nil
@@ -305,24 +267,13 @@ func (i *Issuer) register(_ context.Context, client *lego.Client, account *Accou
 	return nil
 }
 
-// resolveCA turns the CA field of a request into a concrete authority.
-//
-// It accepts either a key from CAs() or a bare ACME directory URL. Both are
-// legitimate: the keys cover the authorities with known quirks such as
-// mandatory external account binding, and a URL is how a private or otherwise
-// unlisted ACME server is reached.
-//
-// Distinguishing them by scheme rather than by lookup-then-fallback keeps the
-// error honest — a mistyped key reports as an unknown key rather than being
-// silently treated as a URL and failing much later with a network error.
 func resolveCA(value string) (CA, error) {
 	if value == "" {
 		value = "letsencrypt"
 	}
 
 	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
-		// A directory URL may still name one of the known authorities, and if
-		// it does we want its metadata — RequiresEAB in particular.
+
 		for _, ca := range CAs() {
 			if ca.Directory == value {
 				return ca, nil

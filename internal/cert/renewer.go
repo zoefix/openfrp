@@ -8,63 +8,43 @@ import (
 	"time"
 )
 
-// Renewal defaults.
 const (
-	// DefaultRenewBefore is how many days ahead of expiry to renew.
-	//
-	// Let's Encrypt issues for 90 days and recommends renewing at 30, which
-	// leaves a fortnight of daily retries before anything breaks. Renewing at
-	// 7 — as dnsmgr does — works until the first outage that lasts a week.
 	DefaultRenewBefore = 30
 
-	// DefaultCheckInterval is how often to look for work.
 	DefaultCheckInterval = 12 * time.Hour
 
-	// retryBackoff bounds how soon a failed renewal is retried, so a
-	// persistent failure cannot hammer a CA into rate-limiting the account.
 	retryBackoff = 6 * time.Hour
 )
 
-// Store persists certificates. Declared here, on the consuming side, so the
-// renewer depends only on what it uses.
 type Store interface {
-	// List returns every managed certificate.
 	List(ctx context.Context) ([]Managed, error)
-	// Save records a renewed certificate.
+
 	Save(ctx context.Context, managed Managed) error
 }
 
-// Installer delivers a certificate to wherever it is needed.
 type Installer interface {
 	Install(ctx context.Context, managed Managed) error
 }
 
-// Managed is a certificate under renewal management.
 type Managed struct {
-	// ID identifies this managed certificate.
 	ID string `json:"id"`
-	// Request is what to ask for when renewing.
+
 	Domains []string `json:"domains"`
 	CA      string   `json:"ca"`
 	KeyType KeyType  `json:"key_type"`
-	// DNSAccount names the credential set used for the challenge.
+
 	DNSAccount string `json:"dns_account,omitempty"`
 
-	// Certificate is the material currently held. Nil before first issuance.
 	Certificate *Certificate `json:"certificate,omitempty"`
 
-	// AutoRenew is false for a certificate the operator manages by hand.
 	AutoRenew bool `json:"auto_renew"`
-	// RenewBefore overrides the default threshold in days.
+
 	RenewBefore int `json:"renew_before,omitempty"`
 
-	// LastAttempt and LastError record the most recent try, so a persistent
-	// failure is visible in the UI rather than only in a log.
 	LastAttempt time.Time `json:"last_attempt,omitempty"`
 	LastError   string    `json:"last_error,omitempty"`
 }
 
-// threshold returns the renewal threshold in days.
 func (m Managed) threshold() int {
 	if m.RenewBefore > 0 {
 		return m.RenewBefore
@@ -72,7 +52,6 @@ func (m Managed) threshold() int {
 	return DefaultRenewBefore
 }
 
-// Due reports whether this certificate should be renewed now.
 func (m Managed) Due(now time.Time) bool {
 	if !m.AutoRenew {
 		return false
@@ -80,8 +59,7 @@ func (m Managed) Due(now time.Time) bool {
 	if m.Certificate == nil {
 		return true
 	}
-	// Back off after a failure so a broken configuration does not retry every
-	// cycle and burn the CA's rate limit for the account.
+
 	if !m.LastAttempt.IsZero() && m.LastError != "" {
 		if now.Sub(m.LastAttempt) < retryBackoff {
 			return false
@@ -90,14 +68,8 @@ func (m Managed) Due(now time.Time) bool {
 	return m.Certificate.NeedsRenewal(now, m.threshold())
 }
 
-// SolverFactory builds a challenge solver for one managed certificate.
-//
-// A function rather than a stored solver because credentials are looked up per
-// certificate, and because a solver holds per-issuance state that must not be
-// shared between orders.
 type SolverFactory func(ctx context.Context, managed Managed) (ChallengeSolver, error)
 
-// Renewer keeps managed certificates current.
 type Renewer struct {
 	store     Store
 	issuer    *Issuer
@@ -105,14 +77,12 @@ type Renewer struct {
 	installer Installer
 	logger    *slog.Logger
 
-	// now is injectable for tests.
 	now func() time.Time
 
 	mu      sync.Mutex
 	running bool
 }
 
-// NewRenewer returns a renewer.
 func NewRenewer(store Store, issuer *Issuer, solvers SolverFactory,
 	installer Installer, logger *slog.Logger) *Renewer {
 
@@ -129,20 +99,12 @@ func NewRenewer(store Store, issuer *Issuer, solvers SolverFactory,
 	}
 }
 
-// Name implements scheduler.Job.
 func (r *Renewer) Name() string { return "certificate-renewal" }
 
-// Interval implements scheduler.Job.
 func (r *Renewer) Interval() time.Duration { return DefaultCheckInterval }
 
-// Run renews everything that is due.
-//
-// One certificate failing does not stop the others: a single bad DNS
-// credential should not hold up every other renewal on the router.
 func (r *Renewer) Run(ctx context.Context) error {
-	// Guard against a slow cycle overlapping the next tick. The scheduler
-	// already resets from the end of a run, but the renewer is also callable
-	// directly from the UI.
+
 	r.mu.Lock()
 	if r.running {
 		r.mu.Unlock()
@@ -196,7 +158,6 @@ func (r *Renewer) Run(ctx context.Context) error {
 	return nil
 }
 
-// RenewNow renews one certificate immediately, whatever its schedule says.
 func (r *Renewer) RenewNow(ctx context.Context, managed Managed) error {
 	return r.renewOne(ctx, managed)
 }
@@ -204,8 +165,6 @@ func (r *Renewer) RenewNow(ctx context.Context, managed Managed) error {
 func (r *Renewer) renewOne(ctx context.Context, managed Managed) error {
 	managed.LastAttempt = r.now()
 
-	// Record the outcome either way, so a persistent failure is visible in the
-	// UI rather than only in a log the operator has to go looking for.
 	save := func(err error) error {
 		if err != nil {
 			managed.LastError = err.Error()
@@ -248,9 +207,7 @@ func (r *Renewer) renewOne(ctx context.Context, managed Managed) error {
 
 	if r.installer != nil {
 		if err := r.installer.Install(ctx, managed); err != nil {
-			// The certificate is valid; only delivery failed. Keep it, so the
-			// next cycle retries installation rather than re-issuing and
-			// spending another CA order.
+
 			return save(fmt.Errorf("install renewed certificate: %w", err))
 		}
 	}

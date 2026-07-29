@@ -2,23 +2,6 @@
 'require baseclass';
 'require ui';
 
-/*
- * A renderer for schema-driven provider forms.
- *
- * Nineteen DNS providers each need a credential form, and nineteen hand-written
- * forms would be nineteen chances to drift out of step with the daemon. Instead
- * each provider declares its fields in Go, the local API serves them as JSON,
- * and this file draws all of them. Adding a provider touches no UI code at all.
- *
- * The condition grammar mirrors pkg/schema/condition.go exactly. Keeping the
- * two in step matters: the daemon is the authority, so a field this renderer
- * shows but the daemon considers hidden would be silently discarded on save.
- */
-
-// Evaluate a ShowIf condition. Grammar, in full:
-//   expr := term ("||" term)*
-//   term := atom ("&&" atom)*
-//   atom := field ("==" | "!=") literal
 function evaluateCondition(condition, values) {
 	if (!condition || !condition.trim())
 		return true;
@@ -45,12 +28,9 @@ function evaluateAtom(atom, values) {
 		return ops[i] === '==' ? got === want : got !== want;
 	}
 
-	// An unparseable condition hides the field rather than showing it: a
-	// field shown by mistake invites a value the daemon will reject.
 	return false;
 }
 
-// Split on a separator, skipping over quoted literals that may contain it.
 function splitTop(input, sep) {
 	var parts = [], start = 0, quote = null;
 
@@ -88,13 +68,6 @@ function unquote(value) {
 return baseclass.extend({
 	evaluateCondition: evaluateCondition,
 
-	/*
-	 * Render a form and return { node, values, validate }.
-	 *
-	 * `values` is live: reading it after the user edits reflects the current
-	 * state. `validate` returns null when the form is acceptable, or a message
-	 * naming the offending field.
-	 */
 	render: function (schema, initial) {
 		var values = Object.assign({}, initial || {});
 		var rows = [];
@@ -167,9 +140,6 @@ return baseclass.extend({
 			if (field.help)
 				help.push(E('div', { 'class': 'cbi-value-description' }, field.help));
 
-			// A stored secret is never sent back to the browser, so the field
-			// arrives blank on an edit. Say so, rather than letting the user
-			// think the credential was lost.
 			if (field.secret && initial && initial[field.name] === undefined)
 				help.push(E('div', { 'class': 'cbi-value-description' },
 					E('em', {}, _('Stored credentials are never displayed. Leave blank to keep the current value.'))));
@@ -198,7 +168,6 @@ return baseclass.extend({
 					var value = (values[row.field.name] || '').trim();
 
 					if (!value) {
-						// A blank secret on an edit means "keep what is stored".
 						if (row.field.required && !(row.field.secret && initial))
 							return _('%s is required').format(row.field.label);
 						continue;

@@ -10,7 +10,6 @@ import (
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 )
 
-// handleLogin authenticates a client and runs its control loop.
 func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol.Login) {
 	logger := s.logger.With("remote", conn.RemoteAddr().String())
 
@@ -55,8 +54,6 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		poolTarget = s.cfg.MaxPoolCount
 	}
 
-	// The control connection carries only framed messages for the rest of its
-	// life, so a buffered codec is the right tool here.
 	codec := protocol.NewCodec(conn)
 
 	session := newSession(SessionOptions{
@@ -91,16 +88,13 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		Version:       protocol.Version,
 		RunID:         runID,
 		ServerVersion: s.version,
-		// What the client cannot see for itself: whether anything on its own
-		// side rewrote the connection on the way out.
+
 		ObservedAddr: conn.RemoteAddr().String(),
 	}); err != nil {
 		logger.Warn("send login response", "error", err)
 		return
 	}
 
-	// The handshake is over; the control connection is long-lived from here.
-	// Liveness is enforced by the heartbeat below rather than by a deadline.
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		return
 	}
@@ -112,7 +106,6 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		"arch", login.Arch,
 		"pool_target", poolTarget)
 
-	// Prime the warm pool so the first user connection does not pay for a dial.
 	session.requestWorkConns(poolTarget)
 
 	s.controlLoop(ctx, session, codec, login)
@@ -120,12 +113,9 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 	logger.Info("client disconnected", "run_id", runID)
 }
 
-// controlLoop services the client's control messages until the connection
-// closes or ctx is cancelled.
 func (s *Server) controlLoop(ctx context.Context, session *Session, codec *protocol.Codec, login *protocol.Login) {
 	logger := session.logger
 
-	// Unblock the read when the server is shutting down.
 	go func() {
 		<-ctx.Done()
 		session.Close()
@@ -138,8 +128,7 @@ func (s *Server) controlLoop(ctx context.Context, session *Session, codec *proto
 				return
 			}
 			if errors.Is(err, protocol.ErrUnknownType) {
-				// A newer client sent something this build predates. The
-				// stream is still aligned, so keep going.
+
 				logger.Debug("ignoring unknown message", "error", err)
 				continue
 			}
@@ -176,7 +165,6 @@ func (s *Server) controlLoop(ctx context.Context, session *Session, codec *proto
 	}
 }
 
-// handleNewProxy publishes a proxy and reports the outcome.
 func (s *Server) handleNewProxy(ctx context.Context, session *Session, codec *protocol.Codec, msg *protocol.NewProxy) {
 	resp := &protocol.NewProxyResp{Name: msg.Proxy.Name}
 
@@ -197,11 +185,6 @@ func (s *Server) handleNewProxy(ctx context.Context, session *Session, codec *pr
 	}
 }
 
-// handleHTTPChallenge publishes or withdraws one ACME validation.
-//
-// The server answers these on its own HTTP port rather than forwarding them,
-// so a name can be validated before it has a tunnel — which is the normal
-// case, since the certificate is being obtained in order to serve it.
 func (s *Server) handleHTTPChallenge(session *Session, codec *protocol.Codec,
 	msg *protocol.HTTPChallenge) {
 
@@ -225,11 +208,6 @@ func (s *Server) handleHTTPChallenge(session *Session, codec *protocol.Codec,
 	}
 }
 
-// handleCertPush installs a certificate the client issued.
-//
-// The swap is atomic and connections in flight are untouched, which is the
-// whole point: frps can only load certificates at startup, so rotating one
-// there costs every connected client. Here it costs nothing.
 func (s *Server) handleCertPush(session *Session, codec *protocol.Codec, msg *protocol.CertPush) {
 	resp := &protocol.CertPushResp{}
 

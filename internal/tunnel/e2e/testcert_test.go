@@ -13,13 +13,6 @@ import (
 	"time"
 )
 
-// selfSignedCert mints a certificate for the given name plus a CA pool that
-// trusts it.
-//
-// The TLS passthrough test needs a certificate the client will genuinely
-// validate: if the server were quietly terminating TLS instead of forwarding
-// ciphertext, validation against this pool would fail, so the check is
-// meaningful rather than decorative.
 func selfSignedCert(t *testing.T, name string) (tls.Certificate, *x509.CertPool) {
 	t.Helper()
 

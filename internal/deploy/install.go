@@ -14,12 +14,6 @@ import (
 	"github.com/zoefix/openfrp/internal/deploy/detect"
 )
 
-// installBinary puts the server binary in place.
-//
-// Two delivery routes, tried in order. Uploading from here is preferred: it
-// works on a server with no outbound internet, and the bytes are the ones we
-// verified rather than whatever a mirror served. Downloading on the server is
-// the fallback for when no local copy exists for the target architecture.
 func (d *Deployer) installBinary(ctx context.Context, report stepReporter, info *detect.Result) error {
 	if d.opts.DryRun {
 		report.Infof("would install the %s server binary at %s", info.Arch, d.opts.BinaryPath)
@@ -34,9 +28,7 @@ func (d *Deployer) installBinary(ctx context.Context, report stepReporter, info 
 			if ok {
 				return d.uploadBinary(ctx, report)
 			}
-			// The bundled copy is built for the router, which is not always
-			// what the server runs. Downloading the right one beats
-			// installing one that cannot execute.
+
 			report.Warnf("bundled binary does not fit this server: %v", mismatch)
 
 		case !errors.Is(err, os.ErrNotExist):
@@ -58,8 +50,6 @@ func (d *Deployer) uploadBinary(ctx context.Context, report stepReporter) error 
 	sum := sha256.Sum256(content)
 	want := hex.EncodeToString(sum[:])
 
-	// Skip the transfer when the same binary is already there. Re-running a
-	// deployment to change one config value should not push megabytes again.
 	existing := d.session.Output(ctx,
 		"sha256sum "+ShellQuote(d.opts.BinaryPath)+" 2>/dev/null | cut -d' ' -f1")
 	if existing == want {
@@ -69,8 +59,6 @@ func (d *Deployer) uploadBinary(ctx context.Context, report stepReporter) error 
 
 	report.Infof("uploading %d KiB to %s", len(content)/1024, d.opts.BinaryPath)
 
-	// Stop the service first: writing over a running executable fails with
-	// ETXTBSY on Linux.
 	d.session.Run(ctx, "systemctl stop openfrps 2>/dev/null || "+
 		"rc-service openfrps stop 2>/dev/null || "+
 		"/etc/init.d/openfrps stop 2>/dev/null || true")
@@ -130,7 +118,6 @@ func (d *Deployer) downloadBinary(ctx context.Context, report stepReporter, info
 	return nil
 }
 
-// installConfig writes the server configuration.
 func (d *Deployer) installConfig(ctx context.Context, report stepReporter) error {
 	cfg := config.Server{
 		BindAddr:       "0.0.0.0",
@@ -156,7 +143,6 @@ func (d *Deployer) installConfig(ctx context.Context, report stepReporter) error
 		return nil
 	}
 
-	// 0640 and owned by the service user: the file holds the shared token.
 	if err := d.session.WriteFile(ctx, d.opts.ConfigPath, content, 0o640); err != nil {
 		return err
 	}

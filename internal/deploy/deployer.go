@@ -12,11 +12,9 @@ import (
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 )
 
-// Options configure a deployment.
 type Options struct {
 	Credentials Credentials
 
-	// Token is the shared secret the server will require. Generated when empty.
 	Token string
 
 	BindPort       int
@@ -28,20 +26,16 @@ type Options struct {
 	StateDir    string
 	ServiceUser string
 
-	// LocalBinary is a server binary on this machine to upload. Preferred over
-	// downloading: it works without outbound internet on the server, and the
-	// bytes are the ones verified here.
 	LocalBinary string
-	// ReleaseURL is the fallback download, with {arch} and {os} substituted.
+
 	ReleaseURL string
-	// SHA256 verifies a downloaded binary.
+
 	SHA256 string
 
 	EnableBBR bool
 	DryRun    bool
 }
 
-// ApplyDefaults fills unset fields.
 func (o *Options) ApplyDefaults() {
 	if o.BindPort == 0 {
 		o.BindPort = 7000
@@ -60,11 +54,7 @@ func (o *Options) ApplyDefaults() {
 	}
 }
 
-// Result reports what a deployment achieved.
 type Result struct {
-	// Replaced is true when a previous installation was found and cleared,
-	// which the UI reports so an operator is not surprised that a redeployment
-	// generated a new token.
 	Replaced bool `json:"replaced,omitempty"`
 
 	Fingerprint string            `json:"host_fingerprint"`
@@ -74,29 +64,21 @@ type Result struct {
 	Verified    bool              `json:"verified"`
 }
 
-// Deployer provisions one server.
 type Deployer struct {
 	opts    Options
 	session *Session
 	report  Reporter
 }
 
-// New returns a deployer.
 func New(opts Options, report Reporter) *Deployer {
 	opts.ApplyDefaults()
 	return &Deployer{opts: opts, report: report}
 }
 
-// step binds a reporter to a named stage.
 func (d *Deployer) step(name string) stepReporter {
 	return stepReporter{Reporter: d.report, step: name}
 }
 
-// Run executes the deployment pipeline.
-//
-// Every stage is idempotent, so re-running is how an upgrade is performed. The
-// pipeline stops at the first hard failure rather than pressing on and leaving
-// the server half-configured.
 func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 	result := &Result{BindPort: d.opts.BindPort}
 
@@ -109,7 +91,6 @@ func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 	}
 	result.Token = d.opts.Token
 
-	// --- connect ---------------------------------------------------------
 	connect := d.step("connect")
 	connect.Infof("connecting to %s", d.opts.Credentials.Host)
 
@@ -132,17 +113,12 @@ func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 	}
 	connect.Successf("connected")
 
-	// --- detect ----------------------------------------------------------
 	probe := d.step("detect")
 	info, err := detect.Detect(ctx, session)
 	if err != nil {
 		return nil, err
 	}
 
-	// What is already here, before anything is changed. Installing over a
-	// previous version without clearing its service leaves that service
-	// holding the port, and the new binary starts and immediately fails to
-	// bind — which reads like a broken build rather than a leftover.
 	existing := d.findExisting(ctx)
 	result.Replaced = existing.Found
 	if existing.Found {
@@ -160,12 +136,8 @@ func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 		return nil, err
 	}
 
-	// --- install ---------------------------------------------------------
 	install := d.step("install")
 
-	// Clear the previous installation first. Its service is stopped and
-	// removed before the new binary lands, so nothing is holding the port when
-	// the new service starts.
 	if d.opts.DryRun {
 		if existing.Found {
 			install.Infof("would remove the existing installation: %s", existing.Describe())
@@ -184,19 +156,16 @@ func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 		return nil, err
 	}
 
-	// --- service ---------------------------------------------------------
 	if err := d.installService(ctx, d.step("service"), info); err != nil {
 		return nil, err
 	}
 
-	// --- network ---------------------------------------------------------
 	network := d.step("network")
 	if err := d.openPorts(ctx, network, info, d.wantedPorts()); err != nil {
 		return nil, err
 	}
 	d.enableBBR(ctx, network, info)
 
-	// --- verify ----------------------------------------------------------
 	verify := d.step("verify")
 	if d.opts.DryRun {
 		verify.Infof("dry run: nothing was changed")
@@ -212,7 +181,6 @@ func (d *Deployer) Run(ctx context.Context) (*Result, error) {
 	return result, nil
 }
 
-// wantedPorts lists the ports the server will listen on.
 func (d *Deployer) wantedPorts() []int {
 	ports := []int{d.opts.BindPort}
 	if d.opts.VhostHTTPPort != 0 {
@@ -224,18 +192,13 @@ func (d *Deployer) wantedPorts() []int {
 	return ports
 }
 
-// checkPorts refuses to deploy into a port conflict.
-//
-// This exists because a real test server had 80 and 443 held by an unrelated
-// service. Starting anyway would have produced a bind failure buried in a
-// restart loop; refusing here names the process holding the port.
 func (d *Deployer) checkPorts(report stepReporter, info *detect.Result) error {
 	for _, port := range d.wantedPorts() {
 		holder, taken := info.PortConflict(port)
 		if !taken {
 			continue
 		}
-		// Our own server holding the port is the expected case on a re-run.
+
 		if holder == "openfrps" {
 			continue
 		}
@@ -246,11 +209,6 @@ func (d *Deployer) checkPorts(report stepReporter, info *detect.Result) error {
 	return nil
 }
 
-// verify confirms the server is actually answering.
-//
-// Checked from this machine rather than on the server, because that is what
-// the client will have to do: a locally listening socket proves nothing about
-// a provider firewall sitting in front of it.
 func (d *Deployer) verify(ctx context.Context, report stepReporter) error {
 	status := d.session.Output(ctx,
 		"ss -lnt 2>/dev/null | grep -c ':"+strconv.Itoa(d.opts.BindPort)+"' || true")
@@ -267,8 +225,6 @@ func (d *Deployer) verify(ctx context.Context, report stepReporter) error {
 
 	addr := net.JoinHostPort(d.opts.Credentials.Host, strconv.Itoa(d.opts.BindPort))
 
-	// Give the service a moment: systemd returns from `start` before the
-	// process has necessarily bound its socket.
 	var lastErr error
 	for attempt := range 10 {
 		if attempt > 0 {
@@ -296,13 +252,6 @@ func (d *Deployer) verify(ctx context.Context, report stepReporter) error {
 	return fmt.Errorf("deploy: %s is not usable from this machine: %w", addr, lastErr)
 }
 
-// handshake completes a real protocol exchange against the deployed server.
-//
-// A bare TCP dial is not sufficient evidence. A middlebox in front of the host
-// will accept the connection and drop it immediately, which looks identical to
-// success from Dial alone — this exact false positive reported a server as
-// reachable when every port but SSH was in fact filtered. Only a valid
-// LoginResp proves the bytes reached the process we installed.
 func (d *Deployer) handshake(addr string) error {
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {

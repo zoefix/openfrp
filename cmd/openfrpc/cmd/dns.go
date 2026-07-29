@@ -140,7 +140,6 @@ func runDNS(ctx context.Context, args []string) error {
 	})
 }
 
-// recordFromStdin reads a record definition.
 func recordFromStdin() (dns.Record, error) {
 	var record dns.Record
 	if err := readStdinJSON(&record); err != nil {

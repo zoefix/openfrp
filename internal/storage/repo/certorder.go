@@ -8,7 +8,6 @@ import (
 	"fmt"
 )
 
-// Order states.
 const (
 	StatePending = "pending"
 	StateIssuing = "issuing"
@@ -16,28 +15,16 @@ const (
 	StateFailed  = "failed"
 )
 
-// Order is one certificate and everything needed to renew it.
 type Order struct {
 	ID      int64
 	Domains []string
 	KeyType string
 	CA      string
 
-	// AccountID is the DNS account used for DNS-01. Zero means the account was
-	// deleted, which is recoverable by pointing the order at another one.
 	AccountID int64
 
-	// Email identifies the ACME account that issued this, so a renewal reuses
-	// it rather than registering a new one against the CA's rate limit.
 	Email string
 
-	// AutoRenew is false for a certificate the operator renews by hand.
-	//
-	// A pointer so that "not specified" is distinguishable from "explicitly
-	// off", and unspecified means on. With a plain bool, Go's zero value
-	// silently overrode the column default and no certificate was ever due for
-	// renewal — a failure that shows up as an expired certificate months later
-	// and nowhere before that.
 	AutoRenew *bool
 
 	State     string
@@ -53,19 +40,16 @@ type Order struct {
 	UpdatedAt int64
 }
 
-// Orders stores certificate orders.
 type Orders struct {
 	db *sql.DB
 }
 
-// NewOrders returns a repository over db.
 func NewOrders(db *sql.DB) *Orders { return &Orders{db: db} }
 
 const orderColumns = `id, domains, key_type, ca, account_id, email, auto_renew,
 	state, last_error, certificate, private_key, issued_at, expires_at,
 	created_at, updated_at`
 
-// List returns every order, newest first.
 func (r *Orders) List(ctx context.Context) ([]Order, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+orderColumns+` FROM cert_order ORDER BY id DESC`)
@@ -85,7 +69,6 @@ func (r *Orders) List(ctx context.Context) ([]Order, error) {
 	return out, rows.Err()
 }
 
-// Get returns one order.
 func (r *Orders) Get(ctx context.Context, id int64) (Order, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT `+orderColumns+` FROM cert_order WHERE id = ?`, id)
@@ -97,13 +80,6 @@ func (r *Orders) Get(ctx context.Context, id int64) (Order, error) {
 	return order, err
 }
 
-// DueForRenewal returns issued orders expiring at or before cutoff, soonest
-// first. This is the scheduler's whole query.
-//
-// Orders that have never been issued are excluded: they have no expiry to
-// compare, and retrying a failed first issuance on the renewal timer would
-// hammer the CA's rate limit. Orders with auto-renew off are excluded because
-// the operator said so.
 func (r *Orders) DueForRenewal(ctx context.Context, cutoff int64) ([]Order, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT `+orderColumns+` FROM cert_order
@@ -126,7 +102,6 @@ func (r *Orders) DueForRenewal(ctx context.Context, cutoff int64) ([]Order, erro
 	return out, rows.Err()
 }
 
-// Create stores a new order.
 func (r *Orders) Create(ctx context.Context, order Order) (Order, error) {
 	domains, err := json.Marshal(order.Domains)
 	if err != nil {
@@ -154,7 +129,6 @@ func (r *Orders) Create(ctx context.Context, order Order) (Order, error) {
 	return order, nil
 }
 
-// SetState records a state transition and its explanation.
 func (r *Orders) SetState(ctx context.Context, id int64, state, lastError string) error {
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE cert_order SET state = ?, last_error = ?, updated_at = unixepoch()
@@ -165,11 +139,6 @@ func (r *Orders) SetState(ctx context.Context, id int64, state, lastError string
 	return affectedOne(result, "order", id)
 }
 
-// StoreCertificate saves issued material and marks the order issued.
-//
-// The write is one statement so an order can never be observed as issued while
-// still holding the previous certificate, which would have the renewal
-// scheduler skip it and the server serve an expired chain.
 func (r *Orders) StoreCertificate(ctx context.Context, id int64,
 	certificate, privateKey []byte, issuedAt, expiresAt int64) error {
 
@@ -185,7 +154,6 @@ func (r *Orders) StoreCertificate(ctx context.Context, id int64,
 	return affectedOne(result, "order", id)
 }
 
-// Delete removes an order and, by cascade, its event history.
 func (r *Orders) Delete(ctx context.Context, id int64) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM cert_order WHERE id = ?`, id)
 	if err != nil {
@@ -194,7 +162,6 @@ func (r *Orders) Delete(ctx context.Context, id int64) error {
 	return affectedOne(result, "order", id)
 }
 
-// AppendEvent records something that happened to an order.
 func (r *Orders) AppendEvent(ctx context.Context, orderID int64, kind, detail string) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO cert_event (order_id, kind, detail, created_at)
@@ -205,7 +172,6 @@ func (r *Orders) AppendEvent(ctx context.Context, orderID int64, kind, detail st
 	return nil
 }
 
-// Event is one entry in an order's history.
 type Event struct {
 	ID        int64
 	Kind      string
@@ -213,7 +179,6 @@ type Event struct {
 	CreatedAt int64
 }
 
-// Events returns an order's history, newest first.
 func (r *Orders) Events(ctx context.Context, orderID int64, limit int) ([]Event, error) {
 	if limit <= 0 {
 		limit = 50
@@ -268,8 +233,6 @@ func scanOrder(src scanner) (Order, error) {
 	return order, nil
 }
 
-// nullableID maps a zero id to NULL, so the foreign key is either valid or
-// absent rather than pointing at an account 0 that cannot exist.
 func nullableID(id int64) any {
 	if id == 0 {
 		return nil

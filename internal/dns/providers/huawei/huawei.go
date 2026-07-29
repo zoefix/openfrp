@@ -1,4 +1,3 @@
-// Package huawei manages records in Huawei Cloud DNS.
 package huawei
 
 import (
@@ -31,8 +30,7 @@ func init() {
 		Capabilities: dns.Capabilities{
 			Remark: dns.RemarkInline,
 			Status: true,
-			// Huawei requires every value of a name and type to live in one
-			// record set, which is why the provider merges rather than adds.
+
 			Paginated: true,
 			MinTTL:    1,
 		},
@@ -161,7 +159,6 @@ func (p *provider) zoneID(ctx context.Context, zone string) (string, error) {
 		return id, nil
 	}
 
-	// Huawei matches zone names with the trailing dot.
 	var resp struct {
 		Zones []struct {
 			ID   string `json:"id"`
@@ -216,10 +213,6 @@ func (p *provider) ListRecords(ctx context.Context, zone string, opts dns.ListOp
 		return nil, err
 	}
 
-	// Huawei models a name plus type as one record set holding many values.
-	// Flattening it into one Record per value is what makes it look like every
-	// other provider to the rest of the system; the ID carries the value index
-	// so an update can put the set back together.
 	var out []dns.Record
 	for _, set := range resp.Recordsets {
 		for index, value := range set.Records {
@@ -239,7 +232,6 @@ func (p *provider) ListRecords(ctx context.Context, zone string, opts dns.ListOp
 	return out, nil
 }
 
-// setID strips the value index this provider appends to a record ID.
 func setID(id string) string {
 	if idx := strings.IndexByte(id, '#'); idx >= 0 {
 		return id[:idx]
@@ -287,8 +279,6 @@ func (p *provider) AddRecord(ctx context.Context, zone string, record dns.Record
 	return resp.ID + "#0", nil
 }
 
-// quoteForType wraps a TXT value in the quotes Huawei requires and leaves
-// everything else alone.
 func quoteForType(record dns.Record) string {
 	if record.Type != dns.TypeTXT {
 		return record.Value

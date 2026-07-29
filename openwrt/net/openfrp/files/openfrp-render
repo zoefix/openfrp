@@ -1,21 +1,5 @@
 #!/bin/sh
-#
-# Render /etc/config/openfrp into the JSON the daemon reads.
-#
-# The daemon understands exactly one config format. Keeping the UCI-to-JSON
-# translation here means it never has to link a UCI parser, and the same binary
-# runs unchanged on a plain Linux server.
-#
-# POSIX sh only: the target shell is busybox ash, which has no bash builtins
-# and no coreutils behind it.
-#
-# The daemon rejects unknown JSON fields, so every key emitted here has to
-# match internal/config exactly. That is deliberate — a typo should fail loudly
-# at startup rather than silently disable the option it was meant to set.
-#
-# set -u is deliberately absent. OpenWrt's /lib/functions.sh reads
-# $IPKG_INSTROOT without a default, so `set -u` makes sourcing it fail
-# outright. Errors are handled explicitly below instead.
+
 set -e
 
 . /usr/share/libubox/jshn.sh
@@ -23,17 +7,11 @@ set -e
 
 OUT="${1:-/var/etc/openfrp.json}"
 
-# say records a complaint in syslog as well as on stderr.
-#
-# This script runs from the init script, whose stderr is not somewhere anybody
-# reads. A skipped tunnel that says so only there is a tunnel that vanished.
 say() {
 	command -v logger >/dev/null 2>&1 && logger -t openfrp -p daemon.err "$1"
 	echo "openfrp: $1" >&2
 }
 
-# add_string emits key only when the value is non-empty, so unset options fall
-# through to the daemon's own defaults instead of being pinned to "".
 add_string() {
 	[ -n "$2" ] || return 0
 	json_add_string "$1" "$2"
@@ -53,18 +31,10 @@ append_domain() {
 	json_add_string "" "$1"
 }
 
-# CF_ZONE is the suffix append_prefixed adds. Set immediately before the loop
-# because config_list_foreach passes only the item.
 CF_ZONE=""
 
-# CF_ANY records whether the list produced anything, which is how a prefix
-# written as a plain option is told apart from one written as a list.
 CF_ANY=0
 
-# append_prefixed turns one label into the hostname it publishes.
-#
-# "@" is the zone itself, which is the convention a DNS zone file uses for the
-# same thing — and the only spelling that is not also a valid label.
 append_prefixed() {
 	CF_ANY=1
 	case "$1" in
@@ -89,21 +59,12 @@ add_tunnel() {
 	config_get server "$section" server
 	config_get_bool https "$section" https 0
 
-	# HTTP and HTTPS are one kind in the interface: a tunnel is HTTP, and
-	# enabling HTTPS turns on TLS handling for it. The daemon still has two
-	# types, so the choice is resolved here rather than asking an operator to
-	# know the difference.
-	#
-	# The name stays reachable on port 80 either way — the server routes both
-	# listeners from one table — so this adds HTTPS rather than moving to it.
 	if [ "$type" = "http" ] && [ "$https" = "1" ]; then
 		type="https"
 		[ -n "$tls_mode" ] || tls_mode="terminate"
 	fi
 	config_get secret_key "$section" secret_key
 
-	# A tunnel without a name or a local port cannot be published, and the
-	# daemon would refuse the whole config over it. Skip it and say so.
 	if [ -z "$name" ] || [ -z "$local_port" ]; then
 		say "skipping tunnel '$section': name and local_port are required"
 		return 0
@@ -117,28 +78,14 @@ add_tunnel() {
 	json_add_int local_port "$local_port"
 	add_int remote_port "$remote_port"
 	add_string tls_mode "$tls_mode"
-	# Which issued certificate this tunnel uses. Only a bound tunnel has one
-	# pushed to the server.
+
 	add_int cert_id "$cert_id"
-	# Announce the visitor to the local service, so its logs show whoever
-	# connected rather than this router.
+
 	add_string proxy_protocol "$proxy_protocol"
-	# Which server publishes this tunnel. Empty means the first one, which is
-	# what a single-server setup means and what an older config meant.
+
 	add_string server "$server"
 	add_string secret_key "$secret_key"
 
-	# Domain patterns for http and https tunnels. Emitted only when present,
-	# because the daemon rejects an empty list on those types with a clearer
-	# message than an empty array would produce.
-	#
-	# Read through config_get rather than `uci get`: config_get honours
-	# UCI_CONFIG_DIR, which is what makes this script testable against a
-	# throwaway config, and it avoids a subprocess per tunnel. A list option
-	# comes back space separated, which is enough to test for presence.
-	# A tunnel on a Cloudflare server names a prefix, not a whole domain: the
-	# suffix is the zone the operator chose while authorising, and retyping it
-	# per tunnel is a chance to publish a name that resolves nowhere.
 	local owner owner_kind zone prefix
 	owner="$server"
 	[ -n "$owner" ] || owner="$FIRST_SERVER"
@@ -154,13 +101,10 @@ add_tunnel() {
 				CF_ZONE="$zone"
 				CF_ANY=0
 				config_list_foreach "$section" cf_prefix append_prefixed
-				# A configuration written when this took one prefix holds it as
-				# a plain option, which config_list_foreach does not iterate —
-				# and silently rendering no domains at all would unpublish a
-				# tunnel that was working.
+
 				[ "$CF_ANY" = "0" ] && append_prefixed "$prefix"
 			else
-				# No prefix at all means the domain itself.
+
 				json_add_string "" "$zone"
 			fi
 			json_close_array
@@ -183,13 +127,8 @@ add_tunnel() {
 	json_close_object
 }
 
-# SERVER_COUNT tracks whether any server section produced output, so a
-# configuration with none fails loudly rather than starting a daemon with
-# nowhere to connect.
 SERVER_COUNT=0
 
-# FIRST_SERVER is the section a tunnel means when it names none. Recorded while
-# the servers are emitted, which happens before any tunnel is.
 FIRST_SERVER=""
 
 add_server() {
@@ -200,10 +139,6 @@ add_server() {
 
 	config_get kind "$section" kind
 
-	# A Cloudflare tunnel has no address and no token: cloudflared connects
-	# outward from here and Cloudflare routes hostnames back down it. It is
-	# still a server in the configuration, because tunnels point at it by name
-	# and the daemon has to know the name exists.
 	if [ "$kind" = "cloudflare" ]; then
 		config_get tunnel_id "$section" tunnel_id
 		[ -n "$tunnel_id" ] || return 0
@@ -236,26 +171,13 @@ add_server() {
 	[ -n "$FIRST_SERVER" ] || FIRST_SERVER="$section"
 
 	json_add_object ""
-	# The section name is the identity a tunnel points at. It is local to this
-	# router; the server never sees it.
+
 	json_add_string name "$section"
 	json_add_string addr "$addr"
 	json_add_int port "$port"
 	add_string token "$token"
 	add_string client_name "$client_name"
 
-	# Direct egress: make this server's connections identifiable so a
-	# transparent proxy on this router can be told to leave them alone.
-	#
-	# 65534 is nogroup, which is the group redirect-based proxies exempt so
-	# their own traffic is not redirected into themselves — OpenClash's output
-	# chain opens with "meta skgid 65534 return". The mark is the other half,
-	# for proxies that intercept with TPROXY and exempt by fwmark instead, and
-	# it is also what an operator's own ip rule can match on.
-	#
-	# Neither is a guarantee; a proxy that exempts neither still intercepts.
-	# The client reports the address the server saw it arrive from, so the
-	# result is checkable rather than assumed.
 	if [ "$direct_egress" = "1" ]; then
 		json_add_int socket_gid 65534
 		json_add_int socket_mark 8451
@@ -280,10 +202,6 @@ main() {
 
 	json_init
 
-	# Every section of type "server" is one endpoint. A configuration written
-	# before this router could hold more than one has a single section named
-	# "server", which is picked up here like any other — no migration, and the
-	# tunnels that name no server still belong to the first.
 	json_add_array servers
 	config_foreach add_server server
 	json_close_array
@@ -304,8 +222,6 @@ main() {
 
 	mkdir -p "$(dirname "$OUT")"
 
-	# Write through a temporary file so procd never observes a half-written
-	# config: it hashes this path to decide when to restart the daemon.
 	umask 077
 	json_dump > "$OUT.tmp"
 	mv "$OUT.tmp" "$OUT"

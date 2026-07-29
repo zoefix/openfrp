@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-// certPEM builds a login credential with the token block cloudflared writes.
 func certPEM(payload string) []byte {
 	encoded := base64.StdEncoding.EncodeToString([]byte(payload))
 
@@ -36,8 +35,6 @@ func TestCredentialIsReadFromTheLoginFile(t *testing.T) {
 	}
 }
 
-// A credential without a zone cannot supply a suffix, and saying so points at
-// the choice that produced it.
 func TestACredentialWithoutAZoneSaysSo(t *testing.T) {
 	_, err := parseCredential(certPEM(`{"accountID":"a1","apiToken":"t"}`))
 	if err == nil {
@@ -48,7 +45,6 @@ func TestACredentialWithoutAZoneSaysSo(t *testing.T) {
 	}
 }
 
-// The file holds a private key, so a parse failure must not quote it back.
 func TestAParseFailureDoesNotQuoteTheFile(t *testing.T) {
 	secret := "-----BEGIN PRIVATE KEY-----\nc2VjcmV0\n-----END PRIVATE KEY-----\n"
 
@@ -122,8 +118,6 @@ func TestDeleteRecordRemovesTheTunnelCNAME(t *testing.T) {
 	}
 }
 
-// A record somebody else put there is not this feature's to remove, however
-// much the name matches.
 func TestDeleteRecordLeavesRecordsItDidNotMake(t *testing.T) {
 	credential, calls := withAPI(t, map[string]string{
 		"GET /zones/z1/dns_records": `{"success":true,"result":[` +
@@ -145,8 +139,6 @@ func TestDeleteRecordLeavesRecordsItDidNotMake(t *testing.T) {
 	}
 }
 
-// A name with nothing at it is not an error: the record may already be gone,
-// which is the state being asked for.
 func TestDeleteRecordAcceptsAnAbsentRecord(t *testing.T) {
 	credential, _ := withAPI(t, map[string]string{
 		"GET /zones/z1/dns_records": `{"success":true,"result":[]}`,
@@ -171,8 +163,6 @@ func TestARefusalIsReported(t *testing.T) {
 	}
 }
 
-// The payload is JSON once decoded from the PEM body; some versions wrapped it
-// in a second layer of base64.
 func TestADoublyEncodedTokenIsStillRead(t *testing.T) {
 	inner, _ := json.Marshal(Credential{ZoneID: "z9", APIToken: "t9"})
 	doubled := base64.StdEncoding.EncodeToString(inner)

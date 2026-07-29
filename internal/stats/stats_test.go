@@ -27,9 +27,6 @@ func TestRecordTransferAccumulates(t *testing.T) {
 	}
 }
 
-// TestSplicedFractionIsTheHealthSignal documents why the split is tracked: a
-// deployment where it falls is one where something started wrapping work
-// connections, and the throughput advantage has quietly gone with it.
 func TestSplicedFractionIsTheHealthSignal(t *testing.T) {
 	r := NewRegistry()
 
@@ -42,15 +39,11 @@ func TestSplicedFractionIsTheHealthSignal(t *testing.T) {
 		t.Errorf("SplicedFraction = %.2f, want ~0.90", got)
 	}
 
-	// No traffic must not divide by zero.
 	if got := r.Snapshot("idle").SplicedFraction(); got != 0 {
 		t.Errorf("SplicedFraction with no traffic = %v, want 0", got)
 	}
 }
 
-// TestActiveNeverReportsNegative covers the shutdown race: Open and Close run
-// on different goroutines, so the counter can dip below zero momentarily.
-// Reporting a negative connection count would be worse than reporting none.
 func TestActiveNeverReportsNegative(t *testing.T) {
 	r := NewRegistry()
 
@@ -130,7 +123,7 @@ func TestForgetRemovesATunnel(t *testing.T) {
 	if len(r.All()) != 0 {
 		t.Error("the tunnel survived Forget")
 	}
-	// Asking again recreates it empty rather than panicking.
+
 	if got := r.Snapshot("gone"); got.Connections != 0 {
 		t.Errorf("recreated counters are not empty: %+v", got)
 	}

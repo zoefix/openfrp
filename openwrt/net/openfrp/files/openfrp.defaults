@@ -1,12 +1,5 @@
 #!/bin/sh
-#
-# Runs once at install. Anything that must be true of a fresh installation but
-# should not overwrite an existing configuration belongs here.
-#
 
-# The auth token and, on a router where SSH deployment has been used, a
-# password live in this file. Package installation recreates it world-readable
-# by default.
 chmod 600 /etc/config/openfrp 2>/dev/null
 
 exit 0

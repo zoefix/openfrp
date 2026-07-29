@@ -10,12 +10,6 @@ import (
 	"github.com/zoefix/openfrp/internal/tunnel/vhost"
 )
 
-// TestUnclaimedPageExplainsItself checks the answer a visitor gets when a name
-// reaches this server but no tunnel serves it.
-//
-// The status was already right and the body was empty, which tells someone who
-// has just pointed a name here nothing at all: they cannot distinguish wrong
-// DNS from a missing tunnel from an offline router.
 func TestUnclaimedPageExplainsItself(t *testing.T) {
 	client, server := net.Pipe()
 	defer client.Close()
@@ -56,8 +50,6 @@ func TestUnclaimedPageExplainsItself(t *testing.T) {
 	}
 }
 
-// TestUnclaimedPageEscapesTheHost keeps a hostile Host header out of the page
-// it is echoed into.
 func TestUnclaimedPageEscapesTheHost(t *testing.T) {
 	client, server := net.Pipe()
 	defer client.Close()
@@ -82,9 +74,6 @@ func TestUnclaimedPageEscapesTheHost(t *testing.T) {
 	}
 }
 
-// TestUnclaimedSaysNothingOverTLS: there is no useful reply on the HTTPS port.
-// The handshake needs a certificate this server does not have for a name it
-// does not serve, so speaking HTTP at it would only confuse the client.
 func TestUnclaimedSaysNothingOverTLS(t *testing.T) {
 	client, server := net.Pipe()
 	defer client.Close()

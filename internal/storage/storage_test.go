@@ -22,11 +22,6 @@ func open(t *testing.T) *storage.DB {
 	return db
 }
 
-// TestDatabaseIsNotReadableByOthers checks the file mode.
-//
-// The credentials column holds cloud provider access keys and the orders table
-// holds certificate private keys. The file mode is the only thing protecting
-// either, so it is worth asserting rather than assuming.
 func TestDatabaseIsNotReadableByOthers(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "openfrp.db")
 
@@ -45,8 +40,6 @@ func TestDatabaseIsNotReadableByOthers(t *testing.T) {
 	}
 }
 
-// TestOpenRepairsPermissions covers a database left too permissive by an older
-// version or a restore. Opening it should correct the mode, not accept it.
 func TestOpenRepairsPermissions(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "openfrp.db")
 
@@ -75,15 +68,9 @@ func TestOpenRepairsPermissions(t *testing.T) {
 	}
 }
 
-// TestMigrationsAreIdempotent opens the same database repeatedly. Startup runs
-// migrations every time, so a second open must be a no-op rather than an error
-// or a duplicated table.
 func TestMigrationsAreIdempotent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "openfrp.db")
 
-	// Asserting a fixed version number would just need editing every time a
-	// migration is added. The property that matters is that repeated opens
-	// converge: the same version, and no new rows applied.
 	var first, firstCount int
 
 	for i := range 3 {
@@ -164,8 +151,6 @@ func TestAccountRoundTrip(t *testing.T) {
 	}
 }
 
-// TestUpdateMissingAccountIsNotFound guards the case where a row vanished
-// between load and save. Without the rows-affected check this reports success.
 func TestUpdateMissingAccountIsNotFound(t *testing.T) {
 	accounts := repo.NewAccounts(open(t).DB)
 
@@ -193,11 +178,6 @@ func TestDuplicateAccountNameIsRejected(t *testing.T) {
 	}
 }
 
-// TestDeletingAccountKeepsCertificates is the important one.
-//
-// A certificate that is serving traffic must not disappear because someone
-// removed the DNS account it was issued through. The order survives with no
-// account and fails its next renewal loudly instead.
 func TestDeletingAccountKeepsCertificates(t *testing.T) {
 	ctx := context.Background()
 	db := open(t)
@@ -240,8 +220,6 @@ func TestDeletingAccountKeepsCertificates(t *testing.T) {
 	}
 }
 
-// TestDueForRenewal checks the scheduler's only query, including that an order
-// which never issued is left alone rather than retried on the renewal timer.
 func TestDueForRenewal(t *testing.T) {
 	ctx := context.Background()
 	orders := repo.NewOrders(open(t).DB)
@@ -264,7 +242,6 @@ func TestDueForRenewal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Never issued, and failed. It has no expiry and must not be picked up.
 	failed, err := orders.Create(ctx, repo.Order{
 		Domains: []string{"broken.example"}, KeyType: "ec256", CA: "ca"})
 	if err != nil {
@@ -319,8 +296,6 @@ func TestEventsAreNewestFirstAndCascade(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The cascade only fires if foreign_keys is actually ON, which is off by
-	// default in SQLite — so this doubles as a check that the DSN took effect.
 	var remaining int
 	if err := db.QueryRow(
 		`SELECT count(*) FROM cert_event WHERE order_id = ?`, order.ID).Scan(&remaining); err != nil {

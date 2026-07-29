@@ -9,9 +9,6 @@ import (
 	"testing"
 )
 
-// fakeCloudflared writes a shell script that answers like cloudflared does,
-// so the parsing is tested against the real message shapes without a network
-// or an account. The messages are the format strings from the binary itself.
 func fakeCloudflared(t *testing.T, body string) CLI {
 	t.Helper()
 
@@ -46,8 +43,6 @@ echo "Created tunnel home with id abc-123"
 	}
 }
 
-// A tunnel that was made but whose id could not be read is worse than a
-// failure: the tunnel exists on the account and nothing here can reach it.
 func TestCreateSaysWhenTheIDCannotBeRead(t *testing.T) {
 	cli := fakeCloudflared(t, `echo "something else entirely"`)
 
@@ -60,14 +55,6 @@ func TestCreateSaysWhenTheIDCannotBeRead(t *testing.T) {
 	}
 }
 
-// The credential lands in the .cloudflared that cloudflared makes under any
-// home it is given. An earlier version of this test wrote it beside the home
-// instead, which is where the code was looking — so both agreed with each
-// other and neither agreed with cloudflared, and a login that had plainly
-// succeeded was reported as leaving nothing behind.
-//
-// The URL has to reach the operator while the command is still running: it
-// does not exit until somebody has opened it.
 func TestLoginReportsTheURLBeforeItFinishes(t *testing.T) {
 	cli := fakeCloudflared(t, `
 echo "Please open the following URL and log in with your Cloudflare account:"
@@ -93,8 +80,6 @@ echo "certificate" > "$HOME/.cloudflared/cert.pem"
 	}
 }
 
-// A login that exits without writing the credential has not authorised
-// anything, whatever its exit status said.
 func TestLoginRequiresTheCredentialItWasFor(t *testing.T) {
 	cli := fakeCloudflared(t, `echo "https://dash.cloudflare.com/argotunnel?x=1"`)
 
@@ -107,8 +92,6 @@ func TestLoginRequiresTheCredentialItWasFor(t *testing.T) {
 	}
 }
 
-// A wildcard that cannot be routed fails for a reason the message does not
-// give, so the reason is added where it is known.
 func TestRouteExplainsAWildcardRefusal(t *testing.T) {
 	cli := fakeCloudflared(t, `echo "failed to add route: record is invalid" >&2; exit 1`)
 
@@ -120,7 +103,6 @@ func TestRouteExplainsAWildcardRefusal(t *testing.T) {
 		t.Errorf("a wildcard refusal does not mention the plan: %v", err)
 	}
 
-	// An ordinary name gets the refusal as it came, with nothing invented.
 	err = cli.Route(context.Background(), "tid", "app.example.com")
 	if err == nil {
 		t.Fatal("a refused route reported success")
@@ -146,8 +128,6 @@ func TestListReadsTheJSONOutput(t *testing.T) {
 	}
 }
 
-// cloudflared reads its credentials through its home directory, which on
-// OpenWrt is not somewhere that exists.
 func TestTheHomeDirectoryIsPinned(t *testing.T) {
 	cli := fakeCloudflared(t, `echo "HOME=$HOME"; echo "CERT=$TUNNEL_ORIGIN_CERT"`)
 
@@ -163,8 +143,6 @@ func TestTheHomeDirectoryIsPinned(t *testing.T) {
 	}
 }
 
-// The reason cloudflared gives is at the end of its output; the start is
-// startup chatter that buries it.
 func TestAFailureKeepsTheReasonNotTheChatter(t *testing.T) {
 	cli := fakeCloudflared(t, `
 echo "INF starting"
@@ -184,8 +162,6 @@ exit 1
 	}
 }
 
-// The credential is looked for where cloudflared puts it, which is not beside
-// the home it was given.
 func TestTheCredentialIsLookedForWhereCloudflaredWritesIt(t *testing.T) {
 	cli := fakeCloudflared(t, `true`)
 
@@ -196,7 +172,6 @@ func TestTheCredentialIsLookedForWhereCloudflaredWritesIt(t *testing.T) {
 		t.Errorf("looking for tunnel credentials at %q", got)
 	}
 
-	// A file beside the home is not the credential, however plausible it looks.
 	if err := os.MkdirAll(cli.Dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -208,10 +183,6 @@ func TestTheCredentialIsLookedForWhereCloudflaredWritesIt(t *testing.T) {
 	}
 }
 
-// A router with two Cloudflare servers runs two cloudflared processes. They
-// used to share one config.yml, so applying either one's tunnels overwrote the
-// other's ingress and the surviving process served hostnames belonging to a
-// server it knows nothing about.
 func TestEachServerKeepsItsOwnConfiguration(t *testing.T) {
 	cli := CLI{Binary: "/nonexistent", Dir: t.TempDir()}
 
@@ -243,9 +214,6 @@ func TestEachServerKeepsItsOwnConfiguration(t *testing.T) {
 	}
 }
 
-// The path is composed from the server name, so a name that is not a UCI
-// section is refused rather than repaired: "../../etc/passwd" would otherwise
-// name a file well outside the directory this is allowed to write in.
 func TestAServerNameThatCouldEscapeIsRefused(t *testing.T) {
 	cli := CLI{Binary: "/nonexistent", Dir: t.TempDir()}
 

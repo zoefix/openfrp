@@ -1,9 +1,3 @@
-// Package migrate brings a database up to the current schema.
-//
-// Migrations are .sql files embedded in the binary and applied in filename
-// order, so upgrading is something the daemon does to itself at startup. There
-// is no external migration tool to install on a router, and no step an
-// operator can forget.
 package migrate
 
 import (
@@ -19,7 +13,6 @@ import (
 //go:embed sql/*.sql
 var files embed.FS
 
-// Run applies every migration the database has not seen.
 func Run(db *sql.DB) error {
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS schema_version (
@@ -57,7 +50,6 @@ type migration struct {
 	body    string
 }
 
-// load reads the embedded migrations, sorted by version.
 func load() ([]migration, error) {
 	entries, err := fs.ReadDir(files, "sql")
 	if err != nil {
@@ -68,9 +60,6 @@ func load() ([]migration, error) {
 	for _, entry := range entries {
 		name := entry.Name()
 
-		// Files are named <version>_<description>.sql. The version is what
-		// orders them and what is recorded, so a mis-named file is a hard
-		// error rather than a migration that silently never runs.
 		digits, _, found := strings.Cut(name, "_")
 		if !found {
 			return nil, fmt.Errorf("migrate: %s is not named <version>_<name>.sql", name)
@@ -118,8 +107,6 @@ func appliedVersions(db *sql.DB) (map[int]bool, error) {
 	return applied, rows.Err()
 }
 
-// apply runs one migration and records it in the same transaction, so a
-// failure part way through leaves neither the change nor the version behind.
 func apply(db *sql.DB, m migration) error {
 	tx, err := db.Begin()
 	if err != nil {

@@ -2,12 +2,6 @@ package vhost
 
 import "fmt"
 
-// node is one label level of the routing trie.
-//
-// Children are walked from the rightmost label inward, so the root's children
-// are TLDs. Each node carries at most one wildcard child, which consumes
-// exactly one label — that single constraint is what makes *.aaa.com decline
-// to match x.bb.aaa.com.
 type node struct {
 	children map[string]*node
 	wildcard *node
@@ -18,7 +12,6 @@ func newNode() *node {
 	return &node{children: make(map[string]*node)}
 }
 
-// insert adds a route under the given reversed labels.
 func (n *node) insert(labels []string, route *Route) error {
 	current := n
 
@@ -46,13 +39,6 @@ func (n *node) insert(labels []string, route *Route) error {
 	return nil
 }
 
-// lookup walks the reversed host labels and returns the best route.
-//
-// Exact children are tried before the wildcard child at every level, and the
-// walk only succeeds when the labels are exhausted at a node holding a route.
-// Those two rules together give the whole priority order for free: exact beats
-// wildcard, deeper wildcards beat shallower ones, and a wildcard can never
-// swallow more than its one label.
 func (n *node) lookup(labels []string) *Route {
 	if len(labels) == 0 {
 		return n.route
@@ -73,7 +59,6 @@ func (n *node) lookup(labels []string) *Route {
 	return nil
 }
 
-// walk visits every route in the trie.
 func (n *node) walk(fn func(*Route)) {
 	if n.route != nil {
 		fn(n.route)

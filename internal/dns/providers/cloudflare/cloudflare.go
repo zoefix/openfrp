@@ -1,4 +1,3 @@
-// Package cloudflare manages records in Cloudflare DNS.
 package cloudflare
 
 import (
@@ -39,8 +38,8 @@ func init() {
 				Required: true, Secret: true, ShowIf: "auth == 'key'"},
 		}},
 		Capabilities: dns.Capabilities{
-			Remark: dns.RemarkInline, // Cloudflare calls it "comment"
-			// Cloudflare has no pause; a record either exists or does not.
+			Remark: dns.RemarkInline,
+
 			Status:    false,
 			Paginated: true,
 			Proxy:     true,
@@ -64,8 +63,6 @@ type provider struct {
 	apiKey string
 	http   *dns.HTTPClient
 
-	// zoneIDs caches the name-to-ID lookup. Cloudflare keys every record call
-	// on a zone ID, so without this every operation costs an extra round trip.
 	zoneIDs map[string]string
 }
 
@@ -79,7 +76,6 @@ func (p *provider) headers() map[string]string {
 	return map[string]string{"Authorization": "Bearer " + p.token}
 }
 
-// envelope is Cloudflare's uniform response wrapper.
 type envelope struct {
 	Success bool `json:"success"`
 	Errors  []struct {
@@ -160,7 +156,6 @@ func (p *provider) cacheZone(name, id string) {
 	p.zoneIDs[strings.ToLower(name)] = id
 }
 
-// zoneID resolves a zone name to Cloudflare's identifier.
 func (p *provider) zoneID(ctx context.Context, zone string) (string, error) {
 	zone = strings.ToLower(strings.TrimSuffix(zone, "."))
 	if id, cached := p.zoneIDs[zone]; cached {
@@ -239,9 +234,7 @@ func (p *provider) ListRecords(ctx context.Context, zone string, opts dns.ListOp
 
 	out := make([]dns.Record, 0, len(resp.Result))
 	for _, r := range resp.Result {
-		// Reported for every record, including types that cannot be proxied,
-		// so an edit round-trips the value it was shown rather than dropping
-		// it. The write path decides what the API will accept.
+
 		proxied := r.Proxied
 
 		out = append(out, dns.Record{
@@ -260,7 +253,6 @@ func (p *provider) ListRecords(ctx context.Context, zone string, opts dns.ListOp
 	return out, nil
 }
 
-// recordBody renders a record into Cloudflare's JSON shape.
 func (p *provider) recordBody(zone string, record dns.Record) (map[string]any, error) {
 	if err := record.Validate(); err != nil {
 		return nil, err
@@ -281,7 +273,7 @@ func (p *provider) recordBody(zone string, record dns.Record) (map[string]any, e
 		"name":    name,
 		"content": record.Value,
 	}
-	// Cloudflare treats TTL 1 as "automatic"; anything below 60 is rejected.
+
 	if record.TTL >= 60 {
 		body["ttl"] = record.TTL
 	} else {
@@ -294,21 +286,12 @@ func (p *provider) recordBody(zone string, record dns.Record) (map[string]any, e
 		body["comment"] = record.Remark
 	}
 
-	// Always sent, never omitted. Cloudflare replaces the whole record on
-	// write, so leaving this out resets it to false — an edit of the TTL would
-	// silently take a proxied name off the edge, which is a visible outage for
-	// anything relying on it.
-	//
-	// Only A, AAAA and CNAME can be proxied; the API rejects the flag on other
-	// types rather than ignoring it.
 	if proxiable(record.Type) {
 		body["proxied"] = record.Proxied != nil && *record.Proxied
 	}
 	return body, nil
 }
 
-// proxiable reports whether Cloudflare will accept the proxied flag for a
-// record type.
 func proxiable(kind dns.RecordType) bool {
 	switch kind {
 	case dns.TypeA, dns.TypeAAAA, dns.TypeCNAME:
@@ -361,10 +344,6 @@ func (p *provider) UpdateRecord(ctx context.Context, zone string, record dns.Rec
 		return err
 	}
 
-	// A caller with no opinion on proxying gets whatever is already set,
-	// rather than the API default. The UI always has an opinion because it
-	// listed the record first; the ACME solver does not, and its challenge
-	// records must not be disturbed by an assumption made here.
 	if record.Proxied == nil && proxiable(record.Type) {
 		if current, err := p.recordByID(ctx, id, record.ID); err == nil {
 			record.Proxied = &current
@@ -413,7 +392,6 @@ func (p *provider) DeleteRecord(ctx context.Context, zone, recordID string) erro
 
 var _ dns.Provider = (*provider)(nil)
 
-// recordByID reports whether one record is currently proxied.
 func (p *provider) recordByID(ctx context.Context, zoneID, recordID string) (bool, error) {
 	var resp struct {
 		envelope

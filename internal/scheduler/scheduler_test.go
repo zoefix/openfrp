@@ -32,9 +32,6 @@ func TestSchedulerRunsJobsRepeatedly(t *testing.T) {
 	}
 }
 
-// TestPanicInOneJobDoesNotStopTheRest is the property that matters most here.
-// The tunnels are the product; a renewal job that panics must not take the
-// daemon with it, and must not stop its own loop either.
 func TestPanicInOneJobDoesNotStopTheRest(t *testing.T) {
 	var (
 		panics   atomic.Int32
@@ -95,9 +92,6 @@ func TestJobErrorsAreLoggedNotFatal(t *testing.T) {
 	}
 }
 
-// TestSlowJobDoesNotOverlapItself covers the reason the timer resets from the
-// end of a run: a renewal that takes longer than its interval must not have a
-// second copy start alongside it and issue the same certificate twice.
 func TestSlowJobDoesNotOverlapItself(t *testing.T) {
 	var (
 		concurrent atomic.Int32

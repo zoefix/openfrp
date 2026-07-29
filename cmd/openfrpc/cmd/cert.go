@@ -60,9 +60,6 @@ func runCert(ctx context.Context, args []string) error {
 	}
 	dbPath = *database
 
-	// issue is the one action that reports as it goes. Its progress lines go to
-	// stderr so stdout stays a single parseable JSON document; the job worker
-	// captures both into one log, so the operator sees them interleaved.
 	progress := func(message string) {
 		fmt.Fprintln(os.Stderr, "==> "+message)
 	}
@@ -105,8 +102,7 @@ func runCert(ctx context.Context, args []string) error {
 			return map[string]string{"result": "the certificate was issued"}, nil
 
 		case "eab-status":
-			// By authority when the caller has not created an order yet,
-			// which is the case while the request form is being filled in.
+
 			if *caKey != "" {
 				return service.EABStatusFor(ctx, *caKey, *email)
 			}

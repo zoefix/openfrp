@@ -1,4 +1,3 @@
-// Package aliyun manages records in Alibaba Cloud DNS (AliDNS).
 package aliyun
 
 import (
@@ -50,7 +49,6 @@ type provider struct {
 	http   *dns.HTTPClient
 }
 
-// call signs and performs one RPC-style request.
 func (p *provider) call(ctx context.Context, action string, params map[string]string, out any) error {
 	req := cloudapi.AliyunRPCRequest{
 		Endpoint:        endpoint,
@@ -163,14 +161,13 @@ func (p *provider) ListRecords(ctx context.Context, zone string, opts dns.ListOp
 			Weight:   r.Weight,
 			Line:     dns.LineFromProvider(providerKey, r.Line),
 			Remark:   r.Remark,
-			// Aliyun spells the serving state "ENABLE"/"DISABLE".
+
 			Enabled: r.Status != "DISABLE",
 		})
 	}
 	return out, nil
 }
 
-// recordParams renders a record into Aliyun's parameter names.
 func (p *provider) recordParams(record dns.Record) (map[string]string, error) {
 	if err := record.Validate(); err != nil {
 		return nil, err
@@ -210,7 +207,6 @@ func (p *provider) AddRecord(ctx context.Context, zone string, record dns.Record
 		return "", err
 	}
 
-	// A remark needs its own call; failing to set it must not fail the record.
 	if record.Remark != "" && resp.RecordID != "" {
 		p.SetRecordRemark(ctx, zone, resp.RecordID, record.Remark)
 	}

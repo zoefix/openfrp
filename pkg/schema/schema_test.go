@@ -34,14 +34,14 @@ func TestConditionGrammar(t *testing.T) {
 		{"kind == 'http' && mode == 'passthrough'", false},
 		{"kind == 'tcp' || mode == 'terminate'", true},
 		{"kind == 'tcp' || mode == 'passthrough'", false},
-		// && binds tighter than ||
+
 		{"kind == 'tcp' && mode == 'x' || kind == 'http'", true},
 		{"kind == 'http' || kind == 'tcp' && mode == 'x'", true},
-		// An unset field compares as empty rather than erroring.
+
 		{"missing == ''", true},
 		{"missing != ''", false},
 		{"empty == ''", true},
-		// Unquoted literals are accepted.
+
 		{"kind == http", true},
 	}
 
@@ -65,19 +65,14 @@ func TestConditionRejectsNonsense(t *testing.T) {
 	}
 }
 
-// TestHiddenFieldsAreNotRequired is the rule that matters most in practice: a
-// user cannot fill in a field the form never showed them.
 func TestHiddenFieldsAreNotRequired(t *testing.T) {
 	form := testForm()
 
-	// region is required-by-visibility only under the esa product.
 	values := map[string]string{"provider": "dns", "access_key": "AK", "secret": "SK"}
 	if err := form.Validate(values); err != nil {
 		t.Errorf("a hidden field blocked validation: %v", err)
 	}
 
-	// Under esa it becomes visible; it is not marked Required, so it still
-	// validates, but it must now be subject to its other rules.
 	values["provider"] = "esa"
 	if err := form.Validate(values); err != nil {
 		t.Errorf("esa product failed validation: %v", err)
@@ -112,8 +107,6 @@ func TestValidateRejectsUnknownSelectOption(t *testing.T) {
 	}
 }
 
-// TestRedactNeverEchoesSecrets guards the property the whole credential story
-// rests on: a stored secret is write-only from the UI's point of view.
 func TestRedactNeverEchoesSecrets(t *testing.T) {
 	form := testForm()
 	values := map[string]string{"access_key": "AK", "secret": "super-secret-value"}
@@ -126,14 +119,14 @@ func TestRedactNeverEchoesSecrets(t *testing.T) {
 	if strings.Contains(redacted["secret"], "super") {
 		t.Error("the redacted value leaks part of the secret")
 	}
-	// Even the length must not leak.
+
 	if len(redacted["secret"]) == len("super-secret-value") {
 		t.Error("the redacted value leaks the secret's length")
 	}
 	if redacted["access_key"] != "AK" {
 		t.Error("a non-secret field should be returned unchanged")
 	}
-	// The original map must not be mutated.
+
 	if values["secret"] != "super-secret-value" {
 		t.Error("Redact mutated its input")
 	}

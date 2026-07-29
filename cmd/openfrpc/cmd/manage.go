@@ -14,33 +14,16 @@ import (
 	"github.com/zoefix/openfrp/internal/version"
 )
 
-// The management subcommands are the API the LuCI pages talk to.
-//
-// Every one writes a single JSON document to stdout: {"ok":true,"data":...} or
-// {"ok":false,"error":"..."}. Always exiting 0 with a shaped body, rather than
-// relying on exit status, is what lets the ucode backend report a real message
-// to the browser instead of "the command failed".
-//
-// A file rather than a socket: management has to work while the tunnel daemon
-// is stopped, which is exactly when someone is setting it up, and a listening
-// port backed by cloud credentials is a surface this does not need.
-
-// dbPath is where the management database lives. Overridable so a test or an
-// operator can point at another file.
 var dbPath = storage.DefaultPath
 
-// reply is the envelope every management subcommand emits.
 type reply struct {
 	OK    bool   `json:"ok"`
 	Data  any    `json:"data,omitempty"`
 	Error string `json:"error,omitempty"`
 }
 
-// errReported marks a failure that has already been described on stdout, so
-// main exits non-zero without printing it a second time.
 var errReported = errors.New("reported")
 
-// emit writes the envelope and reports whether it was a success.
 func emit(data any, err error) error {
 	response := reply{OK: err == nil, Data: data}
 	if err != nil {
@@ -50,8 +33,7 @@ func emit(data any, err error) error {
 
 	encoded, marshalErr := json.Marshal(response)
 	if marshalErr != nil {
-		// The result could not be encoded. Say so in a shape the caller can
-		// still parse, rather than emitting nothing.
+
 		fmt.Printf(`{"ok":false,"error":%q}`+"\n", marshalErr.Error())
 		return marshalErr
 	}
@@ -59,17 +41,12 @@ func emit(data any, err error) error {
 	fmt.Println(string(encoded))
 
 	if err != nil {
-		// The exit status has to say so too. The rpcd backend reads stdout and
-		// ignores the status, but the job worker branches on it — and reported
-		// a failed certificate issuance as "certificate issued" for as long as
-		// this returned nil. A machine-readable error on stdout is not a
-		// substitute for the one signal the caller actually checked.
+
 		return errReported
 	}
 	return nil
 }
 
-// withService opens the database, runs fn, and closes it.
 func withService(fn func(*manage.Service) (any, error)) error {
 	service, err := manage.New(dbPath)
 	if err != nil {
@@ -85,13 +62,6 @@ func withService(fn func(*manage.Service) (any, error)) error {
 	return emit(fn(service))
 }
 
-// attachServers tells the service which tunnel servers can answer an ACME
-// HTTP-01 validation.
-//
-// Read from the rendered daemon configuration rather than passed in, because
-// this process is the job worker's and has no other view of them. Its absence
-// is not an error: a setup with no server configured simply has no way to
-// validate over HTTP, and issuance says so when it comes to it.
 func attachServers(service *manage.Service) {
 	cfg, err := config.LoadClient(clientConfigPath)
 	if err != nil {
@@ -100,15 +70,8 @@ func attachServers(service *manage.Service) {
 	service.SetHTTPChallengeServers(cfg.Upstreams(), version.Short())
 }
 
-// clientConfigPath is where the OpenWrt init script renders the daemon's
-// configuration. Overridable for a deployment that puts it elsewhere.
 var clientConfigPath = "/var/etc/openfrp.json"
 
-// readStdinJSON decodes a JSON document from stdin into target.
-//
-// Input arrives this way rather than as flags because it carries provider
-// credentials, and /proc/*/cmdline is readable by every local process on the
-// router.
 func readStdinJSON(target any) error {
 	payload, err := io.ReadAll(os.Stdin)
 	if err != nil {

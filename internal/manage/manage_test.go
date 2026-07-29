@@ -41,9 +41,6 @@ func cloudflareAccount(t *testing.T, s *manage.Service) manage.AccountView {
 	return view
 }
 
-// TestSecretsNeverReachTheUI is the property the whole credential design rests
-// on. A browser session that can read an API token can exfiltrate it, so the
-// management layer must not hand one back under any code path.
 func TestSecretsNeverReachTheUI(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -66,10 +63,6 @@ func TestSecretsNeverReachTheUI(t *testing.T) {
 	}
 }
 
-// TestBlankSecretKeepsStoredValue covers the edit form submitting an unchanged
-// secret as empty, which is what it must do since it never received the real
-// one. Treating that as "clear it" would destroy a working credential every
-// time someone renamed an account.
 func TestBlankSecretKeepsStoredValue(t *testing.T) {
 	ctx := context.Background()
 	s, path := service(t)
@@ -91,14 +84,6 @@ func TestBlankSecretKeepsStoredValue(t *testing.T) {
 	}
 }
 
-// TestSecretsAreOmittedNotMasked checks the shape, not just the absence of the
-// value.
-//
-// A masked secret sent as the field's value is worse than no protection: the
-// form renders the mask into the input, and saving any other field submits the
-// mask back as the new secret. The credential is destroyed and the UI reports
-// success. Omitting the field is what makes the form's blank-means-unchanged
-// path work.
 func TestSecretsAreOmittedNotMasked(t *testing.T) {
 	s, _ := service(t)
 	created := cloudflareAccount(t, s)
@@ -120,9 +105,6 @@ func TestSecretsAreOmittedNotMasked(t *testing.T) {
 	}
 }
 
-// TestMaskEchoedBackDoesNotOverwrite is defence in depth. Nothing should send
-// the mask back now that it is never sent out, but if some client ever does,
-// storing it would silently destroy the credential.
 func TestMaskEchoedBackDoesNotOverwrite(t *testing.T) {
 	ctx := context.Background()
 	s, path := service(t)
@@ -144,9 +126,6 @@ func TestMaskEchoedBackDoesNotOverwrite(t *testing.T) {
 	}
 }
 
-// TestChangingProviderDoesNotCarrySecretsOver checks the opposite case: the
-// old credentials are meaningless under a new provider, so silently keeping
-// them would leave an account that looks configured and cannot authenticate.
 func TestChangingProviderDoesNotCarrySecretsOver(t *testing.T) {
 	ctx := context.Background()
 	s, path := service(t)
@@ -173,8 +152,6 @@ func TestChangingProviderDoesNotCarrySecretsOver(t *testing.T) {
 	}
 }
 
-// TestUpdateRejectsInvalidCredentials makes sure validation is not skipped on
-// the edit path, which is easy to do when secrets are being merged.
 func TestUpdateRejectsInvalidCredentials(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -185,8 +162,7 @@ func TestUpdateRejectsInvalidCredentials(t *testing.T) {
 		ID:       created.ID,
 		Name:     "broken",
 		Provider: "aliyun",
-		// Switching provider without supplying the new provider's required
-		// fields must fail rather than store an unusable account.
+
 		Credentials: map[string]string{},
 	})
 	if err == nil {
@@ -194,11 +170,6 @@ func TestUpdateRejectsInvalidCredentials(t *testing.T) {
 	}
 }
 
-// TestWildcardOrderNeedsDNSAccount checks the order is refused at creation.
-//
-// Only DNS-01 can prove a wildcard. Accepting the order and failing at
-// issuance would surface as a red state minutes later, by which time the
-// operator has moved on and the reason is buried in a log.
 func TestWildcardOrderNeedsDNSAccount(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -235,13 +206,6 @@ func TestOrderRequiresEmailAndKnownCA(t *testing.T) {
 	}
 }
 
-// TestIssueReachesTheCA checks the handoff from manage to cert.
-//
-// Issuance cannot be completed in a test — it talks to a real CA — so this
-// asserts on how far it gets: past resolving the authority. The bug it guards
-// is that manage passed a directory URL where the issuer wanted a key, so
-// every issuance died at the first step with "unknown certificate authority"
-// naming a URL that was perfectly valid.
 func TestIssueReachesTheCA(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -265,8 +229,6 @@ func TestIssueReachesTheCA(t *testing.T) {
 		t.Errorf("issuance failed while resolving the CA: %v", err)
 	}
 
-	// Whatever else happens, the order must not be left in "issuing" — the
-	// next attempt would look like one is already running.
 	orders, err := s.ListOrders(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -276,9 +238,6 @@ func TestIssueReachesTheCA(t *testing.T) {
 	}
 }
 
-// TestNewOrdersAutoRenewByDefault guards the trap that a plain bool would
-// reintroduce: an order created without mentioning renewal must renew, or the
-// first anyone hears of it is an expired certificate.
 func TestNewOrdersAutoRenewByDefault(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -297,7 +256,6 @@ func TestNewOrdersAutoRenewByDefault(t *testing.T) {
 	}
 }
 
-// storedCredentials reads what is actually on disk, bypassing redaction.
 func storedCredentials(t *testing.T, path string, id int64) map[string]string {
 	t.Helper()
 
@@ -314,19 +272,10 @@ func storedCredentials(t *testing.T, path string, id int64) map[string]string {
 	return account.Credentials
 }
 
-// TestOrderWithoutDNSUsesHTTPValidation covers the case that needs no zone
-// credentials.
-//
-// A single name can be proved by serving a file, which the tunnel server does
-// on this router's behalf. Demanding an API key for the whole zone in order to
-// certify one host is a real cost, and the only thing that genuinely requires
-// it is a wildcard.
 func TestOrderWithoutDNSUsesHTTPValidation(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
 
-	// With no server configured there is nothing to answer an HTTP validation,
-	// and the order says so rather than failing later.
 	_, err := s.CreateOrder(ctx, manage.OrderInput{
 		Domains: []string{"openwrt.arm.moe"},
 		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
@@ -346,8 +295,6 @@ func TestOrderWithoutDNSUsesHTTPValidation(t *testing.T) {
 		t.Errorf("an order that can be validated over HTTP was rejected: %v", err)
 	}
 
-	// A wildcard still cannot: no file on any host proves a name that does not
-	// exist yet.
 	_, err = s.CreateOrder(ctx, manage.OrderInput{
 		Domains: []string{"*.arm.moe"},
 		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
@@ -360,13 +307,6 @@ func TestOrderWithoutDNSUsesHTTPValidation(t *testing.T) {
 	}
 }
 
-// TestHTTPValidationChecksWhereTheNamePoints covers the pre-flight.
-//
-// The authority fetches the challenge at whatever address the name resolves
-// to. If that is not a tunnel server the validation fails, and a failed
-// validation is rate-limited — so spending one on a name pointing elsewhere
-// can lock out the retry that would have worked. The answer is knowable
-// before asking, so it is asked before.
 func TestHTTPValidationChecksWhereTheNamePoints(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -375,8 +315,6 @@ func TestHTTPValidationChecksWhereTheNamePoints(t *testing.T) {
 		{Name: "main", Addr: "203.0.113.1", Port: 7000},
 	}, "test")
 
-	// The name points at something else entirely, which is the case that
-	// prompted this: a record left pointing at a previous host.
 	s.SetHTTPChallengeResolver(func(context.Context, string) []string {
 		return []string{"64.90.22.142"}
 	})
@@ -399,15 +337,12 @@ func TestHTTPValidationChecksWhereTheNamePoints(t *testing.T) {
 	if !strings.Contains(err.Error(), "203.0.113.1") {
 		t.Errorf("the error does not say where it should point: %v", err)
 	}
-	// It must not have reached the authority at all: the point is to spend no
-	// rate-limited validation on something knowable from here.
+
 	if strings.Contains(err.Error(), "acme") {
 		t.Errorf("reached the authority anyway: %v", err)
 	}
 }
 
-// TestHTTPValidationAllowsAMatchingName is the other half: the check must not
-// block an issuance that would have worked.
 func TestHTTPValidationAllowsAMatchingName(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -427,20 +362,12 @@ func TestHTTPValidationAllowsAMatchingName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// It cannot complete without a real authority, but it must get past the
-	// check rather than be stopped by it.
 	if err := s.Issue(ctx, order.ID, nil); err != nil &&
 		strings.Contains(err.Error(), "resolves to") {
 		t.Errorf("a name pointing at the server was rejected: %v", err)
 	}
 }
 
-// TestHTTPValidationSaysWhenItCouldNotCheck keeps the progress line honest.
-//
-// It used to report "the names resolve to a tunnel server" whenever the check
-// did not fail — including when the lookup returned nothing at all, which is
-// a claim nobody verified and turns a diagnosable misconfiguration into a
-// mystery.
 func TestHTTPValidationSaysWhenItCouldNotCheck(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)
@@ -470,9 +397,6 @@ func TestHTTPValidationSaysWhenItCouldNotCheck(t *testing.T) {
 	}
 }
 
-// TestHTTPValidationDoesNotBlockOnDoubt covers a name that cannot be resolved
-// from here at all. It may still resolve for the authority, and refusing on
-// that basis would be a guess.
 func TestHTTPValidationDoesNotBlockOnDoubt(t *testing.T) {
 	ctx := context.Background()
 	s, _ := service(t)

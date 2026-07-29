@@ -6,12 +6,6 @@ import (
 	"time"
 )
 
-// Transport defaults.
-//
-// DefaultPoolCount is deliberately larger than frp's 5. Because we do not
-// multiplex by default, each pooled connection is an independent TCP flow with
-// its own congestion window, so a larger pool directly raises aggregate
-// throughput on high bandwidth-delay-product links.
 const (
 	DefaultPoolCount    = 8
 	DefaultMaxPoolCount = 64
@@ -20,14 +14,9 @@ const (
 	DefaultHeartbeatTimeout  = 90 * time.Second
 	DefaultDialTimeout       = 10 * time.Second
 
-	// DefaultMuxStreamWindow is applied only when multiplexing is explicitly
-	// enabled. yamux ships a 256KB default, which caps a single stream at
-	// window/RTT — roughly 2.5 MB/s at 100ms RTT no matter how fat the pipe
-	// is. 8MB lifts that ceiling to ~80 MB/s at the same latency.
-	DefaultMuxStreamWindow = 8 << 20 // 8 MiB
+	DefaultMuxStreamWindow = 8 << 20
 )
 
-// Protocol selects the transport carrying the control and work connections.
 type Protocol string
 
 const (
@@ -37,7 +26,6 @@ const (
 	ProtocolWebsocket Protocol = "websocket"
 )
 
-// Valid reports whether p is a recognised protocol.
 func (p Protocol) Valid() bool {
 	switch p {
 	case ProtocolTCP, ProtocolKCP, ProtocolQUIC, ProtocolWebsocket:
@@ -46,30 +34,15 @@ func (p Protocol) Valid() bool {
 	return false
 }
 
-// Transport tunes how the client talks to the server.
 type Transport struct {
 	Protocol Protocol `json:"protocol,omitempty"`
 
-	// Mux multiplexes every work stream over a single TCP connection.
-	//
-	// This defaults to FALSE, which is the opposite of frp. Multiplexing puts
-	// all streams behind one congestion window and one retransmission queue,
-	// so a single lost packet head-of-line blocks every tunnel at once, and
-	// the yamux window caps per-stream throughput on high-latency links. It
-	// also makes splice(2) impossible, forcing every byte through userspace.
-	//
-	// Enable it only when the number of sockets matters more than throughput.
 	Mux bool `json:"mux,omitempty"`
 
-	// MuxStreamWindow overrides the per-stream flow-control window when Mux
-	// is enabled. Ignored otherwise.
 	MuxStreamWindow int `json:"mux_stream_window,omitempty"`
 
-	// PoolCount is how many idle work connections to keep pre-established.
-	// Each one saves a full round trip when a user connection arrives.
 	PoolCount int `json:"pool_count,omitempty"`
 
-	// TLSEnable protects the control connection.
 	TLSEnable bool `json:"tls_enable,omitempty"`
 
 	HeartbeatInterval Duration `json:"heartbeat_interval,omitempty"`
@@ -77,34 +50,23 @@ type Transport struct {
 	DialTimeout       Duration `json:"dial_timeout,omitempty"`
 }
 
-// Client is the configuration for the openfrpc daemon.
 type Client struct {
-	// Servers are the endpoints this router connects to, each with its own
-	// control connection. A tunnel names the one it belongs to.
 	Servers []Upstream `json:"servers,omitempty"`
 
-	// The fields below are the single-server shape this configuration had
-	// before it could hold more than one. They are still read — see
-	// Client.Upstreams — so an upgrade needs no migration.
 	ServerAddr string `json:"server_addr,omitempty"`
 	ServerPort int    `json:"server_port,omitempty"`
 	Token      string `json:"token,omitempty"`
 
-	// Name identifies this client to the server. Empty means the server
-	// assigns one, which is fine for single-client deployments.
 	Name string `json:"name,omitempty"`
 
 	Transport Transport `json:"transport,omitempty"`
 
-	// SocketGID and SocketMark are carried down from the server this client
-	// is scoped to; see config.Upstream for what they are for.
 	SocketGID  int      `json:"socket_gid,omitempty"`
 	SocketMark int      `json:"socket_mark,omitempty"`
 	Tunnels    []Tunnel `json:"tunnels,omitempty"`
 	Log        Log      `json:"log,omitempty"`
 }
 
-// LoadClient reads and validates a client config from path.
 func LoadClient(path string) (*Client, error) {
 	var cfg Client
 	if err := loadJSON(path, &cfg); err != nil {
@@ -117,7 +79,6 @@ func LoadClient(path string) (*Client, error) {
 	return &cfg, nil
 }
 
-// ApplyDefaults fills unset fields with their defaults.
 func (c *Client) ApplyDefaults() {
 	if c.ServerPort == 0 {
 		c.ServerPort = DefaultBindPort
@@ -132,11 +93,6 @@ func (c *Client) ApplyDefaults() {
 	}
 }
 
-// ApplyDefaults fills in the transport settings left unset.
-//
-// A method on Transport rather than inline in Client.ApplyDefaults because
-// every server carries its own copy: one may multiplex over a lossy link while
-// another does not, and the defaults have to be applied to each.
 func (t *Transport) ApplyDefaults() {
 	if t.Protocol == "" {
 		t.Protocol = ProtocolTCP
@@ -158,7 +114,6 @@ func (t *Transport) ApplyDefaults() {
 	}
 }
 
-// Validate reports the first problem with the transport settings.
 func (t Transport) Validate() error {
 	if !t.Protocol.Valid() {
 		return fmt.Errorf("transport.protocol: unknown value %q", t.Protocol)
@@ -180,7 +135,6 @@ func (t Transport) Validate() error {
 	return nil
 }
 
-// Validate reports the first configuration problem found.
 func (c *Client) Validate() error {
 	servers := c.Upstreams()
 	if len(servers) == 0 {
@@ -215,10 +169,6 @@ func (c *Client) Validate() error {
 		}
 		seen[tun.Name] = struct{}{}
 
-		// Port zero means "server allocates", so several tunnels may carry it
-		// without conflicting. The key includes the server: two tunnels on
-		// different servers may both bind 6022, and rejecting that would be
-		// wrong now that there can be more than one.
 		key := tun.Server + "/" + strconv.Itoa(tun.RemotePort)
 		if tun.Enabled && tun.Type.NeedsRemotePort() && tun.RemotePort != 0 {
 			if other, clash := portsByServer[key]; clash {
@@ -231,7 +181,6 @@ func (c *Client) Validate() error {
 	return nil
 }
 
-// EnabledTunnels returns only the tunnels the user has switched on.
 func (c *Client) EnabledTunnels() []Tunnel {
 	out := make([]Tunnel, 0, len(c.Tunnels))
 	for _, t := range c.Tunnels {

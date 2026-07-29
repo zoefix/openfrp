@@ -18,9 +18,6 @@ func tcpAddr(t *testing.T, addr string) net.Addr {
 	return parsed
 }
 
-// TestProxyV1Format checks the exact bytes against the specification's
-// grammar. The backend parses this by hand, so a stray space or a missing CRLF
-// is a rejected connection rather than a tolerated quirk.
 func TestProxyV1Format(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -41,9 +38,7 @@ func TestProxyV1Format(t *testing.T) {
 			want:   "PROXY TCP6 2001:db8::1 2001:db8::2 443 80\r\n",
 		},
 		{
-			// Version 1 cannot say that one end is v4 and the other v6, so the
-			// v4 side is rendered mapped rather than emitted in a family that
-			// contradicts the one declared.
+
 			name:   "mixed families are rendered as TCP6",
 			source: "[2001:db8::1]:443",
 			dest:   "192.168.9.249:80",
@@ -67,8 +62,6 @@ func TestProxyV1Format(t *testing.T) {
 	}
 }
 
-// TestProxyV1StaysWithinTheLineLimit guards the specification's 107-byte cap,
-// which a parser is entitled to enforce by disconnecting.
 func TestProxyV1StaysWithinTheLineLimit(t *testing.T) {
 	var buf bytes.Buffer
 	err := WriteProxyHeader(&buf, ProxyProtoV1,
@@ -86,8 +79,6 @@ func TestProxyV1StaysWithinTheLineLimit(t *testing.T) {
 	}
 }
 
-// TestProxyV2Format decodes the binary header field by field rather than
-// comparing it to a blob this same code produced.
 func TestProxyV2Format(t *testing.T) {
 	var buf bytes.Buffer
 	err := WriteProxyHeader(&buf, ProxyProtoV2,
@@ -148,9 +139,6 @@ func TestProxyV2IPv6Length(t *testing.T) {
 	}
 }
 
-// TestProxyProtocolNoneWritesNothing matters because the header is written
-// straight onto the connection: a stray byte when the feature is off would be
-// read as the first byte of the request.
 func TestProxyProtocolNoneWritesNothing(t *testing.T) {
 	var buf bytes.Buffer
 	err := WriteProxyHeader(&buf, ProxyProtoNone,

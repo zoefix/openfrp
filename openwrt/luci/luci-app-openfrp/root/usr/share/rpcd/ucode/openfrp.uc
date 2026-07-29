@@ -1,14 +1,5 @@
 #!/usr/bin/env ucode
-//
-// rpcd backend for luci-app-openfrp.
-//
-// rpcd kills any call that runs past 30 seconds (/etc/config/rpcd, option
-// timeout), and uhttpd caps a CGI request at 60. Server provisioning over SSH
-// takes longer than either. So every long operation here is fire-and-forget:
-// job_start detaches a worker and returns immediately, and the UI polls
-// job_status for incremental output. That also means a deploy survives the
-// user navigating away or the browser reconnecting.
-//
+
 'use strict';
 
 import { cursor } from 'uci';
@@ -21,13 +12,6 @@ const INIT = '/etc/init.d/openfrp';
 const CLIENT = '/usr/bin/openfrpc';
 const STATS = '/var/run/openfrp/stats.json';
 
-// Management actions, by domain. An allowlist rather than a pass-through:
-// the action becomes a command line, and "whatever the browser sent" is not
-// something to hand to a shell.
-//
-// Issuing a certificate is absent on purpose. It talks to a CA and waits for
-// DNS propagation, so it takes minutes and would be killed by rpcd's 30 second
-// timeout; it runs as a detached job instead.
 const ACTIONS = {
 	dns: [
 		'providers', 'accounts', 'account-add', 'account-update',
@@ -41,11 +25,6 @@ const ACTIONS = {
 	]
 };
 
-// Flags a management action may carry, and how to check each value.
-//
-// Everything is shell quoted as well; this is the second layer, and it is what
-// stops a plausible-looking value reaching a flag that was never meant to take
-// one.
 const FLAGS = {
 	id:      /^[0-9]+$/,
 	limit:   /^[0-9]+$/,
@@ -58,11 +37,6 @@ const FLAGS = {
 	email:   /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
 };
 
-// shellQuote wraps a value for safe interpolation into a shell command.
-//
-// Job arguments reach us from the browser, so they are untrusted. Single
-// quoting with an escape for embedded quotes is the only form that is safe
-// for arbitrary bytes in POSIX sh.
 function shellQuote(value) {
 	return "'" + replace('' + value, "'", "'\\''") + "'";
 }
@@ -85,19 +59,11 @@ function runCommand(cmd) {
 	return out;
 }
 
-// serviceRunning reports whether procd has a live instance.
 function serviceRunning() {
 	const out = runCommand('/etc/init.d/openfrp running 2>/dev/null; echo $?');
 	return trim(out ?? '') == '0';
 }
 
-// binaryVersion reports the installed client's version, for when the daemon
-// is not running to report its own.
-//
-// Cached against the binary's mtime: rpcd keeps this module loaded, and
-// executing a binary per status poll to learn a string that changes only on
-// upgrade would be the most expensive line in the cheapest call. The mtime
-// key is what lets an upgrade show up without an rpcd restart.
 let versionCache = null;
 
 function binaryVersion() {
@@ -107,8 +73,6 @@ function binaryVersion() {
 	if (versionCache && versionCache.mtime == info.mtime)
 		return versionCache.version;
 
-	// Output shape: "openfrpc <version>[+commit] (<date>) <os>/<arch> <go>".
-	// Only the version reads like a version; the commit is build metadata.
 	const out = runCommand(CLIENT + ' version 2>/dev/null');
 	const fields = split(trim(out ?? ''), ' ');
 	const version = length(fields) > 1 ? split(fields[1], '+')[0] : '';
@@ -118,18 +82,11 @@ function binaryVersion() {
 }
 
 function jobPath(id, suffix) {
-	// Job ids are generated here, but they still arrive back from the client,
-	// so refuse anything that could escape the directory.
 	if (!match(id, /^[a-z0-9]+$/))
 		return null;
 	return RUNDIR + '/' + id + suffix;
 }
 
-// stageStdin writes a request body to a private file and returns its path.
-//
-// The body carries DNS provider credentials, so it must not appear in any
-// command line: /proc/<pid>/cmdline is readable by every local process. RUNDIR
-// is tmpfs, so this never reaches flash.
 function stageStdin(payload) {
 	mkdir(RUNDIR, 0o750);
 
@@ -143,7 +100,6 @@ function stageStdin(payload) {
 	return path;
 }
 
-// manageCall runs one openfrpc management action and returns its parsed reply.
 function manageCall(domain, action, params, payload) {
 	const allowed = ACTIONS[domain];
 	if (!allowed || index(allowed, action) < 0)
@@ -191,9 +147,6 @@ function manageCall(domain, action, params, payload) {
 }
 
 const methods = {
-
-	// dns and cert are thin, validated pass-throughs to openfrpc. The real
-	// logic lives in Go, where it is testable, rather than in ucode.
 	dns: {
 		args: { action: '', params: {}, payload: '' },
 		call: function(req) {
@@ -210,17 +163,11 @@ const methods = {
 		}
 	},
 
-
-	// status is the cheap poll the status page runs on a timer. It must stay
-	// fast: no shelling out to anything that talks to the network.
 	status: {
 		call: function() {
 			const uci = cursor();
 			uci.load('openfrp');
 
-			// Which server each tunnel belongs to, and the domain a Cloudflare
-			// one publishes under. A tunnel naming no server belongs to the
-			// first, which is the rule the daemon applies.
 			const zones = {};
 			let firstServer = null;
 			uci.foreach('openfrp', 'server', function(section) {
@@ -235,11 +182,6 @@ const methods = {
 			uci.foreach('openfrp', 'tunnel', function(section) {
 				let domains = section.domains ?? [];
 
-				// A Cloudflare tunnel stores a prefix, and the suffix belongs
-				// to its server. Reporting the prefix alone would be reporting
-				// half an address; reporting nothing, as this did, leaves the
-				// row saying the server allocated something when the operator
-				// chose the name themselves.
 				const owner = section.server ?? firstServer;
 				const zone = zones[owner];
 				if (zone) {
@@ -261,9 +203,6 @@ const methods = {
 				});
 			});
 
-			// Traffic counters are published by the daemon to a file on tmpfs
-			// rather than fetched from it: this method runs per poll and must
-			// stay cheap, and the daemon may not be running at all.
 			let traffic = {};
 			const raw = readFile(STATS);
 			if (raw) {
@@ -280,17 +219,12 @@ const methods = {
 			const result = {
 				enabled: uci.get('openfrp', 'global', 'enabled') == '1',
 				running: running,
-				// The running daemon reports its own version; otherwise ask
-				// the installed binary, so an upgrade shows before the next
-				// start and a stale stats file cannot report a dead daemon's.
+
 				client_version: (running && traffic.client_version)
 					? traffic.client_version : binaryVersion(),
-				// Per-server control-connection state, keyed by section name.
-				// Empty when the daemon is down or predates this field.
+
 				servers: running ? (traffic.servers ?? {}) : {},
 				traffic: {
-					// updated_at lets the page tell live counters from a file
-					// left behind by a daemon that has since stopped.
 					updated_at: traffic.updated_at ?? 0,
 					uptime_seconds: traffic.uptime_seconds ?? 0,
 					total: traffic.total ?? {}
@@ -298,8 +232,7 @@ const methods = {
 				server: {
 					addr: uci.get('openfrp', 'server', 'addr') ?? '',
 					port: uci.get('openfrp', 'server', 'port') ?? '',
-					// The token is deliberately not returned. It is a shared
-					// secret and the status page has no use for it.
+
 					mux: uci.get('openfrp', 'server', 'mux') == '1'
 				},
 				tunnels: tunnels
@@ -310,8 +243,6 @@ const methods = {
 		}
 	},
 
-	// log_tail returns recent daemon output. procd pipes the daemon's stdout
-	// and stderr into syslog, so that is where it lives.
 	log_tail: {
 		args: { lines: 0 },
 		call: function(req) {
@@ -324,7 +255,6 @@ const methods = {
 		}
 	},
 
-	// job_start detaches a worker and returns immediately.
 	job_start: {
 		args: { kind: '', args: '' },
 		call: function(req) {
@@ -337,13 +267,6 @@ const methods = {
 
 			mkdir(RUNDIR, 0o750);
 
-			// ucode has no getpid(), so the id is the clock plus a random
-			// suffix, retried until it names a file that does not exist.
-			//
-			// An earlier version called getpid() — which does not exist in
-			// ucode either — and the resulting exception failed *every*
-			// job_start with a bare "Unknown error", including the deploy
-			// button. Nothing in the log said which call was at fault.
 			srand(time());
 			let id = null;
 			for (let attempt = 0; attempt < 16; attempt++) {
@@ -362,26 +285,12 @@ const methods = {
 			if (!logPath || !statusPath || !argsPath)
 				return { error: 'could not allocate a job id' };
 
-			// Job arguments carry the SSH password, so they are handed to the
-			// worker through a file and only the path is ever spoken aloud.
-			//
-			// The obvious `printf '%s' <args> | worker` does not work here: it
-			// keeps the password out of the *worker's* argv but puts it in the
-			// argv of the intermediate shell, where any local process can read
-			// it from /proc/<pid>/cmdline. That was verified on a live router,
-			// not assumed — a grep for the secret across /proc matches that
-			// shell for as long as it lives.
-			//
-			// RUNDIR is on tmpfs, so this file is RAM only and never reaches
-			// flash, and the worker unlinks it the moment it has been read.
 			const fd = open(argsPath, 'w', 0o600);
 			if (!fd)
 				return { error: 'could not stage the job arguments' };
 			fd.write(req.args?.args ?? '');
 			fd.close();
 
-			// setsid detaches the worker from rpcd's process group, so it
-			// survives the 30-second timeout that is about to end this call.
 			const cmd = sprintf('setsid %s %s %s %s %s >/dev/null 2>&1 &',
 				WORKER, shellQuote(kind), shellQuote(logPath),
 				shellQuote(statusPath), shellQuote(argsPath));
@@ -397,8 +306,6 @@ const methods = {
 		}
 	},
 
-	// job_status returns the job state plus whatever output has appeared past
-	// the offset the caller already has.
 	job_status: {
 		args: { id: '', offset: 0 },
 		call: function(req) {
@@ -455,12 +362,6 @@ const methods = {
 	}
 };
 
-// An uncaught exception in a method reaches the browser as a bare "Unknown
-// error" and writes nothing to the log — there is no indication of which call
-// failed, or that a call failed at all rather than the object being missing.
-// A getpid() typo hid behind that message and broke every job on this backend.
-//
-// Wrapping the methods turns any such crash into a message the UI can show.
 for (let name in methods) {
 	const inner = methods[name].call;
 	methods[name].call = function(req) {

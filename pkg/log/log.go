@@ -1,9 +1,3 @@
-// Package log configures the process-wide structured logger.
-//
-// On OpenWrt the daemon is supervised by procd with `procd_set_param stdout 1`
-// and `stderr 1`, which pipes both streams straight into syslog. That makes
-// plain text on stdout the cheapest possible log sink for the LuCI status view,
-// so text is the default format and JSON is opt-in.
 package log
 
 import (
@@ -14,7 +8,6 @@ import (
 	"strings"
 )
 
-// Format selects the on-wire encoding of log records.
 type Format string
 
 const (
@@ -22,20 +15,16 @@ const (
 	FormatJSON Format = "json"
 )
 
-// Options configures the logger built by Setup.
 type Options struct {
-	// Level is one of debug, info, warn, error. Empty means info.
 	Level string
-	// Format is text or json. Empty means text.
+
 	Format Format
-	// Output defaults to os.Stdout when nil.
+
 	Output io.Writer
-	// AddSource attaches file:line to every record. Expensive; debug only.
+
 	AddSource bool
 }
 
-// Setup builds a logger from opts and installs it as the slog default.
-// It returns the logger so callers can hold a direct reference.
 func Setup(opts Options) (*slog.Logger, error) {
 	level, err := ParseLevel(opts.Level)
 	if err != nil {
@@ -67,8 +56,6 @@ func Setup(opts Options) (*slog.Logger, error) {
 	return logger, nil
 }
 
-// ParseLevel maps a human-written level name onto a slog.Level.
-// An empty string yields info so that a zero-valued config still works.
 func ParseLevel(name string) (slog.Level, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "debug":
@@ -84,7 +71,6 @@ func ParseLevel(name string) (slog.Level, error) {
 	}
 }
 
-// Discard returns a logger that throws everything away. Useful in tests.
 func Discard() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
 		Level: slog.LevelError + 1,

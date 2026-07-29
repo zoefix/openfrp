@@ -30,9 +30,6 @@ func TestListenSingleLoop(t *testing.T) {
 	assertEcho(t, conn, "hello")
 }
 
-// TestListenFanInSharesOnePort is the real check on the SO_REUSEPORT path:
-// every loop must land on the same port, and connections must arrive whichever
-// loop the kernel picks.
 func TestListenFanInSharesOnePort(t *testing.T) {
 	if !reusePortSupported {
 		t.Skip("SO_REUSEPORT unavailable on this platform")
@@ -55,7 +52,6 @@ func TestListenFanInSharesOnePort(t *testing.T) {
 		t.Fatalf("listener address %q is not a concrete port", addr)
 	}
 
-	// Serve every connection the fan-in produces.
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -116,8 +112,6 @@ func TestListenFanInCloseIsIdempotent(t *testing.T) {
 	}
 }
 
-// TestListenFallsBackWithoutReusePort proves a caller can always ask for many
-// loops and get a working listener regardless of platform support.
 func TestListenFallsBackWithoutReusePort(t *testing.T) {
 	ln, err := Listen(context.Background(), "tcp", "127.0.0.1:0",
 		ListenOptions{ReusePort: false}, 8)

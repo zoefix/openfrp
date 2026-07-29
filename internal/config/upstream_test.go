@@ -6,11 +6,6 @@ import (
 	"testing"
 )
 
-// TestOldSingleServerConfigStillWorks is the compatibility guarantee.
-//
-// An upgrade must not require the operator to touch anything. A configuration
-// written when there could only be one server carries the single set of fields
-// and no list, and is read as a list of one.
 func TestOldSingleServerConfigStillWorks(t *testing.T) {
 	var cfg Client
 	err := json.Unmarshal([]byte(`{
@@ -41,7 +36,6 @@ func TestOldSingleServerConfigStillWorks(t *testing.T) {
 		t.Errorf("token was lost: %q", servers[0].Token)
 	}
 
-	// A tunnel that names no server belongs to the only one there is.
 	if got := cfg.TunnelsFor(servers[0].Name); len(got) != 1 {
 		t.Errorf("the tunnel was not assigned to the only server: %d", len(got))
 	}
@@ -68,8 +62,6 @@ func multiServer(t *testing.T) *Client {
 	return cfg
 }
 
-// TestTunnelsAreSplitByServer covers the rule that keeps a single-server setup
-// free of bookkeeping: an unassigned tunnel belongs to the first server.
 func TestTunnelsAreSplitByServer(t *testing.T) {
 	cfg := multiServer(t)
 
@@ -84,8 +76,6 @@ func TestTunnelsAreSplitByServer(t *testing.T) {
 	}
 }
 
-// TestOrphanTunnelsAreReported keeps a tunnel from vanishing silently when the
-// server it names is renamed or removed.
 func TestOrphanTunnelsAreReported(t *testing.T) {
 	cfg := multiServer(t)
 	cfg.Tunnels = append(cfg.Tunnels, Tunnel{
@@ -107,9 +97,6 @@ func TestOrphanTunnelsAreReported(t *testing.T) {
 	}
 }
 
-// TestSamePortOnDifferentServersIsAllowed is the rule that changes with more
-// than one server: two tunnels may both bind 6022 as long as they are not on
-// the same one.
 func TestSamePortOnDifferentServersIsAllowed(t *testing.T) {
 	cfg := &Client{
 		Servers: []Upstream{
@@ -129,7 +116,6 @@ func TestSamePortOnDifferentServersIsAllowed(t *testing.T) {
 		t.Fatalf("the same port on two different servers was rejected: %v", err)
 	}
 
-	// The same port twice on one server is still a conflict.
 	cfg.Tunnels[1].Server = "main"
 	if err := cfg.Validate(); err == nil {
 		t.Error("two tunnels on one server both bound 6022")
@@ -150,8 +136,6 @@ func TestDuplicateServerNamesAreRejected(t *testing.T) {
 	}
 }
 
-// TestEachServerKeepsItsOwnTransport matters because the settings are not
-// global: one link may need multiplexing and another must not have it.
 func TestEachServerKeepsItsOwnTransport(t *testing.T) {
 	cfg := &Client{
 		Servers: []Upstream{

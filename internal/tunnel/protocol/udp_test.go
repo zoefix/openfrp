@@ -11,8 +11,7 @@ func TestUDPPacketRoundTrip(t *testing.T) {
 	cases := []UDPPacket{
 		{Addr: "203.0.113.7:51234", Payload: []byte("hello")},
 		{Addr: "[2001:db8::1%eth0]:53", Payload: []byte{0, 1, 2, 255}},
-		// A zero-length datagram is legal UDP and must survive as a
-		// zero-length datagram rather than as nothing.
+
 		{Addr: "198.51.100.1:9", Payload: []byte{}},
 		{Addr: "", Payload: []byte("no source")},
 		{Addr: "10.0.0.1:1", Payload: bytes.Repeat([]byte("x"), MaxUDPPayload)},
@@ -38,9 +37,6 @@ func TestUDPPacketRoundTrip(t *testing.T) {
 	}
 }
 
-// TestUDPBoundariesArePreserved is the property the framing exists for. A UDP
-// application that receives two datagrams merged, or one split in half, breaks
-// in ways that are very hard to diagnose from the far end.
 func TestUDPBoundariesArePreserved(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -98,8 +94,6 @@ func TestUDPTruncatedFrameIsAnError(t *testing.T) {
 	var buf bytes.Buffer
 	WriteUDPPacket(&buf, UDPPacket{Addr: "a:1", Payload: []byte("payload")})
 
-	// Every truncation must error rather than panic; the input is attacker
-	// controlled.
 	full := buf.Bytes()
 	for cut := 1; cut < len(full); cut++ {
 		if _, err := ReadUDPPacket(bytes.NewReader(full[:cut])); err == nil {
@@ -108,8 +102,6 @@ func TestUDPTruncatedFrameIsAnError(t *testing.T) {
 	}
 }
 
-// TestUDPReadIntoMatchesRead proves the aliasing reader and the allocating
-// reader decode identically, including the zero-length datagram case.
 func TestUDPReadIntoMatchesRead(t *testing.T) {
 	cases := []UDPPacket{
 		{Addr: "192.0.2.7:53", Payload: []byte("query")},
@@ -139,8 +131,6 @@ func TestUDPReadIntoMatchesRead(t *testing.T) {
 	}
 }
 
-// TestUDPReadIntoRejectsSmallScratch: a short scratch buffer must be refused
-// up front, not discovered as an index panic mid-read.
 func TestUDPReadIntoRejectsSmallScratch(t *testing.T) {
 	var buf bytes.Buffer
 	if err := WriteUDPPacket(&buf, UDPPacket{Addr: "a:1", Payload: []byte("x")}); err != nil {
@@ -151,8 +141,6 @@ func TestUDPReadIntoRejectsSmallScratch(t *testing.T) {
 	}
 }
 
-// TestUDPAppendRoundTrip: the append-style framer must produce exactly what
-// the readers expect, extending dst in place.
 func TestUDPAppendRoundTrip(t *testing.T) {
 	frame := make([]byte, 0, MaxUDPFrame)
 	frame, err := AppendUDPPacket(frame, "203.0.113.9:4242", []byte("hello"))
@@ -169,9 +157,6 @@ func TestUDPAppendRoundTrip(t *testing.T) {
 	}
 }
 
-// TestUDPSteadyStateAllocations pins the whole point of the Into/Append pair:
-// the per-packet paths must not allocate. A regression here is invisible to
-// every correctness test and taxes every datagram, so it is asserted exactly.
 func TestUDPSteadyStateAllocations(t *testing.T) {
 	payload := bytes.Repeat([]byte{0x42}, 512)
 	addr := "192.0.2.55:60000"

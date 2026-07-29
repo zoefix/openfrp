@@ -1,4 +1,3 @@
-// Package server implements the OpenFrp server daemon.
 package server
 
 import (
@@ -20,14 +19,8 @@ import (
 	"github.com/zoefix/openfrp/pkg/netutil"
 )
 
-// handshakeTimeout bounds the greeting and first message on a new connection.
-//
-// It exists so a connection that opens and then says nothing cannot pin a
-// goroutine indefinitely. It MUST be cleared before a work connection starts
-// relaying, or the deadline would kill every long-lived tunnel.
 const handshakeTimeout = 15 * time.Second
 
-// Server accepts client connections and publishes their tunnels.
 type Server struct {
 	cfg        *config.Server
 	logger     *slog.Logger
@@ -42,14 +35,11 @@ type Server struct {
 	listener   net.Listener
 	vhosts     []*vhostListener
 
-	// listenOpts is remembered so accepted connections can be tuned to match
-	// on platforms that do not inherit the listener's options.
 	listenOpts netutil.ListenOptions
 
 	wg sync.WaitGroup
 }
 
-// New builds a server from cfg.
 func New(cfg *config.Server, logger *slog.Logger, version string) (*Server, error) {
 	if cfg == nil {
 		return nil, errors.New("server: nil config")
@@ -73,23 +63,16 @@ func New(cfg *config.Server, logger *slog.Logger, version string) (*Server, erro
 	}, nil
 }
 
-// Registry exposes the connected sessions.
 func (s *Server) Registry() *Registry { return s.registry }
 
-// Router exposes the domain routing table.
 func (s *Server) Router() *vhost.Router { return s.router }
 
-// Certs exposes the certificate store used for edge TLS termination.
 func (s *Server) Certs() *CertStore { return s.certs }
 
-// Challenges exposes the ACME HTTP-01 challenges clients have published.
 func (s *Server) Challenges() *ChallengeStore { return s.challenges }
 
-// Stats exposes the traffic counters.
 func (s *Server) Stats() *stats.Registry { return s.stats }
 
-// VhostAddr reports the bound address of one vhost listener, or nil when that
-// scheme is not configured.
 func (s *Server) VhostAddr(scheme vhost.Scheme) net.Addr {
 	s.listenerMu.Lock()
 	defer s.listenerMu.Unlock()
@@ -102,8 +85,6 @@ func (s *Server) VhostAddr(scheme vhost.Scheme) net.Addr {
 	return nil
 }
 
-// routeRegistrar hands proxies only the two operations they need, so the vhost
-// proxies never see the full router.
 func (s *Server) routeRegistrar() proxy.RouteRegistrar {
 	if len(s.vhosts) == 0 {
 		return nil
@@ -111,7 +92,6 @@ func (s *Server) routeRegistrar() proxy.RouteRegistrar {
 	return s.router
 }
 
-// Addr reports the bound control address, or nil before Serve has bound it.
 func (s *Server) Addr() net.Addr {
 	s.listenerMu.Lock()
 	defer s.listenerMu.Unlock()
@@ -122,9 +102,6 @@ func (s *Server) Addr() net.Addr {
 	return s.listener.Addr()
 }
 
-// Listen binds the control port without serving. Serve calls this when needed;
-// callers use it directly when they must know the address first, which is what
-// tests binding port 0 need.
 func (s *Server) Listen(ctx context.Context) error {
 	s.listenerMu.Lock()
 	defer s.listenerMu.Unlock()
@@ -137,9 +114,7 @@ func (s *Server) Listen(ctx context.Context) error {
 	s.listenOpts = netutil.ListenOptions{
 		ReusePort: s.cfg.AcceptLoops != 1,
 		KeepAlive: 30 * time.Second,
-		// Every legitimate connection here opens with our preamble, so accept
-		// can wait for it: one wakeup saved per connection, and a scanner that
-		// connects silently never costs a goroutine.
+
 		DeferAccept: 5 * time.Second,
 	}
 	ln, err := netutil.Listen(ctx, "tcp", addr, s.listenOpts, s.cfg.AcceptLoops)
@@ -153,8 +128,6 @@ func (s *Server) Listen(ctx context.Context) error {
 		"accept_loops", netutil.AcceptLoops(ln),
 		"version", s.version)
 
-	// Bind the vhost listeners here too, so a port conflict fails startup
-	// rather than surfacing later as an unexplained publish rejection.
 	vhostPorts := []struct {
 		scheme vhost.Scheme
 		port   int
@@ -189,7 +162,6 @@ func (s *Server) Listen(ctx context.Context) error {
 	return nil
 }
 
-// Serve accepts connections until ctx is cancelled.
 func (s *Server) Serve(ctx context.Context) error {
 	if err := s.Listen(ctx); err != nil {
 		return err
@@ -205,7 +177,6 @@ func (s *Server) Serve(ctx context.Context) error {
 		ln.Close()
 	}()
 
-	// Each vhost listener serves alongside the control listener.
 	for _, v := range vhosts {
 		s.wg.Add(1)
 		go func() {
@@ -220,9 +191,6 @@ func (s *Server) Serve(ctx context.Context) error {
 	defer s.wg.Wait()
 	defer s.registry.CloseAll()
 
-	// The control listener carries one connection per tunnel handoff at steady
-	// state — every work connection lands here — so it accepts in parallel for
-	// the same reason the proxy listeners do.
 	err := netutil.Serve(ln, func(conn net.Conn) {
 		s.wg.Add(1)
 		go func() {
@@ -241,11 +209,8 @@ func (s *Server) Serve(ctx context.Context) error {
 	return nil
 }
 
-// handleConn reads the greeting and dispatches on the declared mode.
 func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
-	// Free on Linux: the listener was tuned at bind time and this connection
-	// was cloned from it. Work connections in particular arrive at the rate
-	// tunnelled connections are served, so this is on the hot path.
+
 	if err := netutil.TuneAccepted(conn, s.listenOpts); err != nil {
 		s.logger.Debug("tune connection", "error", err)
 	}
@@ -257,8 +222,7 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 
 	preamble, err := protocol.ReadPreamble(conn)
 	if err != nil {
-		// Routine on a public port: scanners and stray HTTP land here. Debug
-		// level keeps them out of the operator's face.
+
 		s.logger.Debug("rejected connection", "remote", conn.RemoteAddr().String(), "error", err)
 		conn.Close()
 		return
@@ -275,10 +239,8 @@ func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 	}
 }
 
-// handleMux serves a yamux session, treating every stream as a plain
-// connection.
 func (s *Server) handleMux(ctx context.Context, conn net.Conn) {
-	// The session outlives the handshake, so the deadline must go.
+
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		conn.Close()
 		return
@@ -308,18 +270,15 @@ func (s *Server) handleMux(ctx context.Context, conn net.Conn) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// Streams get their own handshake budget.
+
 			stream.SetDeadline(time.Now().Add(handshakeTimeout))
 			s.handlePlain(ctx, stream)
 		}()
 	}
 }
 
-// handlePlain reads the first message and decides what the connection is for.
 func (s *Server) handlePlain(ctx context.Context, conn net.Conn) {
-	// Read the opening message without buffering: a work connection carries
-	// raw payload straight after it, and a buffered reader would eat the start
-	// of that payload.
+
 	msg, err := protocol.ReadMessage(conn)
 	if err != nil {
 		s.logger.Debug("read opening message", "remote", conn.RemoteAddr().String(), "error", err)
@@ -344,7 +303,6 @@ func (s *Server) handlePlain(ctx context.Context, conn net.Conn) {
 	}
 }
 
-// attachWorkConn hands a work connection to the session that owns it.
 func (s *Server) attachWorkConn(conn net.Conn, msg *protocol.NewWorkConn) {
 	if err := protocol.VerifyAuth(s.cfg.Token, msg.AuthKey, msg.Timestamp,
 		time.Now(), protocol.DefaultAuthSkew); err != nil {
@@ -361,9 +319,6 @@ func (s *Server) attachWorkConn(conn net.Conn, msg *protocol.NewWorkConn) {
 		return
 	}
 
-	// Critical: clear the handshake deadline. This connection is about to sit
-	// idle in the warm pool and then carry a long-lived tunnel; leaving the
-	// deadline set would kill it mid-transfer.
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		conn.Close()
 		return
@@ -372,14 +327,6 @@ func (s *Server) attachWorkConn(conn net.Conn, msg *protocol.NewWorkConn) {
 	session.AddWorkConn(conn)
 }
 
-// attachMuxConn takes a connection the client has offered as an overflow
-// carrier and makes the server the side that opens streams on it.
-//
-// The role reversal is the point. Every other connection in this protocol is
-// dialled by the client because the client is the one that can reach out; on
-// this one the server needs to initiate, since it is the server that learns a
-// visitor has arrived. Multiplexing is what allows that without the client
-// having to be reachable.
 func (s *Server) attachMuxConn(conn net.Conn, msg *protocol.NewMuxConn) {
 	if err := protocol.VerifyAuth(s.cfg.Token, msg.AuthKey, msg.Timestamp,
 		time.Now(), protocol.DefaultAuthSkew); err != nil {
@@ -396,8 +343,6 @@ func (s *Server) attachMuxConn(conn net.Conn, msg *protocol.NewMuxConn) {
 		return
 	}
 
-	// The carrier outlives the handshake by design: it stays open for as long
-	// as the client does, so the deadline has to go or it would kill it.
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		conn.Close()
 		return
@@ -413,7 +358,6 @@ func (s *Server) attachMuxConn(conn net.Conn, msg *protocol.NewMuxConn) {
 	session.SetOverflow(source)
 }
 
-// Close stops the listener and every session.
 func (s *Server) Close() error {
 	s.listenerMu.Lock()
 	ln := s.listener

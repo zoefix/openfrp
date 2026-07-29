@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-// withdrawHarness is a CLI whose credential and API both answer.
 func withdrawHarness(t *testing.T, records string) (CLI, *[]string) {
 	t.Helper()
 
@@ -51,8 +50,6 @@ func withdrawHarness(t *testing.T, records string) (CLI, *[]string) {
 const oneRecord = `{"success":true,"result":[` +
 	`{"id":"r1","type":"CNAME","content":"tid.cfargotunnel.com"}]}`
 
-// A name that was published and is no longer in the configuration has to lose
-// its record: nothing else will remove it, and it would keep answering.
 func TestWithdrawRemovesANameThatWasDeleted(t *testing.T) {
 	cli, deleted := withdrawHarness(t, oneRecord)
 	ctx := context.Background()
@@ -71,7 +68,6 @@ func TestWithdrawRemovesANameThatWasDeleted(t *testing.T) {
 	}
 }
 
-// A name still published is left alone, however many times apply runs.
 func TestWithdrawLeavesNamesStillPublished(t *testing.T) {
 	cli, deleted := withdrawHarness(t, oneRecord)
 	ctx := context.Background()
@@ -85,8 +81,6 @@ func TestWithdrawLeavesNamesStillPublished(t *testing.T) {
 	}
 }
 
-// One server's names are not withdrawn because another server stopped
-// publishing them.
 func TestWithdrawIsScopedToOneServer(t *testing.T) {
 	cli, deleted := withdrawHarness(t, oneRecord)
 	ctx := context.Background()
@@ -99,15 +93,12 @@ func TestWithdrawIsScopedToOneServer(t *testing.T) {
 		t.Fatalf("deleted %v, want only the second server's name", *deleted)
 	}
 
-	// The first server's name is still recorded, so it is not withdrawn later.
 	cli.Withdraw(ctx, "cf1", []Rule{{Hostname: "a.example.com"}}, nil)
 	if len(*deleted) != 1 {
 		t.Errorf("the other server's name was withdrawn: %v", *deleted)
 	}
 }
 
-// A failure to withdraw is reported and does not stop the apply, because the
-// alternative is leaving every other name unpublished.
 func TestWithdrawReportsAFailureWithoutFailing(t *testing.T) {
 	cli, _ := withdrawHarness(t,
 		`{"success":false,"errors":[{"code":9109,"message":"no access"}]}`)

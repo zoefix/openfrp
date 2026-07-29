@@ -1,8 +1,3 @@
-// Command openfrpc is the OpenFrp client.
-//
-// It runs on the router and carries three responsibilities: maintaining the
-// tunnels, provisioning the server over SSH, and — from P5 onward — managing
-// DNS records and TLS certificates locally.
 package main
 
 import (
@@ -16,7 +11,7 @@ import (
 )
 
 func main() {
-	// SIGTERM is what procd sends on OpenWrt; SIGINT is the interactive case.
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

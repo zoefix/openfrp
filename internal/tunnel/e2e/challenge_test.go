@@ -11,11 +11,6 @@ import (
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 )
 
-// startVhostForChallenges brings up a server with an ordinary client attached.
-//
-// The client is not what the tests are about, but its presence is: a real
-// server has one, and waiting for its tunnel to publish is what makes the
-// session count below a settled number rather than a race.
 func startVhostForChallenges(t *testing.T) *vhostHarness {
 	t.Helper()
 
@@ -30,16 +25,9 @@ func startVhostForChallenges(t *testing.T) *vhostHarness {
 	}})
 }
 
-// announceChallenge publishes one the way certificate issuance does, and
-// returns once the server has finished tearing that connection down — so what
-// a test observes afterwards is the state that outlasts the publisher, not a
-// race against its teardown.
 func announceChallenge(t *testing.T, h *vhostHarness, domain, token, keyAuth string) {
 	t.Helper()
 
-	// The harness keeps a client connected of its own, and it is already up:
-	// this waits for the one connection this function opens, not for an empty
-	// server.
 	before := h.server.Registry().Len()
 
 	upstream := config.Upstream{
@@ -68,14 +56,6 @@ func announceChallenge(t *testing.T, h *vhostHarness, domain, token, keyAuth str
 	}
 }
 
-// A published challenge has to outlive the connection that published it.
-//
-// Certificate issuance runs in its own process, with no control connection of
-// its own, so it opens a short one, publishes, and hangs up. The server
-// withdrew everything a client had published when its session closed — right
-// for a router that dropped off, wrong here, where hanging up is the ordinary
-// end of a successful publish. The challenge was deleted milliseconds after
-// being stored and the authority fetched a 404.
 func TestPublishedChallengeOutlivesTheConnectionThatPublishedIt(t *testing.T) {
 	h := startVhostForChallenges(t)
 
@@ -97,8 +77,6 @@ func TestPublishedChallengeOutlivesTheConnectionThatPublishedIt(t *testing.T) {
 	}
 }
 
-// Answering is not one-shot: the authority validates from several vantage
-// points, and every one of them fetches the same URL.
 func TestChallengeAnswersEveryValidationAttempt(t *testing.T) {
 	h := startVhostForChallenges(t)
 
@@ -119,10 +97,6 @@ func TestChallengeAnswersEveryValidationAttempt(t *testing.T) {
 	}
 }
 
-// A router that goes away still takes its challenges with it. The client here
-// publishes and disconnects like any other, so the two cases are told apart by
-// whether anything was published at all, not by how the connection ended —
-// this is the behaviour the fix must not have thrown away.
 func TestUnpublishedTokenIsStillA404(t *testing.T) {
 	h := startVhostForChallenges(t)
 

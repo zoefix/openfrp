@@ -6,7 +6,6 @@ import (
 	"io"
 )
 
-// TLS record and handshake constants from RFC 8446 and its predecessors.
 const (
 	recordTypeHandshake  = 0x16
 	handshakeClientHello = 0x01
@@ -17,27 +16,12 @@ const (
 	tlsRandomSize       = 32
 )
 
-// TLSInfo is what the ClientHello tells us.
 type TLSInfo struct {
-	// ServerName is the SNI value, normalised. Empty when the client sent no
-	// SNI extension, which happens with very old clients and raw-IP TLS.
 	ServerName string
-	// Consumed holds every byte read while sniffing. The caller must replay
-	// these to the upstream connection before relaying; the handshake will
-	// fail otherwise, since the server needs the ClientHello.
+
 	Consumed []byte
 }
 
-// SniffTLS reads a TLS ClientHello and extracts the SNI without terminating
-// the handshake.
-//
-// The ClientHello is parsed directly rather than by driving crypto/tls with a
-// GetConfigForClient callback, the way frp does. Parsing gives exact control
-// over which bytes were consumed, which is what allows the caller to replay
-// them upstream and then splice two bare sockets. Wrapping the connection to
-// replay instead would cost the fast path for the whole transfer.
-//
-// The server never sees plaintext: it forwards the encrypted stream untouched.
 func SniffTLS(r io.Reader) (TLSInfo, error) {
 	head := newHeadReader(r, MaxTLSHead)
 
@@ -70,8 +54,7 @@ func SniffTLS(r io.Reader) (TLSInfo, error) {
 		return info, err
 	}
 	if name == "" {
-		// Not an error in itself; the caller decides whether a catch-all route
-		// can serve a client that sent no SNI.
+
 		return info, nil
 	}
 
@@ -83,8 +66,6 @@ func SniffTLS(r io.Reader) (TLSInfo, error) {
 	return info, nil
 }
 
-// parseClientHello walks the handshake body and returns the SNI host name, or
-// an empty string when the extension is absent.
 func parseClientHello(body []byte) (string, error) {
 	r := &byteReader{buf: body}
 
@@ -95,26 +76,25 @@ func parseClientHello(body []byte) (string, error) {
 	if _, ok := r.u24(); !ok {
 		return "", fmt.Errorf("vhost: truncated ClientHello length")
 	}
-	if _, ok := r.skip(2); !ok { // legacy_version
+	if _, ok := r.skip(2); !ok {
 		return "", fmt.Errorf("vhost: truncated ClientHello version")
 	}
 	if _, ok := r.skip(tlsRandomSize); !ok {
 		return "", fmt.Errorf("vhost: truncated ClientHello random")
 	}
-	if _, ok := r.vector8(); !ok { // legacy_session_id
+	if _, ok := r.vector8(); !ok {
 		return "", fmt.Errorf("vhost: truncated session id")
 	}
-	if _, ok := r.vector16(); !ok { // cipher_suites
+	if _, ok := r.vector16(); !ok {
 		return "", fmt.Errorf("vhost: truncated cipher suites")
 	}
-	if _, ok := r.vector8(); !ok { // legacy_compression_methods
+	if _, ok := r.vector8(); !ok {
 		return "", fmt.Errorf("vhost: truncated compression methods")
 	}
 
 	extensions, ok := r.vector16()
 	if !ok {
-		// A ClientHello without extensions is legal in TLS 1.0-1.2 and simply
-		// carries no SNI.
+
 		return "", nil
 	}
 
@@ -158,9 +138,6 @@ func parseClientHello(body []byte) (string, error) {
 	return "", nil
 }
 
-// byteReader is a bounds-checked cursor over a byte slice. Every accessor
-// reports success rather than panicking, because the input is attacker
-// controlled.
 type byteReader struct {
 	buf []byte
 	pos int
@@ -203,7 +180,6 @@ func (r *byteReader) u24() (uint32, bool) {
 	return uint32(b[0])<<16 | uint32(b[1])<<8 | uint32(b[2]), true
 }
 
-// vector8 reads a length-prefixed block with a one-byte length.
 func (r *byteReader) vector8() ([]byte, bool) {
 	n, ok := r.u8()
 	if !ok {
@@ -212,7 +188,6 @@ func (r *byteReader) vector8() ([]byte, bool) {
 	return r.skip(int(n))
 }
 
-// vector16 reads a length-prefixed block with a two-byte length.
 func (r *byteReader) vector16() ([]byte, bool) {
 	n, ok := r.u16()
 	if !ok {

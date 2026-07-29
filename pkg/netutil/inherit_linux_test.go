@@ -8,36 +8,12 @@ import (
 	"testing"
 )
 
-// TestAcceptedSocketsInheritListenerOptions establishes the fact the
-// per-connection tuning is allowed to rely on.
-//
-// Linux clones an accepted socket from the listening socket, and the clone
-// carries the options that were set on the listener. That is what lets the
-// data plane set TCP_NODELAY and the keepalive parameters once, at bind time,
-// instead of paying three setsockopt syscalls on every connection that
-// arrives — which at a hundred thousand connections is three hundred thousand
-// syscalls spent re-stating something the kernel already knew.
-//
-// It is asserted rather than assumed because the whole optimisation rests on
-// it, POSIX does not require it, and the failure mode is silent: a tunnel that
-// still works but has Nagle switched back on, adding tens of milliseconds to
-// every interactive round trip with nothing in any log to say why.
 func TestAcceptedSocketsInheritListenerOptions(t *testing.T) {
 	const (
-		keepIdle  = 47 // seconds; distinctive, so a default cannot pass for it
+		keepIdle  = 47
 		keepIntvl = 11
 	)
 
-	// KeepAlive is negative on purpose, and it is half the finding.
-	//
-	// Go treats zero as "on, with my default", and implements that by calling
-	// setsockopt on every accepted connection — which both costs the syscalls
-	// this test exists to remove and overwrites whatever the listener was
-	// configured with. Measured here before the flag was set: an inherited
-	// idle of 47 came back as 15, Go's default, not the kernel's 7200.
-	//
-	// Negative turns that off, leaving the accepted socket with exactly what
-	// it was cloned with.
 	cfg := NewListenConfig(ListenOptions{KeepAlive: -1})
 	cfg.Control = func(_, _ string, rc syscall.RawConn) error {
 		var err error
@@ -70,7 +46,7 @@ func TestAcceptedSocketsInheritListenerOptions(t *testing.T) {
 		conn, err := net.Dial("tcp", ln.Addr().String())
 		if err == nil {
 			defer conn.Close()
-			// Hold it open until the assertions below have run.
+
 			buf := make([]byte, 1)
 			conn.Read(buf)
 		}

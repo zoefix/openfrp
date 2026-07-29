@@ -1,8 +1,3 @@
-// Package cmd holds the openfrpc subcommands, one per file.
-//
-// Dispatch is hand-rolled on top of the standard flag package rather than a
-// CLI framework. The command set is small and fixed, and this keeps the binary
-// free of a dependency that would earn its keep only on a much larger surface.
 package cmd
 
 import (
@@ -14,17 +9,15 @@ import (
 	"strings"
 )
 
-// Command is one openfrpc subcommand.
 type Command struct {
 	Name    string
 	Summary string
-	// Run receives the arguments after the subcommand name.
+
 	Run func(ctx context.Context, args []string) error
 }
 
 var commands = map[string]*Command{}
 
-// register adds a subcommand. Called from each command's init.
 func register(c *Command) {
 	if _, exists := commands[c.Name]; exists {
 		panic(fmt.Sprintf("cmd: %q registered twice", c.Name))
@@ -32,7 +25,6 @@ func register(c *Command) {
 	commands[c.Name] = c
 }
 
-// Execute dispatches argv to a subcommand.
 func Execute(ctx context.Context, argv []string) error {
 	if len(argv) == 0 {
 		Usage(os.Stderr)
@@ -53,16 +45,12 @@ func Execute(ctx context.Context, argv []string) error {
 	}
 	err := c.Run(ctx, argv[1:])
 	if errors.Is(err, errReported) {
-		// The management subcommands describe their own failures as a JSON
-		// envelope on stdout, which is what the rpcd backend parses. Exiting
-		// non-zero is for the job worker, which branches on the status — and
-		// reported a failed certificate issuance as a success until it did.
+
 		os.Exit(1)
 	}
 	return err
 }
 
-// Usage writes the command list.
 func Usage(w *os.File) {
 	var b strings.Builder
 	b.WriteString("openfrpc — OpenFrp client\n\nUsage:\n  openfrpc <command> [flags]\n\nCommands:\n")

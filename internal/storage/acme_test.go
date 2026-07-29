@@ -7,14 +7,6 @@ import (
 	"github.com/zoefix/openfrp/internal/storage/repo"
 )
 
-// TestEABCanBeStoredBeforeRegistration covers the order operations actually
-// happen in.
-//
-// External account binding credentials are entered before the first issuance,
-// and the account key is only generated when lego registers. The column was
-// NOT NULL, so saving them failed with a constraint error naming a column the
-// operator has never heard of, at the exact moment they were trying to unblock
-// themselves.
 func TestEABCanBeStoredBeforeRegistration(t *testing.T) {
 	ctx := context.Background()
 	accounts := repo.NewACMEAccounts(open(t).DB)
@@ -42,11 +34,6 @@ func TestEABCanBeStoredBeforeRegistration(t *testing.T) {
 	}
 }
 
-// TestSavingEABKeepsTheAccountKey is the sequel: once registered, updating the
-// binding credentials must not wipe the key.
-//
-// Losing it costs the ability to revoke everything issued under that account,
-// and does so silently — the next issuance would simply register a new one.
 func TestSavingEABKeepsTheAccountKey(t *testing.T) {
 	ctx := context.Background()
 	accounts := repo.NewACMEAccounts(open(t).DB)
@@ -60,7 +47,6 @@ func TestSavingEABKeepsTheAccountKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Rotating the binding credentials, as SetEAB does, carries no key.
 	if _, err := accounts.Save(ctx, repo.ACMEAccount{
 		CA: "zerossl", Email: "ops@example.com",
 		EABKeyID: "second", EABHMAC: "second-hmac",
@@ -84,12 +70,6 @@ func TestSavingEABKeepsTheAccountKey(t *testing.T) {
 	}
 }
 
-// TestEABIsReusedAcrossContactAddresses is the behaviour an operator expects:
-// the binding pair belongs to their account at the CA, so entering it once is
-// enough however many certificates or contact addresses they later use.
-//
-// Keying the lookup strictly on (ca, email) made changing the contact address
-// look like the credentials had been lost.
 func TestEABIsReusedAcrossContactAddresses(t *testing.T) {
 	ctx := context.Background()
 	accounts := repo.NewACMEAccounts(open(t).DB)
@@ -109,14 +89,11 @@ func TestEABIsReusedAcrossContactAddresses(t *testing.T) {
 		t.Errorf("got %q/%q", keyID, hmac)
 	}
 
-	// A different authority must not borrow it.
 	if _, _, err := accounts.FindEAB(ctx, "google"); err == nil {
 		t.Error("a binding leaked across authorities")
 	}
 }
 
-// TestNewestEABWins covers replacing a pair: the operator minted a new one at
-// the CA and the old one no longer works.
 func TestNewestEABWins(t *testing.T) {
 	ctx := context.Background()
 	accounts := repo.NewACMEAccounts(open(t).DB)

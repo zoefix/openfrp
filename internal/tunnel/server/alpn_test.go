@@ -14,14 +14,6 @@ import (
 	"time"
 )
 
-// TestTerminationOffersOnlyHTTP11 pins the ALPN list.
-//
-// Edge termination decrypts and then relays the plaintext to the tunnel
-// untouched, so whatever protocol is negotiated here is spoken directly at the
-// LAN service. Advertising h2 made a browser send HTTP/2 frames to an nginx
-// that answered 421 Misdirected Request; the same request over HTTP/1.1
-// returned 200. The visitor sees a broken site, and nothing in the proxy's own
-// logs looks wrong.
 func TestTerminationOffersOnlyHTTP11(t *testing.T) {
 	store := NewCertStore()
 	chain, key := selfSigned(t, "*.aiqno.com")
@@ -36,8 +28,6 @@ func TestTerminationOffersOnlyHTTP11(t *testing.T) {
 		}
 	}
 
-	// Negotiate for real: a client that asks for h2 must be told http/1.1,
-	// rather than the config merely listing it.
 	client, server := net.Pipe()
 	defer client.Close()
 	defer server.Close()
@@ -62,7 +52,6 @@ func TestTerminationOffersOnlyHTTP11(t *testing.T) {
 	}
 }
 
-// selfSigned builds a certificate for name, in PEM.
 func selfSigned(t *testing.T, name string) (chainPEM, keyPEM []byte) {
 	t.Helper()
 

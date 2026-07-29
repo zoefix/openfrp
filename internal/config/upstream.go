@@ -5,63 +5,31 @@ import (
 	"strings"
 )
 
-// Upstream is one server this router connects to.
-//
-// Called Upstream rather than Server because the package already has a Server
-// for the daemon's own configuration; this is the thing at the other end of
-// the control connection. The UI calls it a server, which is what it is to an
-// operator.
 type Upstream struct {
-	// Name identifies the server within this router's configuration, and is
-	// what a tunnel points at. It is local — the server never sees it.
 	Name string `json:"name"`
 
-	// Kind is how this server is reached. Empty means an openfrps, which is
-	// what every server was before there was more than one kind.
 	Kind string `json:"kind,omitempty"`
 
-	// Zone is the domain a Cloudflare tunnel publishes under, as chosen while
-	// authorising. A tunnel on that server names only the label in front of
-	// it; this is what the label is a prefix of.
 	Zone string `json:"zone,omitempty"`
 
-	// TunnelID names the Cloudflare tunnel, for a server of that kind. There
-	// is no address or token to go with it: cloudflared connects outward from
-	// this router and Cloudflare routes hostnames back down that connection,
-	// so there is nothing here to dial and nothing to authenticate to.
 	TunnelID string `json:"tunnel_id,omitempty"`
 
 	Addr  string `json:"addr"`
 	Port  int    `json:"port,omitempty"`
 	Token string `json:"token,omitempty"`
 
-	// ClientName identifies this router to the server. Empty lets the server
-	// assign one, which is fine until several routers share a server.
 	ClientName string `json:"client_name,omitempty"`
 
-	// SocketGID and SocketMark make this server's outbound connections
-	// identifiable so a transparent proxy on this router can be told to leave
-	// them alone. Zero means do not ask.
-	//
-	// Per server rather than global, because the answer differs per
-	// destination: a tunnel server wants the shortest path out, while the
-	// certificate authority and the DNS provider this daemon also talks to
-	// may be reachable only through the proxy. Turning it on for everything
-	// would fix the tunnel and break issuance.
 	SocketGID  int `json:"socket_gid,omitempty"`
 	SocketMark int `json:"socket_mark,omitempty"`
 
 	Transport Transport `json:"transport,omitempty"`
 }
 
-// KindCloudflare is a server published through a Cloudflare tunnel.
 const KindCloudflare = "cloudflare"
 
-// IsCloudflare reports whether this is a Cloudflare tunnel rather than an
-// openfrps.
 func (u Upstream) IsCloudflare() bool { return u.Kind == KindCloudflare }
 
-// ApplyDefaults fills in what was left out.
 func (u *Upstream) ApplyDefaults() {
 	if u.Port == 0 {
 		u.Port = 7000
@@ -69,15 +37,11 @@ func (u *Upstream) ApplyDefaults() {
 	u.Transport.ApplyDefaults()
 }
 
-// Validate reports what would stop this server being usable.
 func (u *Upstream) Validate() error {
 	if strings.TrimSpace(u.Name) == "" {
 		return fmt.Errorf("config: a server needs a name")
 	}
 
-	// A Cloudflare tunnel has nothing to dial. Requiring an address of it
-	// would be requiring a fact that does not exist, so what is checked is the
-	// thing that does: whether the tunnel has been created yet.
 	if u.IsCloudflare() {
 		if strings.TrimSpace(u.TunnelID) == "" {
 			return fmt.Errorf("config: server %q has no Cloudflare tunnel yet; "+
@@ -95,13 +59,6 @@ func (u *Upstream) Validate() error {
 	return u.Transport.Validate()
 }
 
-// Upstreams returns the servers to connect to.
-//
-// A configuration written before this router could hold more than one server
-// carries the single set of fields instead of a list. Rather than migrate the
-// file, the old shape is read as a list of one — an upgrade should not require
-// the operator to do anything, and a half-migrated file is worse than either
-// shape.
 func (c *Client) Upstreams() []Upstream {
 	if len(c.Servers) > 0 {
 		return c.Servers
@@ -120,12 +77,8 @@ func (c *Client) Upstreams() []Upstream {
 	}}
 }
 
-// DefaultUpstreamName is the name given to a server carried in the old
-// single-server fields, and the one a tunnel means when it names none.
 const DefaultUpstreamName = "server"
 
-// Upstream finds a server by name. An empty name means the first, so a
-// configuration with one server needs no cross-references at all.
 func (c *Client) Upstream(name string) (Upstream, bool) {
 	servers := c.Upstreams()
 	if len(servers) == 0 {
@@ -143,11 +96,6 @@ func (c *Client) Upstream(name string) (Upstream, bool) {
 	return Upstream{}, false
 }
 
-// TunnelsFor returns the enabled tunnels belonging to a server.
-//
-// A tunnel that names no server belongs to the first one. That keeps the
-// common case — one server — free of bookkeeping, and it is what an existing
-// configuration means when it was written before servers had names.
 func (c *Client) TunnelsFor(server string) []Tunnel {
 	servers := c.Upstreams()
 	first := ""
@@ -172,10 +120,6 @@ func (c *Client) TunnelsFor(server string) []Tunnel {
 	return out
 }
 
-// OrphanTunnels returns enabled tunnels naming a server that does not exist.
-//
-// Reported rather than silently dropped: a tunnel that stopped working because
-// its server was renamed should say so, not disappear.
 func (c *Client) OrphanTunnels() []Tunnel {
 	known := map[string]bool{}
 	for _, server := range c.Upstreams() {

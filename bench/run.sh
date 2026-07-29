@@ -1,19 +1,5 @@
 #!/usr/bin/env bash
-# Run the OpenFrp / frp comparison and emit a Markdown table.
-#
-#   ./bench/run.sh                     # the full matrix
-#   ./bench/run.sh --quick             # one scenario, for a smoke check
-#   ./bench/run.sh --duration 30s      # longer samples
-#   ./bench/run.sh --repeat 5          # more repetitions per measurement
-#
-# Results land in bench/results/ as raw JSON plus a rendered table. Every
-# scenario is run against both stacks back to back under the same shaping, so
-# a noisy host degrades both equally rather than favouring one.
-#
-# Each measurement is repeated and the MEDIAN is reported. A single sample on
-# a shared machine is not stable enough to compare: back-to-back single-sample
-# runs of this same matrix disagreed by 4x on one scenario, which is more than
-# the effect being measured.
+
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -36,11 +22,6 @@ done
 
 mkdir -p "$RESULTS_DIR"
 
-# Scenario matrix: label, one-way delay, loss percentage.
-#
-# The RTT sweep is the important one. A multiplexed tunnel caps a single
-# stream at window/RTT, so the gap should widen as delay grows while the
-# no-delay case stays close.
 if [[ $QUICK -eq 1 ]]; then
     SCENARIOS=("lan|||")
 else
@@ -63,21 +44,13 @@ teardown() {
 trap teardown EXIT
 
 log "building images (frp is fetched from its GitHub release)"
-# --profile driver is required: `docker compose build` silently skips services
-# behind a profile, which left the load generator running a stale image and
-# reporting a shutdown artefact as an error on every run.
+
 "${COMPOSE[@]}" --profile driver build >/dev/null
 
 run_case() {
     local scenario="$1" stack="$2" target="$3" mode="$4" extra="$5" rep="$6"
     local out="$RESULTS_DIR/${scenario}-${stack}-${mode}-rep${rep}.json"
 
-    # --rm so each run is a fresh container; the tunnels themselves stay up.
-    #
-    # Compose interleaves its own container lifecycle chatter with the
-    # command's output, so keep only from the first brace onward. Without this
-    # the JSON is silently unparseable and the scenario renders as a dash.
-    # shellcheck disable=SC2086
     if "${COMPOSE[@]}" run --rm --no-deps -T loadgen \
         -mode "$mode" -target "$target" -label "${stack}/${scenario}" \
         -duration "$DURATION" $extra 2>/dev/null \
@@ -98,7 +71,6 @@ for entry in "${SCENARIOS[@]}"; do
         "${COMPOSE[@]}" up -d --force-recreate \
         openfrps openfrpc frps frpc >/dev/null
 
-    # Give both clients time to connect and publish before measuring.
     sleep 8
 
     for stack in openfrp frp; do

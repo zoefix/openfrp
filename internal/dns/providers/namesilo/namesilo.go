@@ -1,4 +1,3 @@
-// Package namesilo manages records at NameSilo.
 package namesilo
 
 import (
@@ -30,7 +29,7 @@ func init() {
 		Capabilities: dns.Capabilities{
 			Remark: dns.RemarkUnsupported,
 			Status: false,
-			// NameSilo returns the whole zone in one response.
+
 			Paginated: false,
 			MinTTL:    3600,
 		},
@@ -44,8 +43,6 @@ type provider struct {
 	http   *dns.HTTPClient
 }
 
-// reply is NameSilo's XML envelope. The API predates their JSON offering and
-// only the XML form covers every operation, so XML it is.
 type reply struct {
 	XMLName xml.Name `xml:"namesilo"`
 	Reply   struct {
@@ -69,7 +66,6 @@ type reply struct {
 	} `xml:"reply"`
 }
 
-// ok reports success. NameSilo signals it with code 300.
 func (r reply) ok() error {
 	if r.Reply.Code == 300 {
 		return nil
@@ -89,7 +85,6 @@ func (p *provider) call(ctx context.Context, operation string, params url.Values
 		}
 	}
 
-	// The shared HTTP client decodes JSON, so the XML body is read directly.
 	var raw xmlBody
 	req := dns.Request{URL: fmt.Sprintf("%s/%s?%s", apiBase, operation, values.Encode())}
 	if err := p.http.Do(ctx, req, &raw); err != nil {
@@ -98,8 +93,6 @@ func (p *provider) call(ctx context.Context, operation string, params url.Values
 	return raw.parsed, nil
 }
 
-// xmlBody decodes an XML payload through the JSON-shaped interface the shared
-// client exposes.
 type xmlBody struct{ parsed *reply }
 
 func (b *xmlBody) UnmarshalJSON(data []byte) error {
@@ -175,8 +168,7 @@ func (p *provider) recordParams(zone string, record dns.Record) (url.Values, err
 
 	ttl := record.TTL
 	if ttl < 3600 {
-		// NameSilo rejects anything below an hour, so clamping here produces a
-		// working record instead of an opaque API error.
+
 		ttl = 3600
 	}
 

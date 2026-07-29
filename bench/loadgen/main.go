@@ -1,19 +1,3 @@
-// Command loadgen measures a tunnel's throughput and latency.
-//
-// It is written in Go rather than assembled from iperf3 and wrk so the whole
-// harness is one static binary with identical behaviour on every host, and so
-// the numbers reported here and the numbers in the test suite come from the
-// same measurement code.
-//
-// Two modes:
-//
-//	throughput  one connection, bulk transfer, reports MB/s
-//	latency     N concurrent connections doing small round trips,
-//	            reports QPS and p50/p99/p99.9
-//
-// The throughput mode with a single stream is the headline measurement. A
-// multiplexed tunnel caps a single stream at window/RTT regardless of
-// available bandwidth, so that is where the difference shows up first.
 package main
 
 import (
@@ -102,9 +86,6 @@ func main() {
 	enc.Encode(result)
 }
 
-// waitForTarget blocks until the tunnel entrypoint accepts a connection. The
-// client has to reach the server and publish its tunnels first, so a cold
-// start otherwise reads as a failure.
 func waitForTarget(target string, limit time.Duration) error {
 	deadline := time.Now().Add(limit)
 	var lastErr error
@@ -121,8 +102,6 @@ func waitForTarget(target string, limit time.Duration) error {
 	return fmt.Errorf("target %s did not accept within %s: %w", target, limit, lastErr)
 }
 
-// runThroughput streams into an echo backend on one connection and measures
-// how fast the round trip sustains.
 func runThroughput(target string, duration, warmup time.Duration, chunk int) (report, error) {
 	conn, err := net.DialTimeout("tcp", target, 10*time.Second)
 	if err != nil {
@@ -144,7 +123,6 @@ func runThroughput(target string, duration, warmup time.Duration, chunk int) (re
 	stop := make(chan struct{})
 	var wg sync.WaitGroup
 
-	// Drain the echo so the writer never blocks on a full receive window.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -175,8 +153,7 @@ func runThroughput(target string, duration, warmup time.Duration, chunk int) (re
 			default:
 			}
 			if _, err := conn.Write(buf); err != nil {
-				// Closing the connection to end the run makes this fire every
-				// time, so only count a failure that interrupted measurement.
+
 				if measure.Load() {
 					errs.Add(1)
 				}
@@ -210,8 +187,6 @@ func runThroughput(target string, duration, warmup time.Duration, chunk int) (re
 	}, nil
 }
 
-// runLatency drives many concurrent small round trips and reports the
-// distribution, which is where head-of-line blocking becomes visible.
 func runLatency(target string, duration, warmup time.Duration, concurrency, payload int) (report, error) {
 	var (
 		latencies   = make([][]time.Duration, concurrency)
@@ -316,21 +291,6 @@ func round(v float64, places int) float64 {
 	return math.Round(v*scale) / scale
 }
 
-// runColdStart measures what a first-time visitor experiences: a fresh TCP
-// connection per request, timed from dial to first response byte.
-//
-// This is the mode the others cannot stand in for. Both of them dial once and
-// then reuse the connection, which measures the relay and is blind to
-// everything in front of it — and in front of it is where a tunnel differs
-// most from a real server. Every new visitor connection consumes one of the
-// client's pre-established work connections, and when those run out the
-// visitor waits for the server to ask for another, the client to dial it
-// across the internet, and the connection to be registered. On a 50 ms path
-// that is about a tenth of a second spent before their request has moved at
-// all, and no benchmark that reuses connections will ever show it.
-//
-// A browser opening six connections to load one page is exactly this
-// workload.
 func runColdStart(target string, duration, warmup time.Duration,
 	concurrency int, httpHost string, useTLS bool) (report, error) {
 
@@ -374,18 +334,10 @@ func runColdStart(target string, duration, warmup time.Duration,
 				}
 				conn.SetDeadline(time.Now().Add(15 * time.Second))
 
-				// The handshake is part of what a visitor waits for, so it is
-				// inside the timed section. Measuring the tunnel without it
-				// measures a path no browser takes: an https tunnel spends two
-				// extra round trips here before the request has been sent, and
-				// where the edge terminates TLS it also gives up splice for the
-				// whole transfer.
 				if useTLS {
 					tlsConn := tls.Client(conn, &tls.Config{
 						ServerName: httpHost,
-						// The point is to time the path, not to check the
-						// certificate; a self-signed test tunnel should still
-						// be measurable.
+
 						InsecureSkipVerify: true,
 					})
 					if err := tlsConn.Handshake(); err != nil {
@@ -402,14 +354,6 @@ func runColdStart(target string, duration, warmup time.Duration,
 					continue
 				}
 
-				// The status line, not merely the first byte.
-				//
-				// Reading one byte and calling it a success measures how fast
-				// the far end can say no. An edge proxy answers its own error
-				// pages in microseconds while the tunnel behind it is stalled,
-				// so a run that was failing every request scored a p50 of half
-				// a millisecond and a hundredfold rise in throughput — the
-				// benchmark reporting the failure as the improvement.
 				n, err := conn.Read(reply)
 				if err != nil {
 					conn.Close()

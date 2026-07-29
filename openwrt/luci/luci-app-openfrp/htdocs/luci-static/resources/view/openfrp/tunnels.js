@@ -7,19 +7,6 @@
 'require dom';
 'require poll';
 
-/*
- * Tunnel configuration.
- *
- * Domain patterns are validated here as well as in the daemon. The daemon is
- * the authority, but a rejected pattern there surfaces as a log line the user
- * has to go looking for, whereas catching it in the form points at the field.
- *
- * A tunnel that terminates TLS names the certificate it uses. Only a bound
- * tunnel has its certificate pushed to the server: with several certificates
- * on file, picking one automatically would sooner or later serve the wrong
- * name, which a browser reports to the visitor as an impersonation attempt.
- */
-
 var callCert = rpc.declare({
 	object: 'luci.openfrp',
 	method: 'cert',
@@ -44,7 +31,6 @@ var callJobStatus = rpc.declare({
 	params: ['id', 'offset'], expect: {}
 });
 
-// certCall unwraps the management envelope.
 function certCall(action, params, payload) {
 	return callCert(action, params || {}, payload ? JSON.stringify(payload) : '')
 		.then(function (res) {
@@ -56,13 +42,6 @@ function certCall(action, params, payload) {
 		});
 }
 
-// requestCertificate obtains a certificate for one tunnel and binds it.
-//
-// The tunnel already says which names it serves, so the only things left to
-// decide are the contact address the authority requires and, for a wildcard,
-// which DNS account proves it. Everything else is inferred: a previous order's
-// address is reused, and a single name is validated over HTTP, which needs no
-// credentials at all.
 function requestCertificate(view, section_id, domains, accounts, lastEmail) {
 	var wildcard = domains.some(function (d) { return d.indexOf('*') === 0; });
 
@@ -102,10 +81,6 @@ function requestCertificate(view, section_id, domains, accounts, lastEmail) {
 	var requestButton = E('button',
 		{ 'class': 'btn cbi-button-positive', 'click': start }, _('Request'));
 
-	// The poller has to be stopped by identity, and only the run that started
-	// it knows which function that is. Calling poll.remove() with nothing is a
-	// TypeError, and it threw before hiding the modal — leaving a dialog whose
-	// close button did nothing at all.
 	var following = null;
 
 	function stopFollowing() {
@@ -180,25 +155,12 @@ function requestCertificate(view, section_id, domains, accounts, lastEmail) {
 					return;
 				}
 
-				// There is nothing left to request. Leaving the button would
-				// invite a second click that orders another certificate for
-				// the same name — which the authority rate-limits, and which
-				// would replace a binding that is already correct.
 				if (requestButton.parentNode)
 					requestButton.parentNode.removeChild(requestButton);
 				closeButton.classList.add('cbi-button-positive');
 
-				// Bind it here rather than making the operator go and pick it:
-				// this certificate was requested for this tunnel and nothing
-				// else, so leaving them unlinked would be busywork with a
-				// chance of choosing the wrong one.
 				uci.set('openfrp', section_id, 'cert_id', String(orderId));
 
-				// Issued is not the same as serving. The server is handed a
-				// certificate by the daemon, and the daemon only knows which
-				// tunnel uses which one after it has reloaded — so a binding
-				// left staged is a certificate that exists and protects
-				// nothing. Applying is the rest of the one click.
 				statusLine.textContent = _('Issued. Deploying it to the server…');
 
 				uci.save().then(function () {
@@ -206,8 +168,7 @@ function requestCertificate(view, section_id, domains, accounts, lastEmail) {
 				}).then(function () {
 					statusLine.textContent =
 						_('Issued, bound, and deployed to the server.');
-					// The row still offers to request one until it re-reads
-					// the binding that now exists.
+
 					if (view && view.reload)
 						view.reload();
 				}).catch(function (err) {
@@ -237,9 +198,6 @@ function requestCertificate(view, section_id, domains, accounts, lastEmail) {
 	]);
 }
 
-// issuedCertificates lists what a tunnel may be bound to. Only issued ones:
-// binding to an order that has never been issued would produce a tunnel that
-// looks configured and cannot serve TLS.
 function issuedCertificates() {
 	return callCert('orders', {}, '').then(function (res) {
 		if (!res || res.error || res.ok === false)
@@ -250,13 +208,12 @@ function issuedCertificates() {
 	}).catch(function () { return []; });
 }
 
-// A "*" label matches exactly one level and may appear only leftmost.
 function validateDomainPattern(section_id, value) {
 	if (!value || value === '')
 		return true;
 
 	if (value === '*')
-		return true; // the catch-all
+		return true; 
 
 	var labels = value.split('.');
 
@@ -285,11 +242,6 @@ function validateDomainPattern(section_id, value) {
 	return true;
 }
 
-// publishedByCloudflare reports whether a tunnel is carried by Cloudflare.
-//
-// A tunnel that names no server belongs to the first one, which is the rule
-// the daemon applies, so the same rule has to be applied here or the form
-// would offer settings for a server the tunnel does not use.
 function publishedByCloudflare(section_id) {
 	var owner = uci.get('openfrp', section_id, 'server');
 	if (!owner) {
@@ -301,22 +253,7 @@ function publishedByCloudflare(section_id) {
 	return owner ? uci.get('openfrp', owner, 'kind') === 'cloudflare' : false;
 }
 
-// limitToOpenFrp hides an option unless the tunnel names an OpenFrp server.
-//
-// Expressed as a dependency rather than a check at render time, because the
-// server is chosen after the form is drawn — a check that ran once, while the
-// field was still empty, decided every option was applicable and then never
-// looked again. That is why a Cloudflare tunnel was still being offered a
-// remote port and the PROXY protocol.
-//
-// Cloudflare terminates TLS at its edge, publishes hostnames rather than
-// ports, and passes the visitor's address in CF-Connecting-IP without being
-// asked. So a certificate, a TLS mode, a remote port and the PROXY protocol
-// are settings it would accept, save, and then ignore.
 function limitToOpenFrp(option, allowed) {
-	// Dependencies are ANDed within one entry and ORed across entries, so an
-	// option that already has some is multiplied by the servers it may appear
-	// for rather than having one appended to it.
 	var existing = (option.deps && option.deps.length) ? option.deps : [{}];
 	option.deps = [];
 
@@ -330,11 +267,6 @@ function limitToOpenFrp(option, allowed) {
 	return option;
 }
 
-// openfrpServers lists the values of the server field that are not Cloudflare.
-//
-// The empty value means the first server, which is the rule the daemon
-// applies, so it belongs on the list only when that first one is an OpenFrp
-// server.
 function openfrpServers() {
 	var allowed = [];
 	var first = null;
@@ -351,7 +283,6 @@ function openfrpServers() {
 	return allowed;
 }
 
-// cloudflareServers lists the values of the server field that mean Cloudflare.
 function cloudflareServers() {
 	var allowed = [];
 	var first = null;
@@ -368,7 +299,6 @@ function cloudflareServers() {
 	return allowed;
 }
 
-// zoneOf is the domain a Cloudflare server publishes under.
 function zoneOf(section_id) {
 	var owner = uci.get('openfrp', section_id, 'server');
 	if (!owner) {
@@ -381,9 +311,6 @@ function zoneOf(section_id) {
 	if (zone)
 		return zone;
 
-	// A tunnel being added has no server recorded yet — the choice is in the
-	// form, not in the configuration — so the fallback is the Cloudflare
-	// server itself. With one, which is the ordinary case, that is the answer.
 	var zones = [];
 	uci.sections('openfrp', 'server', function (server) {
 		if (server.kind === 'cloudflare' && server.zone)
@@ -392,11 +319,6 @@ function zoneOf(section_id) {
 	return zones.length === 1 ? zones[0] : '';
 }
 
-// publishedNames is what a tunnel actually serves.
-//
-// A Cloudflare tunnel stores a prefix and takes its suffix from the server, so
-// neither half on its own is the answer. Composing here means the column shows
-// the hostname rather than a piece of it.
 function publishedNames(section_id) {
 	if (!publishedByCloudflare(section_id))
 		return L.toArray(uci.get('openfrp', section_id, 'domains'));
@@ -411,14 +333,6 @@ function publishedNames(section_id) {
 		});
 }
 
-// certificateCovers reports whether one of a certificate's names serves a
-// tunnel's domain.
-//
-// A certificate wildcard stands for exactly one label and only at the front —
-// that is what an authority will issue and what a browser will accept — so
-// *.example.com serves www.example.com and nothing deeper. A tunnel serving a
-// wildcard needs a certificate for that same wildcard: one issued for a single
-// name underneath it leaves every other name unserved.
 function certificateCovers(san, domain) {
 	san = String(san || '').toLowerCase();
 	domain = String(domain || '').toLowerCase();
@@ -438,10 +352,6 @@ function certificateCovers(san, domain) {
 	return domain.slice(0, domain.length - suffix.length).indexOf('.') < 0;
 }
 
-// stylesheet returns the app's shared presentation, loaded as part of the view
-// so it applies while one of these pages is open and nowhere else. Dialogs
-// render outside this node, but the link is in the document for as long as the
-// page is, so they pick it up too.
 function stylesheet() {
 	return E('link', {
 		'rel': 'stylesheet',
@@ -460,10 +370,6 @@ return view.extend({
 		]);
 	},
 
-	// reload re-reads UCI and re-renders. Issuing a certificate binds it to a
-	// tunnel, so the row that offered to request one is out of date the moment
-	// it succeeds — and left alone it goes on offering, which is an invitation
-	// to order a duplicate the authority will refuse.
 	reload: function () {
 		var self = this;
 		uci.unload('openfrp');
@@ -482,12 +388,8 @@ return view.extend({
 		var certificates = data[1] || [];
 		var accounts = data[2] || [];
 
-		// Reuse the contact address from a previous order rather than asking
-		// for it again; it is the same person every time.
 		var lastEmail = (certificates[0] || {}).email || '';
 
-		// Which values of the server field mean an OpenFrp server. Computed
-		// once here and handed to every option that only applies to one.
 		var openfrp = openfrpServers();
 		var cloudflare = cloudflareServers();
 
@@ -517,7 +419,6 @@ return view.extend({
 			if (!/^[A-Za-z0-9._-]+$/.test(value))
 				return _('Use letters, digits, dot, dash or underscore only');
 
-			// Names identify a tunnel to the server, so they have to be unique.
 			var clash = null;
 			uci.sections('openfrp', 'tunnel', function (section) {
 				if (section['.name'] !== section_id && section.name === value)
@@ -537,18 +438,12 @@ return view.extend({
 			o.value(server['.name'], server['.name'] + ' (' + addr + ')');
 		});
 
-		// HTTP and HTTPS are one kind here. A tunnel is HTTP, and HTTPS is
-		// something you turn on for it — which is how an operator thinks about
-		// a website, and it avoids the question of what happens to port 80
-		// when you pick the other one. The daemon's two types are resolved
-		// when the configuration is rendered.
 		o = s.option(form.ListValue, 'type', _('Type'));
 		o.value('tcp', 'TCP');
 		o.value('udp', 'UDP');
 		o.value('http', 'HTTP');
 		o.value('stcp', _('Secret TCP'));
-		// HTTP by default. It is what a Cloudflare tunnel can publish at all,
-		// and what most of the rest are: a port forward is the exception.
+
 		o.default = 'http';
 		o.validate = function (section_id, value) {
 			if (value !== 'http' && value !== 'https' &&
@@ -557,7 +452,6 @@ return view.extend({
 			return true;
 		};
 		o.cfgvalue = function (section_id) {
-			// An existing https tunnel reads back as http with HTTPS on.
 			var stored = uci.get('openfrp', section_id, 'type');
 			return stored === 'https' ? 'http' : (stored || 'tcp');
 		};
@@ -569,14 +463,10 @@ return view.extend({
 		o.default = '0';
 		limitToOpenFrp(o, openfrp);
 		o.cfgvalue = function (section_id) {
-			// Tested against what a stored flag looks like rather than against
-			// null: an option that was never written reads back as undefined,
-			// so a null check accepts it and the tunnel below reads as plain
-			// HTTP — which then overwrites its own type on the next save.
 			var stored = uci.get('openfrp', section_id, 'https');
 			if (stored === '1' || stored === '0')
 				return stored;
-			// A tunnel written before the two were merged.
+
 			return uci.get('openfrp', section_id, 'type') === 'https' ? '1' : '0';
 		};
 
@@ -608,20 +498,12 @@ return view.extend({
 			var names = publishedNames(section_id);
 			if (!names.length)
 				return null;
-			// One per line: a tunnel with several names in one run of text is
-			// a wall the eye has to parse.
+
 			return E('span', {}, names.map(function (name) {
 				return E('div', {}, name);
 			}));
 		};
 
-		// A Cloudflare tunnel names a prefix. The suffix is the domain chosen
-		// while authorising, which is already known — asking for it again per
-		// tunnel is asking someone to retype a decision, and a typo there
-		// publishes a name that resolves nowhere.
-		// A list, like the domains for an OpenFrp server: one tunnel commonly
-		// serves a service under more than one name, and there is no reason
-		// Cloudflare should be the exception.
 		o = s.option(form.DynamicList, 'cf_prefix', _('Names under the domain'));
 		o.modalonly = true;
 		o.placeholder = 'nas';
@@ -634,8 +516,6 @@ return view.extend({
 			return true;
 		};
 		o.renderWidget = function (section_id) {
-			// The suffix is shown beside the field rather than described, so
-			// what will be published is on screen while it is being typed.
 			var zone = zoneOf(section_id);
 			this.description = zone
 				? _('Each is published with .%s after it. Use @ for %s itself.')
@@ -646,20 +526,12 @@ return view.extend({
 
 		o = s.option(form.Button, '_certificate', _('Certificate'));
 		o.modalonly = false;
-		// A grid cell is plain text unless the option says it is editable, so
-		// without this the column renders the button's value instead of the
-		// button — which is to say, nothing.
+
 		o.editable = true;
 		o.inputtitle = _('Request a certificate');
 		o.inputstyle = 'apply';
-		// No depends. A dependency is resolved against the other options'
-		// widgets, and in a grid row only an editable option has one — the
-		// rest are plain text — so a dependency on the type could never be
-		// satisfied here and the button silently never appeared. The whole
-		// condition is decided below, against the configuration itself.
+
 		o.cfgvalue = function (section_id) {
-			// Only offered where it is the missing piece: an HTTPS tunnel that
-			// terminates TLS and has nothing bound cannot serve a request.
 			var type = uci.get('openfrp', section_id, 'type');
 			var https = uci.get('openfrp', section_id, 'https') === '1' ||
 				type === 'https';
@@ -668,22 +540,18 @@ return view.extend({
 
 			if (type !== 'http' && type !== 'https')
 				return false;
-			// Cloudflare issues and holds the certificate for its own edge.
+
 			if (publishedByCloudflare(section_id))
 				return false;
 			if (!https || mode !== 'terminate' || bound)
 				return false;
 			return '';
 		};
-		// The column is a control, not a setting. Being editable puts it in
-		// front of the parser, which would otherwise write the button's own
-		// value out as a tunnel option named _certificate.
+
 		o.parse = function () {
 			return Promise.resolve();
 		};
-		// A bound certificate is shown by name. The button only has something
-		// to offer when there is nothing bound, and rendering a dash in every
-		// other row left a column headed Certificate that never named one.
+
 		o.renderWidget = function (section_id, option_index, cfgvalue) {
 			var bound = uci.get('openfrp', section_id, 'cert_id');
 			if (bound) {
@@ -715,9 +583,6 @@ return view.extend({
 		o.default = 'passthrough';
 		o.description = _('Whichever end handles HTTPS needs the certificate. The server\'s is issued here and pushed to it.');
 
-		// Without this the grid column prints the stored value — a reader of
-		// the tunnel list was shown "terminate" and "passthrough", which are
-		// what the config calls them and not what anyone would call them.
 		o.textvalue = function (section_id) {
 			return uci.get('openfrp', section_id, 'tls_mode') === 'terminate'
 				? _('The remote server handles HTTPS')
@@ -730,11 +595,6 @@ return view.extend({
 		o.modalonly = true;
 		limitToOpenFrp(o, openfrp);
 
-		// The choices depend on the tunnel, so they are built per section
-		// rather than once. Offering a certificate that does not cover this
-		// tunnel's names is worse than offering nothing: it produces a tunnel
-		// that looks configured and answers with the wrong name, which a
-		// browser reports to the visitor as an impersonation attempt.
 		o.renderWidget = function (section_id, option_index, cfgvalue) {
 			var domains = L.toArray(uci.get('openfrp', section_id, 'domains'));
 			var bound = uci.get('openfrp', section_id, 'cert_id');
@@ -750,16 +610,9 @@ return view.extend({
 					});
 				});
 
-				// A certificate already bound stays on the list even when it
-				// does not fit, because a select whose value is not among its
-				// options shows the first one instead — and then saving the
-				// form quietly rebinds the tunnel to whatever that was.
 				if (!fits && String(order.id) !== String(bound))
 					return;
 
-				// The expiry is worth showing at the point of choosing: two
-				// certificates often cover the same names and only one is
-				// current.
 				var label = order.domains.join(', ') +
 					' (' + order.ca_label + ', ' +
 					_('%d days left').format(order.days_remaining) + ')';
@@ -785,14 +638,9 @@ return view.extend({
 		o.depends('type', 'http');
 		o.depends('type', 'https');
 		o.depends('type', 'stcp');
-		// After the dependencies above, not before: this multiplies the ones
-		// that exist, and any added afterwards would carry no server
-		// constraint at all.
+
 		limitToOpenFrp(o, openfrp);
 
-		// No angle brackets in the placeholders: a description is inserted as
-		// markup, so <port> would be parsed as a tag and vanish, leaving a
-		// directive that looks complete and is not.
 		o.description = _('Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;');
 
 		o = s.option(form.Value, 'secret_key', _('Secret key'),
@@ -801,7 +649,6 @@ return view.extend({
 		o.modalonly = true;
 		o.password = true;
 
-		// The map renders one node; the stylesheet rides along with it.
 		return m.render().then(function (node) {
 			return E('div', {}, [stylesheet(), node]);
 		});

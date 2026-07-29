@@ -65,8 +65,6 @@ func TestSniffHTTP(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			info, err := SniffHTTP(strings.NewReader(tc.request))
 
-			// Whatever happens, everything read has to be reported so the
-			// caller can replay it.
 			if len(info.Consumed) == 0 {
 				t.Error("Consumed is empty; the caller could not replay the head")
 			}
@@ -93,9 +91,6 @@ func TestSniffHTTP(t *testing.T) {
 	}
 }
 
-// TestSniffHTTPStopsAtHeaderEnd is what makes the replay-then-splice design
-// work: the sniffer must not swallow request body bytes, because those would
-// be lost when the raw sockets are handed to the kernel.
 func TestSniffHTTPStopsAtHeaderEnd(t *testing.T) {
 	head := "POST /upload HTTP/1.1\r\nHost: aaa.com\r\nContent-Length: 11\r\n\r\n"
 	body := "hello world"
@@ -109,8 +104,6 @@ func TestSniffHTTPStopsAtHeaderEnd(t *testing.T) {
 		t.Errorf("Host = %q, want aaa.com", info.Host)
 	}
 
-	// Everything the sniffer took, plus whatever is left, must reconstruct the
-	// original stream exactly.
 	rest, err := io.ReadAll(reader)
 	if err != nil {
 		t.Fatalf("read rest: %v", err)
@@ -121,7 +114,7 @@ func TestSniffHTTPStopsAtHeaderEnd(t *testing.T) {
 }
 
 func TestSniffHTTPRejectsOversizedHead(t *testing.T) {
-	// A head that never terminates must be cut off rather than buffered.
+
 	endless := strings.NewReader("GET / HTTP/1.1\r\nHost: aaa.com\r\nX: " +
 		strings.Repeat("a", MaxHTTPHead*2))
 
@@ -131,9 +124,6 @@ func TestSniffHTTPRejectsOversizedHead(t *testing.T) {
 	}
 }
 
-// buildClientHello produces a genuine ClientHello by driving crypto/tls, so
-// the parser is tested against what a real client emits rather than against a
-// hand-rolled fixture that might share our own misreading of the spec.
 func buildClientHello(t testing.TB, serverName string) []byte {
 	t.Helper()
 
@@ -150,8 +140,7 @@ func buildClientHello(t testing.TB, serverName string) []byte {
 
 	cfg := &tls.Config{ServerName: serverName, InsecureSkipVerify: true}
 	tlsConn := tls.Client(client, cfg)
-	// The handshake cannot complete against a pipe that never answers; we only
-	// need the first flight.
+
 	client.SetDeadline(time.Now().Add(2 * time.Second))
 	_ = tlsConn.Handshake()
 
@@ -186,9 +175,6 @@ func TestSniffTLSAgainstRealClientHello(t *testing.T) {
 	}
 }
 
-// TestSniffTLSConsumedIsReplayable is the property the whole design rests on:
-// the bytes we took, written to the upstream first, must reconstruct the
-// original stream exactly.
 func TestSniffTLSConsumedIsReplayable(t *testing.T) {
 	hello := buildClientHello(t, "aaa.com")
 	trailing := []byte("subsequent encrypted records")
@@ -231,8 +217,6 @@ func TestSniffTLSRejectsNonTLS(t *testing.T) {
 func TestSniffTLSTruncatedInputIsNotAPanic(t *testing.T) {
 	hello := buildClientHello(t, "aaa.com")
 
-	// Every truncation of a real ClientHello must produce an error, never a
-	// panic — the input is attacker controlled.
 	for cut := 1; cut < len(hello); cut += 7 {
 		if _, err := SniffTLS(bytes.NewReader(hello[:cut])); err == nil {
 			t.Errorf("truncation at %d bytes was accepted", cut)
@@ -241,8 +225,7 @@ func TestSniffTLSTruncatedInputIsNotAPanic(t *testing.T) {
 }
 
 func TestSniffTLSWithoutSNIIsNotAnError(t *testing.T) {
-	// A ClientHello for a bare IP carries no SNI. That is a routing decision
-	// for the caller (catch-all or refuse), not a parse failure.
+
 	hello := buildClientHello(t, "")
 	info, err := SniffTLS(bytes.NewReader(hello))
 	if err != nil {
@@ -253,9 +236,6 @@ func TestSniffTLSWithoutSNIIsNotAnError(t *testing.T) {
 	}
 }
 
-// BenchmarkSniffHTTP pins the per-connection cost of identifying a request.
-// This runs once for every connection the HTTP vhost port accepts, so its
-// allocation count is a connections-per-second budget item.
 func BenchmarkSniffHTTP(b *testing.B) {
 	head := []byte("GET /some/path HTTP/1.1\r\n" +
 		"Host: bench.example.com\r\n" +
@@ -277,7 +257,6 @@ func BenchmarkSniffHTTP(b *testing.B) {
 	}
 }
 
-// BenchmarkSniffTLS is the TLS twin: it runs once per HTTPS connection.
 func BenchmarkSniffTLS(b *testing.B) {
 	hello := buildClientHello(b, "bench.example.com")
 
@@ -295,8 +274,6 @@ func BenchmarkSniffTLS(b *testing.B) {
 	}
 }
 
-// TestSniffSurvivesBufferReuse: a pooled buffer carries one connection's head
-// and then another's; the second parse must see only its own bytes.
 func TestSniffSurvivesBufferReuse(t *testing.T) {
 	first := []byte("GET /aaaaaaaaaaaaaaaaaaaaaaaaaaaa HTTP/1.1\r\n" +
 		"Host: first.example.com\r\n\r\n")

@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// TestExampleConfigsLoad keeps the shipped examples honest. The loader rejects
-// unknown fields, so a renamed option silently breaks every user who copied the
-// example — this catches that at build time instead.
 func TestExampleConfigsLoad(t *testing.T) {
 	serverPath := filepath.Join("..", "..", "configs", "openfrps.example.json")
 	srv, err := LoadServer(serverPath)
@@ -140,7 +137,6 @@ func TestClientRejectsDuplicateRemotePorts(t *testing.T) {
 		t.Fatalf("err = %v, want a remote_port collision error", err)
 	}
 
-	// Port zero means "server allocates", so it must not collide with itself.
 	cfg.Tunnels[0].RemotePort = 0
 	cfg.Tunnels[1].RemotePort = 0
 	if err := cfg.Validate(); err != nil {
@@ -158,8 +154,6 @@ func TestDurationAcceptsStringsAndSeconds(t *testing.T) {
 		t.Errorf("got %s, want 1m30s", d)
 	}
 
-	// The UCI renderer emits bare numbers for options typed as numbers in the
-	// LuCI form, so those have to be accepted as seconds.
 	if err := d.UnmarshalJSON([]byte(`45`)); err != nil {
 		t.Fatalf("numeric form: %v", err)
 	}

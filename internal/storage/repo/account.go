@@ -1,5 +1,3 @@
-// Package repo holds one repository per aggregate. SQL lives here and nowhere
-// else: domain packages take a narrow interface and never see a query.
 package repo
 
 import (
@@ -10,40 +8,25 @@ import (
 	"fmt"
 )
 
-// ErrNotFound is returned when a row does not exist.
 var ErrNotFound = errors.New("not found")
 
-// Account is a set of credentials for one DNS provider.
 type Account struct {
 	ID       int64
 	Name     string
 	Provider string
 
-	// Credentials is provider-specific, shaped by that provider's schema.Form.
 	Credentials map[string]string
 
 	CreatedAt int64
 	UpdatedAt int64
 }
 
-// Accounts stores DNS provider credentials.
-//
-// This is the one place cloud access keys are read or written, which is the
-// point: there is a single file to audit when the question is "where can an
-// AK/SK escape from".
 type Accounts struct {
 	db *sql.DB
 }
 
-// NewAccounts returns a repository over db.
 func NewAccounts(db *sql.DB) *Accounts { return &Accounts{db: db} }
 
-// List returns every account, credentials included.
-//
-// Callers that render an account to a user must redact first — see
-// schema.Form.Redact. This deliberately does not redact on their behalf,
-// because the renewal scheduler needs the real values and a repository that
-// sometimes lies about its contents is worse than one that never does.
 func (r *Accounts) List(ctx context.Context) ([]Account, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, name, provider, credentials, created_at, updated_at
@@ -65,7 +48,6 @@ func (r *Accounts) List(ctx context.Context) ([]Account, error) {
 	return out, rows.Err()
 }
 
-// Get returns one account by id.
 func (r *Accounts) Get(ctx context.Context, id int64) (Account, error) {
 	row := r.db.QueryRowContext(ctx, `
 		SELECT id, name, provider, credentials, created_at, updated_at
@@ -78,7 +60,6 @@ func (r *Accounts) Get(ctx context.Context, id int64) (Account, error) {
 	return account, err
 }
 
-// Create stores a new account and returns it with its assigned id.
 func (r *Accounts) Create(ctx context.Context, account Account) (Account, error) {
 	credentials, err := json.Marshal(account.Credentials)
 	if err != nil {
@@ -97,12 +78,6 @@ func (r *Accounts) Create(ctx context.Context, account Account) (Account, error)
 	return account, nil
 }
 
-// Update replaces an account's name, provider and credentials.
-//
-// A secret the operator left blank keeps its stored value: the edit form shows
-// a placeholder rather than the real key, so submitting the form unchanged
-// must not overwrite a working credential with an empty string. Merging is the
-// caller's job, since only they know which fields are secret.
 func (r *Accounts) Update(ctx context.Context, account Account) error {
 	credentials, err := json.Marshal(account.Credentials)
 	if err != nil {
@@ -121,8 +96,6 @@ func (r *Accounts) Update(ctx context.Context, account Account) error {
 	return affectedOne(result, "account", account.ID)
 }
 
-// Delete removes an account. Certificate orders that referenced it survive
-// with a null account, so a mis-click cannot take a live certificate with it.
 func (r *Accounts) Delete(ctx context.Context, id int64) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM dns_account WHERE id = ?`, id)
 	if err != nil {
@@ -131,7 +104,6 @@ func (r *Accounts) Delete(ctx context.Context, id int64) error {
 	return affectedOne(result, "account", id)
 }
 
-// scanner is satisfied by both *sql.Row and *sql.Rows.
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -158,8 +130,6 @@ func scanAccount(src scanner) (Account, error) {
 	return account, nil
 }
 
-// affectedOne turns "updated nothing" into ErrNotFound. Without it an update
-// against a deleted row reports success.
 func affectedOne(result sql.Result, kind string, id int64) error {
 	affected, err := result.RowsAffected()
 	if err != nil {

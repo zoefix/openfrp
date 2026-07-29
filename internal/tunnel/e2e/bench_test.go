@@ -8,20 +8,6 @@ import (
 	"time"
 )
 
-// The benchmarks here measure the three costs that decide whether the tunnel
-// keeps up with a plain reverse proxy: how fast connections can be set up
-// (accept → work connection → relay start), how much latency the relay adds to
-// a small round trip, and how fast bulk bytes move once a relay is running.
-//
-// Run them with a fixed iteration count rather than -benchtime on wall time:
-// every tunnelled connection consumes three ephemeral ports (user, work,
-// local), and an auto-scaled b.N can exhaust the port range mid-run and
-// measure the kernel's TIME_WAIT behaviour instead of the tunnel.
-//
-//	go test ./internal/tunnel/e2e -bench . -benchtime 2000x
-
-// dialBench opens a connection to the tunnel without the test harness's
-// per-connection Cleanup, which would accumulate b.N closures.
 func dialBench(b *testing.B, port int) net.Conn {
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 
@@ -38,7 +24,6 @@ func dialBench(b *testing.B, port int) net.Conn {
 	return nil
 }
 
-// roundTrip writes payload and reads it back, failing the benchmark on error.
 func roundTrip(b *testing.B, conn net.Conn, payload, scratch []byte) {
 	if _, err := conn.Write(payload); err != nil {
 		b.Fatalf("write: %v", err)
@@ -48,15 +33,10 @@ func roundTrip(b *testing.B, conn net.Conn, payload, scratch []byte) {
 	}
 }
 
-// BenchmarkTunnelConnect is the connection-setup path: dial, one round trip to
-// prove the relay is live, close. This is the path the accept loop, the warm
-// pool handoff and the StartWorkConn exchange all sit on.
 func BenchmarkTunnelConnect(b *testing.B) {
 	h := start(b, false)
 	port := h.proxyPort(b, "echo")
 
-	// One throwaway round trip so the pool and the route are warm before the
-	// clock starts.
 	warm := dialBench(b, port)
 	roundTrip(b, warm, []byte("w"), make([]byte, 1))
 	warm.Close()
@@ -76,8 +56,6 @@ func BenchmarkTunnelConnect(b *testing.B) {
 	}
 }
 
-// BenchmarkTunnelConnectParallel is the same path under concurrent arrivals,
-// which is where accept-queue and pool contention would appear.
 func BenchmarkTunnelConnectParallel(b *testing.B) {
 	h := start(b, false)
 	port := h.proxyPort(b, "echo")
@@ -103,8 +81,6 @@ func BenchmarkTunnelConnectParallel(b *testing.B) {
 	})
 }
 
-// BenchmarkTunnelEcho is relay latency: one persistent connection, small round
-// trips. Every microsecond here is pure tunnel overhead on top of loopback.
 func BenchmarkTunnelEcho(b *testing.B) {
 	h := start(b, false)
 	port := h.proxyPort(b, "echo")
@@ -117,9 +93,9 @@ func BenchmarkTunnelEcho(b *testing.B) {
 
 	payload := make([]byte, 64)
 	scratch := make([]byte, 64)
-	roundTrip(b, conn, payload, scratch) // warm
+	roundTrip(b, conn, payload, scratch)
 
-	b.SetBytes(128) // 64 bytes each way
+	b.SetBytes(128)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
@@ -127,9 +103,6 @@ func BenchmarkTunnelEcho(b *testing.B) {
 	}
 }
 
-// BenchmarkTunnelThroughput is bulk transfer on one persistent connection:
-// write a chunk, read the echo back. Half-duplex by construction, so it is a
-// relative number for comparing builds, not a line-rate claim.
 func BenchmarkTunnelThroughput(b *testing.B) {
 	h := start(b, false)
 	port := h.proxyPort(b, "echo")
@@ -143,7 +116,7 @@ func BenchmarkTunnelThroughput(b *testing.B) {
 	const chunk = 256 << 10
 	payload := make([]byte, chunk)
 	scratch := make([]byte, chunk)
-	roundTrip(b, conn, payload, scratch) // warm
+	roundTrip(b, conn, payload, scratch)
 
 	b.SetBytes(chunk)
 	b.ReportAllocs()
@@ -153,8 +126,6 @@ func BenchmarkTunnelThroughput(b *testing.B) {
 	}
 }
 
-// BenchmarkTunnelUDPEcho is the framed UDP path: one datagram out, one reply
-// back, per op. The per-packet allocation work shows up directly here.
 func BenchmarkTunnelUDPEcho(b *testing.B) {
 	remotePort := startUDPTunnel(b)
 
@@ -169,8 +140,6 @@ func BenchmarkTunnelUDPEcho(b *testing.B) {
 	want := len("echo:") + len(payload)
 	scratch := make([]byte, 2048)
 
-	// The first datagram races tunnel publication, so retry until the path is
-	// proven live before the clock starts.
 	warmed := false
 	for attempt := range 50 {
 		conn.SetDeadline(time.Now().Add(200 * time.Millisecond))

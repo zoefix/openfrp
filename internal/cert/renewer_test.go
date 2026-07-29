@@ -60,9 +60,6 @@ func TestDueRespectsThresholdAndAutoRenew(t *testing.T) {
 	}
 }
 
-// TestFailedRenewalBacksOff is what stops a broken configuration from hammering
-// the CA. Without it a certificate whose DNS credentials are wrong would retry
-// every cycle and eventually get the account rate-limited.
 func TestFailedRenewalBacksOff(t *testing.T) {
 	now := time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC)
 
@@ -77,13 +74,11 @@ func TestFailedRenewalBacksOff(t *testing.T) {
 		t.Error("a renewal that failed an hour ago should be backing off")
 	}
 
-	// Once the backoff has elapsed it becomes due again.
 	failed.LastAttempt = now.Add(-retryBackoff - time.Minute)
 	if !failed.Due(now) {
 		t.Error("should be due again after the backoff window")
 	}
 
-	// A previous success does not back off.
 	succeeded := Managed{
 		AutoRenew:   true,
 		Certificate: certExpiringIn(5, now),
@@ -94,10 +89,6 @@ func TestFailedRenewalBacksOff(t *testing.T) {
 	}
 }
 
-// TestDefaultThresholdLeavesRoomToRecover documents why the threshold is 30
-// rather than the 7 that dnsmgr uses: a Let's Encrypt certificate lives 90
-// days, and renewing at 7 gives a week of retries before an outage becomes an
-// expired certificate.
 func TestDefaultThresholdLeavesRoomToRecover(t *testing.T) {
 	if DefaultRenewBefore < 14 {
 		t.Errorf("DefaultRenewBefore = %d; below 14 days there is not enough "+
@@ -106,7 +97,7 @@ func TestDefaultThresholdLeavesRoomToRecover(t *testing.T) {
 }
 
 func TestCertificateCoversUsesSingleLabelWildcards(t *testing.T) {
-	// Built from a real chain elsewhere; here the point is the matcher itself.
+
 	tests := []struct {
 		pattern, host string
 		want          bool
@@ -130,8 +121,7 @@ func TestCertificateCoversUsesSingleLabelWildcards(t *testing.T) {
 }
 
 func TestNormaliseDomainsIsOrderIndependent(t *testing.T) {
-	// The normalised list feeds a cache key, so the same set requested in a
-	// different order must not issue a second certificate.
+
 	a := NormaliseDomains([]string{"B.example.com", "a.example.com", "a.example.com"})
 	b := NormaliseDomains([]string{"a.example.com.", "b.EXAMPLE.com"})
 
@@ -167,8 +157,7 @@ func TestIssueRejectsWildcardWithoutSolver(t *testing.T) {
 	if err == nil {
 		t.Fatal("a wildcard without a DNS solver should be refused")
 	}
-	// The message has to explain the constraint, not just report a failure —
-	// this is the error a user is most likely to hit first.
+
 	if !contains(err.Error(), "DNS-01") || !contains(err.Error(), "*.example.com") {
 		t.Errorf("error should name the wildcard and the requirement: %v", err)
 	}
@@ -220,8 +209,6 @@ func TestAccountKeyRoundTrips(t *testing.T) {
 	}
 	first := account.GetPrivateKey()
 
-	// Reloading from the stored PEM must yield the same account, or every
-	// restart would register a new account against the same rate limits.
 	reloaded := &Account{Email: account.Email, PrivateKey: account.PrivateKey}
 	if err := reloaded.ensureKey(); err != nil {
 		t.Fatalf("reload: %v", err)

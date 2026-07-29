@@ -1,20 +1,7 @@
 #!/bin/sh
-#
-# Detached worker for long-running LuCI actions.
-#
-# Invoked as:  job <kind> <log-path> <status-path> <args-path>
-#
-# The arguments file holds the job's JSON and may contain an SSH password. It
-# is read once and unlinked immediately. Arguments are never passed on the
-# command line: /proc/*/cmdline is readable by every local process on the
-# router, so an argument is a broadcast.
-#
-# POSIX sh only — the shell here is busybox ash.
-#
+
 set -u
 
-# jshn is how a deployment request is completed from stored settings. Reading
-# JSON would be jsonfilter's job, but this has to write some back.
 . /usr/share/libubox/jshn.sh
 
 KIND="${1:-}"
@@ -31,7 +18,6 @@ umask 077
 : > "$LOG"
 
 write_status() {
-	# state, then pid so the UI can cancel us.
 	printf '{"state":"%s","pid":%s,"kind":"%s"}\n' "$1" "$$" "$KIND" > "$STATUS.tmp"
 	mv "$STATUS.tmp" "$STATUS"
 }
@@ -42,42 +28,28 @@ log() {
 
 finish() {
 	state="$1"
-	# The staged arguments outlive us if a step exited early. Whatever else
-	# happens, the password does not stay on the filesystem.
+
 	[ -n "$ARGS_FILE" ] && rm -f "$ARGS_FILE"
 	write_status "$state"
 	[ "$state" = "succeeded" ] && exit 0
 	exit 1
 }
 
-# Read the arguments and remove them before doing anything else, so the window
-# in which the password exists on tmpfs is as short as possible.
 ARGS=""
 if [ -n "$ARGS_FILE" ] && [ -f "$ARGS_FILE" ]; then
 	ARGS="$(cat "$ARGS_FILE")"
 	rm -f "$ARGS_FILE"
 fi
 
-# record_result stores what the deployment produced.
-#
-# The server generates its own token when none was supplied, so without this
-# the client would have no way to learn the shared secret and the tunnel could
-# never come up. The host fingerprint is recorded on the same pass so the next
-# deployment authenticates the server rather than trusting it again.
 record_result() {
 	line="$(grep '"result"' "$LOG" | tail -n 1)"
 	[ -n "$line" ] || return 0
 
-	# Which server section this deployment belongs to. A router can have
-	# several, so writing to a fixed section would put the token of one server
-	# onto another.
 	section="$(printf '%s' "$ARGS" | jsonfilter -e '@.server' 2>/dev/null)"
 	case "$section" in
 		''|*[!A-Za-z0-9_]*) section="server" ;;
 	esac
 
-	# jsonfilter rather than sed: the token is generated and may contain any
-	# character a JSON string can carry, escapes included.
 	token="$(printf '%s' "$line" | jsonfilter -e '@.result.token' 2>/dev/null)"
 	fingerprint="$(printf '%s' "$line" | jsonfilter -e '@.result.host_fingerprint' 2>/dev/null)"
 	bind_port="$(printf '%s' "$line" | jsonfilter -e '@.result.bind_port' 2>/dev/null)"
@@ -89,8 +61,6 @@ record_result() {
 		log "==> recorded host fingerprint $fingerprint"
 	}
 
-	# Point this server at the host that was just provisioned, unless it has
-	# already been aimed somewhere else deliberately.
 	if [ -z "$(uci -q get "openfrp.$section.addr")" ]; then
 		host="$(printf '%s' "$ARGS" | jsonfilter -e '@.host' 2>/dev/null)"
 		[ -n "$host" ] && uci -q set "openfrp.$section.addr=$host"
@@ -99,36 +69,13 @@ record_result() {
 	uci -q commit openfrp
 	log "==> token and connection settings saved"
 
-	# The running client still holds the previous token in memory. A
-	# deployment that re-keys the server would otherwise leave it retrying
-	# forever against "authentication failed", with the config on disk
-	# perfectly correct and only the process wrong — which reads like a
-	# rejected credential rather than a stale one.
 	if /etc/init.d/openfrp enabled 2>/dev/null; then
 		/etc/init.d/openfrp reload >/dev/null 2>&1
 		log "==> reloaded the client so it picks up the new settings"
 	fi
 }
 
-# fill_from_uci completes a deployment request from the server's stored
-# settings, and prints the result.
-#
-# What the caller left out is filled in; what it supplied wins. That is what
-# lets a deployment run with nobody at the keyboard: naming the server is
-# enough, and an updater installing a new build does not need a password from
-# anywhere, because the password is already beside the host it belongs to.
-#
-# The browser is the reason this is here rather than in the caller. It used to
-# assemble the whole request, which meant the SSH password had to be sent to it
-# first to be sent back — and the one place a stored credential should never
-# have to travel is out to a page and in again.
 fill_from_uci() {
-	# A subshell, because jshn cannot be run under set -u and this is the only
-	# place that needs it off. jshn reads JSON_PREFIX, JSON_UNSET and others
-	# without ever initialising them, so every one of its entry points is an
-	# unset-variable error — json_init failed here before it had parsed
-	# anything. Setting those by hand chases a list that the next jshn is free
-	# to extend; scoping the relaxation is stable.
 	(
 		set +u
 
@@ -138,11 +85,6 @@ fill_from_uci() {
 		json_init
 		json_load "$request" 2>/dev/null
 
-		# One check for both failures, because jshn cannot tell them apart:
-		# json_load succeeds on input that is not JSON at all and simply
-		# parses nothing, so unusable settings and settings naming no server
-		# arrive here looking identical. Reporting the parse separately would
-		# be a branch that never runs and a message nobody ever sees.
 		json_get_var section server
 		if [ -z "$section" ]; then
 			log "the deployment settings name no server, or could not be read"
@@ -158,9 +100,6 @@ fill_from_uci() {
 		carry_uci "$section" host_fingerprint host_fingerprint
 		carry_uci "$section" release_url      release_url
 
-		# Named local_binary here and binary_path in UCI, and the difference
-		# matters: openfrpc decodes this strictly, so a field it does not know
-		# fails the whole deployment rather than being ignored.
 		json_get_var stored local_binary
 		[ -n "$stored" ] || {
 			stored="$(uci -q get "openfrp.$section.binary_path")"
@@ -178,9 +117,7 @@ fill_from_uci() {
 	)
 }
 
-# carry_uci copies one stored option into the request, unless the caller set it.
 carry_uci() {
-	# $1 server section, $2 uci option, $3 request field
 	local present value
 
 	json_get_var present "$3"
@@ -195,9 +132,7 @@ write_status running
 
 case "$KIND" in
 	deploy)
-		# Server provisioning over SSH. The engine lives in the Go binary so
-		# progress arrives as structured events rather than scraped stderr;
-		# this wrapper only detaches it and captures the stream.
+
 		if ! command -v openfrpc >/dev/null 2>&1; then
 			log "openfrpc is not installed"
 			finish failed
@@ -210,22 +145,10 @@ case "$KIND" in
 
 		ARGS="$(fill_from_uci "$ARGS")" || finish failed
 
-		# Commit before deploying, not only after.
-		#
-		# The page stages the SSH details it was given and leaves them
-		# staged; only the write-back at the end of a *successful* run
-		# committed them. So a deployment that failed — the wrong port, a
-		# host that was not up yet — left the password it had just been
-		# given in /tmp, where a reboot would take it, and the operator
-		# retyped it for the retry. The credential is the operator's, not
-		# the deployment's, and it should outlive the attempt that carried
-		# it.
 		uci -q commit openfrp
 
 		log "==> starting server deployment"
-		# -stdin is what makes the JSON on stdin count. Without it the flag
-		# defaults win and every credential piped in here is discarded in
-		# silence, leaving the deploy to fail on a missing server address.
+
 		if printf '%s' "$ARGS" | openfrpc deploy -stdin -json >> "$LOG" 2>&1; then
 			record_result
 			log "==> deployment finished"
@@ -236,9 +159,7 @@ case "$KIND" in
 		;;
 
 	cert_issue)
-		# Certificate issuance. This is a job rather than an rpcd call because
-		# it talks to a CA and then waits for DNS propagation, which takes
-		# minutes — far past rpcd's 30 second timeout.
+
 		if ! command -v openfrpc >/dev/null 2>&1; then
 			log "openfrpc is not installed"
 			finish failed
@@ -250,8 +171,7 @@ case "$KIND" in
 		esac
 
 		log "==> issuing certificate for order $order"
-		# Progress goes to stderr and the result to stdout; both land in this
-		# log so the operator sees the steps and the outcome in one place.
+
 		if openfrpc cert issue -id "$order" >> "$LOG" 2>&1; then
 			log "==> certificate issued"
 			finish succeeded
@@ -261,9 +181,7 @@ case "$KIND" in
 		;;
 
 	cf_setup)
-		# Cloudflare tunnel provisioning. A job rather than an rpcd call
-		# because the middle of it is a person opening a link in a browser,
-		# which takes as long as it takes.
+
 		if ! command -v openfrpc >/dev/null 2>&1; then
 			log "openfrpc is not installed"
 			finish failed
@@ -279,8 +197,7 @@ case "$KIND" in
 
 		log "==> setting up a Cloudflare tunnel for $section"
 		if openfrpc cftunnel setup -name "$name" >> "$LOG" 2>&1; then
-			# The tunnel id is the whole result: without it the section names a
-			# tunnel that does not exist, and cloudflared has nothing to run.
+
 			line="$(grep '"result"' "$LOG" | tail -n 1)"
 			tunnel_id="$(printf '%s' "$line" | jsonfilter -e '@.result.tunnel_id' 2>/dev/null)"
 
@@ -294,16 +211,11 @@ case "$KIND" in
 			uci -q set "openfrp.$section.kind=cloudflare"
 			uci -q set "openfrp.$section.tunnel_id=$tunnel_id"
 			uci -q set "openfrp.$section.tunnel_name=$name"
-			# The domain the operator picked while authorising. Tunnels supply
-			# only a prefix, and this is what it is a prefix of.
+
 			[ -n "$zone" ] && uci -q set "openfrp.$section.zone=$zone"
 			uci -q commit openfrp
 			log "==> recorded tunnel $tunnel_id"
 
-			# Both services, because the section just became a Cloudflare
-			# server: the client's rendered configuration gains it, and
-			# cloudflared is a separate service that has to be told there is
-			# now something for it to run.
 			if /etc/init.d/openfrp enabled 2>/dev/null; then
 				/etc/init.d/openfrp reload >/dev/null 2>&1
 				log "==> reloaded the client so it knows about the new server"
@@ -322,9 +234,7 @@ case "$KIND" in
 		;;
 
 	restart)
-		# Both services. They are separated so that one of them falling over
-		# does not take the other with it, not so that an operator who asked
-		# for a restart has to know there are two things to restart.
+
 		log "==> restarting openfrp"
 		if ! /etc/init.d/openfrp restart >> "$LOG" 2>&1; then
 			log "==> restart failed"

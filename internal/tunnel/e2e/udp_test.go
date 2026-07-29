@@ -15,8 +15,6 @@ import (
 	"github.com/zoefix/openfrp/pkg/log"
 )
 
-// startUDPEcho runs a UDP echo service that prefixes replies, so a test can
-// tell a real reply from an accidental loopback.
 func startUDPEcho(t testing.TB) (host string, port int) {
 	t.Helper()
 
@@ -42,7 +40,6 @@ func startUDPEcho(t testing.TB) (host string, port int) {
 	return "127.0.0.1", addr.Port
 }
 
-// startUDPTunnel brings up a server and client with one UDP tunnel.
 func startUDPTunnel(t testing.TB) int {
 	t.Helper()
 
@@ -93,7 +90,6 @@ func startUDPTunnel(t testing.TB) int {
 	}
 	go cli.Run(ctx)
 
-	// Wait for the tunnel to be published.
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		for _, session := range srv.Registry().Sessions() {
@@ -138,9 +134,6 @@ func TestUDPTunnelCarriesDatagrams(t *testing.T) {
 	}
 }
 
-// TestUDPTunnelKeepsClientsApart is the reason the framing carries a source
-// address: every client of a UDP tunnel shares one work connection, so a reply
-// must reach the sender that earned it and nobody else.
 func TestUDPTunnelKeepsClientsApart(t *testing.T) {
 	port := startUDPTunnel(t)
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))

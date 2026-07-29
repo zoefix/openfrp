@@ -1,11 +1,3 @@
-// Package scheduler runs the periodic work: certificate renewal, expiry
-// notices, and anything else that has to happen without a person present.
-//
-// It is a small hand-rolled ticker rather than a cron library. The jobs here
-// are few, their cadence is measured in hours, and the one property that
-// actually matters — that a job which panics or overruns cannot take down the
-// daemon or stack up against itself — is easier to guarantee directly than to
-// verify through a dependency.
 package scheduler
 
 import (
@@ -18,28 +10,23 @@ import (
 	"time"
 )
 
-// Job is one unit of periodic work.
 type Job interface {
-	// Name identifies the job in logs.
 	Name() string
-	// Interval is how often it should run.
+
 	Interval() time.Duration
-	// Run performs the work. Returning an error is logged, not fatal.
+
 	Run(ctx context.Context) error
 }
 
-// Scheduler runs jobs on their own cadence.
 type Scheduler struct {
 	logger *slog.Logger
 
 	mu   sync.Mutex
 	jobs []Job
 
-	// now is injectable for tests.
 	now func() time.Time
 }
 
-// New returns a scheduler.
 func New(logger *slog.Logger) *Scheduler {
 	if logger == nil {
 		logger = slog.Default()
@@ -47,17 +34,12 @@ func New(logger *slog.Logger) *Scheduler {
 	return &Scheduler{logger: logger, now: time.Now}
 }
 
-// Add registers a job. Jobs must be added before Run.
 func (s *Scheduler) Add(job Job) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.jobs = append(s.jobs, job)
 }
 
-// Run executes every job on its interval until ctx is cancelled.
-//
-// Each job gets its own goroutine and its own ticker, so a slow one delays
-// only itself. Run blocks until every job has stopped.
 func (s *Scheduler) Run(ctx context.Context) {
 	s.mu.Lock()
 	jobs := append([]Job(nil), s.jobs...)
@@ -82,7 +64,6 @@ func (s *Scheduler) Run(ctx context.Context) {
 	s.logger.Info("scheduler stopped")
 }
 
-// runJob loops one job on its interval.
 func (s *Scheduler) runJob(ctx context.Context, job Job) {
 	interval := job.Interval()
 	if interval <= 0 {
@@ -90,9 +71,6 @@ func (s *Scheduler) runJob(ctx context.Context, job Job) {
 		return
 	}
 
-	// Stagger the first run. Without this every job fires at startup, which on
-	// a router means several API calls the instant the network comes up — the
-	// least reliable moment there is.
 	initial := jitter(interval / 10)
 	timer := time.NewTimer(initial)
 	defer timer.Stop()
@@ -106,16 +84,10 @@ func (s *Scheduler) runJob(ctx context.Context, job Job) {
 
 		s.invoke(ctx, job)
 
-		// Reset from the end of the run, not the start, so a job that takes
-		// longer than its interval cannot overlap with itself.
 		timer.Reset(interval)
 	}
 }
 
-// invoke runs a job once, containing any panic.
-//
-// A panic in a renewal job must not take the tunnel daemon down with it. The
-// tunnels are the product; the scheduler is a convenience.
 func (s *Scheduler) invoke(ctx context.Context, job Job) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -139,8 +111,6 @@ func (s *Scheduler) invoke(ctx context.Context, job Job) {
 		"job", job.Name(), "took", s.now().Sub(started).Round(time.Millisecond))
 }
 
-// jitter returns a duration uniformly in [d/2, d], so a fleet of routers does
-// not synchronise on the same instant.
 func jitter(d time.Duration) time.Duration {
 	if d <= 0 {
 		return time.Second
@@ -149,7 +119,6 @@ func jitter(d time.Duration) time.Duration {
 	return half + time.Duration(rand.Int64N(int64(half)+1))
 }
 
-// JobFunc adapts a function into a Job.
 type JobFunc struct {
 	JobName  string
 	Every    time.Duration

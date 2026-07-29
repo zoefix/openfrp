@@ -1,10 +1,3 @@
-// Package cert issues and manages TLS certificates.
-//
-// Issuance runs on the router rather than the server. That is unusual for a
-// tunnel product and it is deliberate: the router is where the DNS credentials
-// already live, it needs no inbound connectivity for a DNS-01 challenge, and
-// it keeps the public server free of any credential worth stealing. The server
-// receives only the finished certificate.
 package cert
 
 import (
@@ -18,7 +11,6 @@ import (
 	"github.com/go-acme/lego/v4/certcrypto"
 )
 
-// KeyType is the algorithm and size of a certificate's private key.
 type KeyType string
 
 const (
@@ -29,14 +21,8 @@ const (
 	KeyECDSA384 KeyType = "ec384"
 )
 
-// DefaultKeyType is ECDSA P-256.
-//
-// Smaller and faster than RSA at equivalent strength, and universally
-// supported by anything that can speak TLS 1.2. RSA remains available for the
-// rare embedded client that still cannot do elliptic curve.
 const DefaultKeyType = KeyECDSA256
 
-// Valid reports whether k is a recognised key type.
 func (k KeyType) Valid() bool {
 	switch k {
 	case KeyRSA2048, KeyRSA3072, KeyRSA4096, KeyECDSA256, KeyECDSA384:
@@ -45,7 +31,6 @@ func (k KeyType) Valid() bool {
 	return false
 }
 
-// Label returns a human description.
 func (k KeyType) Label() string {
 	switch k {
 	case KeyRSA2048:
@@ -63,7 +48,6 @@ func (k KeyType) Label() string {
 	}
 }
 
-// legoKeyType maps onto lego's own enumeration.
 func (k KeyType) legoKeyType() (certcrypto.KeyType, error) {
 	switch k {
 	case KeyRSA2048:
@@ -81,7 +65,6 @@ func (k KeyType) legoKeyType() (certcrypto.KeyType, error) {
 	}
 }
 
-// GenerateKey creates a private key of this type.
 func (k KeyType) GenerateKey() (crypto.PrivateKey, error) {
 	switch k {
 	case KeyRSA2048:
@@ -99,7 +82,6 @@ func (k KeyType) GenerateKey() (crypto.PrivateKey, error) {
 	}
 }
 
-// KeyTypes lists the supported key types in display order.
 func KeyTypes() []KeyType {
 	return []KeyType{KeyECDSA256, KeyECDSA384, KeyRSA2048, KeyRSA3072, KeyRSA4096}
 }

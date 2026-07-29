@@ -1,4 +1,3 @@
-// Package dnspod manages records in Tencent Cloud DNSPod.
 package dnspod
 
 import (
@@ -54,7 +53,6 @@ type provider struct {
 	http      *dns.HTTPClient
 }
 
-// call performs one TC3-signed action.
 func (p *provider) call(ctx context.Context, action string, payload map[string]any, out any) error {
 	req := dns.Request{Method: http.MethodPost, URL: "https://" + endpoint + "/"}
 	if err := req.JSONBody(payload); err != nil {
@@ -88,8 +86,6 @@ func (p *provider) call(ctx context.Context, action string, payload map[string]a
 		req.Headers[name] = signing.Headers.Get(name)
 	}
 
-	// Tencent reports application errors inside a 200 response, so the
-	// envelope has to be inspected even when the HTTP status is fine.
 	var envelope struct {
 		Response json.RawMessage `json:"Response"`
 	}
@@ -195,7 +191,7 @@ func (p *provider) ListRecords(ctx context.Context, zone string, opts dns.ListOp
 		} `json:"RecordList"`
 	}
 	if err := p.call(ctx, "DescribeRecordList", payload, &resp); err != nil {
-		// An empty zone is reported as an error rather than an empty list.
+
 		if strings.Contains(err.Error(), "ResourceNotFound") {
 			return nil, nil
 		}
@@ -254,8 +250,6 @@ func (p *provider) recordPayload(zone string, record dns.Record) (map[string]any
 	return payload, nil
 }
 
-// lineName is DNSPod's human-readable line label, which the API wants
-// alongside the numeric ID.
 func lineName(line dns.Line) string {
 	switch line {
 	case dns.LineTelecom:

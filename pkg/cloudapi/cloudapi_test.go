@@ -8,12 +8,6 @@ import (
 	"time"
 )
 
-// TestTencentSignatureMatchesPublishedExample checks the implementation against
-// the worked example in Tencent's own signing documentation.
-//
-// A signing routine either matches byte for byte or fails with an opaque
-// "signature does not match" from the server, so a fixture is the only useful
-// test. These values are the ones Tencent publishes for TC3-HMAC-SHA256.
 func TestTencentSignatureMatchesPublishedExample(t *testing.T) {
 	body := []byte(`{"Limit": 1, "Filters": [{"Values": ["\u672a\u547d\u540d"], "Name": "instance-name"}]}`)
 
@@ -47,8 +41,6 @@ func TestTencentSignatureMatchesPublishedExample(t *testing.T) {
 		t.Errorf("X-TC-Timestamp = %q, want 1551113065", got)
 	}
 
-	// Signing must be deterministic for a fixed clock; otherwise retries would
-	// produce different signatures and be impossible to debug.
 	second := *req
 	second.Headers = req.Headers.Clone()
 	second.Headers.Del("Authorization")
@@ -79,7 +71,7 @@ func TestHuaweiSignsWithSecretDirectly(t *testing.T) {
 	if !strings.HasPrefix(auth, "SDK-HMAC-SHA256 ") {
 		t.Errorf("Authorization = %q, want the SDK-HMAC-SHA256 prefix", auth)
 	}
-	// Huawei has no credential scope, so the credential is the bare key.
+
 	if !strings.Contains(auth, "Credential=AK,") {
 		t.Errorf("Huawei credential should be the bare access key:\n%s", auth)
 	}
@@ -88,8 +80,6 @@ func TestHuaweiSignsWithSecretDirectly(t *testing.T) {
 	}
 }
 
-// TestCanonicalQueryEncoding pins the encoding rules. url.Values.Encode is
-// close but escapes a space as '+', which every one of these schemes rejects.
 func TestCanonicalQueryEncoding(t *testing.T) {
 	values := url.Values{
 		"b":     {"two words"},
@@ -113,9 +103,6 @@ func TestCanonicalQuerySortsRepeatedValues(t *testing.T) {
 	}
 }
 
-// TestAliyunDoubleEncoding covers the quirk most likely to be "fixed" by a
-// well-meaning refactor: the canonical query is percent-encoded a second time
-// before signing, and the HMAC key carries a trailing ampersand.
 func TestAliyunDoubleEncoding(t *testing.T) {
 	req := AliyunRPCRequest{
 		Endpoint:        "alidns.aliyuncs.com",
@@ -148,7 +135,6 @@ func TestAliyunDoubleEncoding(t *testing.T) {
 		}
 	}
 
-	// Deterministic for a fixed clock and nonce.
 	again, err := req.SignedURL()
 	if err != nil {
 		t.Fatalf("second SignedURL: %v", err)
@@ -157,8 +143,6 @@ func TestAliyunDoubleEncoding(t *testing.T) {
 		t.Error("signing twice with a fixed nonce produced different URLs")
 	}
 
-	// A different secret must produce a different signature — a trivial check,
-	// but it catches a signer that silently ignores the key.
 	other := req
 	other.AccessKeySecret = "different"
 	changed, _ := other.SignedURL()

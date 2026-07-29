@@ -9,22 +9,14 @@ import (
 	"strings"
 )
 
-// tokenBlock is the PEM block cloudflared appends to the login credential.
 const tokenBlock = "ARGO TUNNEL TOKEN"
 
-// Credential is what a completed login granted.
-//
-// cloudflared writes it into cert.pem alongside the origin certificate, and
-// uses it for exactly what is needed here: which zone was authorised, and a
-// token scoped to it. Reading it back means the zone does not have to be
-// asked for a second time, in a field where the operator could get it wrong.
 type Credential struct {
 	ZoneID    string `json:"zoneID"`
 	AccountID string `json:"accountID"`
 	APIToken  string `json:"apiToken"`
 }
 
-// ReadCredential parses the login credential.
 func (c CLI) ReadCredential() (Credential, error) {
 	raw, err := os.ReadFile(c.CertPath())
 	if err != nil {
@@ -45,11 +37,9 @@ func parseCredential(raw []byte) (Credential, error) {
 			continue
 		}
 
-		// The payload is base64 inside the PEM body, which pem.Decode has
-		// already decoded once — so what comes out here is the JSON itself.
 		var credential Credential
 		if err := json.Unmarshal(block.Bytes, &credential); err != nil {
-			// Older cloudflared wrapped it in a second layer of base64.
+
 			decoded, decodeErr := base64.StdEncoding.DecodeString(
 				strings.TrimSpace(string(block.Bytes)))
 			if decodeErr != nil {
@@ -70,7 +60,6 @@ func parseCredential(raw []byte) (Credential, error) {
 		return credential, nil
 	}
 
-	// Deliberately does not quote the file: it holds a private key.
 	return Credential{}, fmt.Errorf(
 		"cloudflare: the login credential carries no %s block", tokenBlock)
 }

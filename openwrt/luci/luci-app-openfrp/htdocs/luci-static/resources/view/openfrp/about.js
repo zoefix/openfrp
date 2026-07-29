@@ -2,24 +2,12 @@
 'require view';
 'require rpc';
 
-/*
- * About.
- *
- * A static page: the project's links, and the version actually running. It
- * asks the backend for nothing but the status it already serves, so it works
- * on a router with no internet and renders the same whether or not the daemon
- * is up.
- */
-
 var callStatus = rpc.declare({
 	object: 'luci.openfrp',
 	method: 'status',
 	expect: {}
 });
 
-// Where the project lives, and where its author does. Ordered with the code
-// first: someone who reached this page from a router is far likelier to want
-// the repository than the videos.
 var LINKS = [
 	{ label: 'GitHub', href: 'https://github.com/zoefix/openfrp', text: 'zoefix/openfrp' },
 	{ label: 'Bilibili', href: 'https://space.bilibili.com/17415536', text: 'space.bilibili.com/17415536' },
@@ -36,12 +24,6 @@ function row(label, value) {
 	]);
 }
 
-// link renders an anchor, or plain text for the accounts that are handles
-// rather than addresses.
-//
-// rel is not decoration: without noopener a new tab keeps a handle on this
-// one through window.opener, and this page is served from the router's admin
-// session.
 function link(entry) {
 	if (!entry.href)
 		return entry.text;
@@ -62,8 +44,6 @@ function stylesheet() {
 
 return view.extend({
 	load: function () {
-		// A failure here is not worth an error page: the links are the point
-		// and they do not depend on it.
 		return callStatus().catch(function () { return null; });
 	},
 

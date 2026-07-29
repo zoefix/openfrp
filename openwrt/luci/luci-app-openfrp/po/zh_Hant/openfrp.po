@@ -52,6 +52,9 @@ msgstr "泛網域只能透過 DNS 驗證。"
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr "泛網域只能透過 DNS 驗證，請選擇一個帳號。"
 
+msgid "About"
+msgstr "關於"
+
 msgid "Accounts"
 msgstr "帳號"
 
@@ -135,6 +138,9 @@ msgstr "已簽發的憑證會保留，但換到其他帳戶前無法續期。"
 
 msgid "Clear"
 msgstr "清空"
+
+msgid "Client"
+msgstr "用戶端"
 
 msgid "Client IP"
 msgstr "用戶端 IP"
@@ -252,6 +258,9 @@ msgstr "隧道的網域不要開代理：代理會自己回應 HTTPS，且只用
 
 msgid "Domains"
 msgstr "網域"
+
+msgid "Douyin"
+msgstr "抖音"
 
 msgid "Download"
 msgstr "下行"
@@ -421,6 +430,9 @@ msgstr "手動"
 msgid "Multiplex connections"
 msgstr "多工連線"
 
+msgid "NAT traversal with wildcard domain routing."
+msgstr "內網穿透，支援泛網域路由。"
+
 msgid "Name"
 msgstr "名稱"
 
@@ -501,6 +513,9 @@ msgstr "本路由器上的金鑰檔案路徑。"
 
 msgid "Private key"
 msgstr "私密金鑰"
+
+msgid "Project"
+msgstr "專案"
 
 msgid "Provider"
 msgstr "服務商"
@@ -771,6 +786,9 @@ msgstr "哪一端處理 HTTPS，憑證就歸哪一端。伺服端用的憑證在
 
 msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
 msgstr "不啟用時，內網服務會把每個訪客都記成本路由器。請先設定好服務，否則所有請求都會失敗。\n\nnginx：\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
+
+msgid "Xiaohongshu"
+msgstr "小紅書"
 
 msgid "You already have one running. Enter its address and token."
 msgstr "你已經有一台在執行，填寫它的位址和權杖即可。"

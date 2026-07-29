@@ -52,6 +52,9 @@ msgstr "ワイルドカードは DNS でしか証明できません。"
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr "ワイルドカードは DNS でしか証明できません。アカウントを選択してください。"
 
+msgid "About"
+msgstr "このアプリについて"
+
 msgid "Accounts"
 msgstr "アカウント"
 
@@ -135,6 +138,9 @@ msgstr "発行済み証明書は保持されますが、別のアカウントに
 
 msgid "Clear"
 msgstr "クリア"
+
+msgid "Client"
+msgstr "クライアント"
 
 msgid "Client IP"
 msgstr "クライアント IP"
@@ -252,6 +258,9 @@ msgstr "トンネルのドメインはプロキシ不可。プロキシ自身が
 
 msgid "Domains"
 msgstr "ドメイン"
+
+msgid "Douyin"
+msgstr "Douyin"
 
 msgid "Download"
 msgstr "下り"
@@ -421,6 +430,9 @@ msgstr "手動"
 msgid "Multiplex connections"
 msgstr "接続の多重化"
 
+msgid "NAT traversal with wildcard domain routing."
+msgstr "ワイルドカードドメイン対応の NAT トラバーサル。"
+
 msgid "Name"
 msgstr "名前"
 
@@ -501,6 +513,9 @@ msgstr "このルーター上の鍵ファイルのパスです。"
 
 msgid "Private key"
 msgstr "秘密鍵"
+
+msgid "Project"
+msgstr "プロジェクト"
 
 msgid "Provider"
 msgstr "プロバイダ"
@@ -771,6 +786,9 @@ msgstr "HTTPS を処理する側が証明書を必要とします。サーバー
 
 msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
 msgstr "無効の場合、ローカルサービスは全訪問者を本ルーターとして記録します。先にサービス側を設定しないと全リクエストが失敗します。\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
+
+msgid "Xiaohongshu"
+msgstr "Xiaohongshu"
 
 msgid "You already have one running. Enter its address and token."
 msgstr "すでに稼働中のものがあります。アドレスとトークンを入力してください。"

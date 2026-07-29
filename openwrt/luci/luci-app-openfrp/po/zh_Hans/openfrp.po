@@ -52,6 +52,9 @@ msgstr "泛域名只能通过 DNS 验证。"
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr "泛域名只能通过 DNS 验证，请选择一个账号。"
 
+msgid "About"
+msgstr "关于"
+
 msgid "Accounts"
 msgstr "账号"
 
@@ -135,6 +138,9 @@ msgstr "已签发的证书会保留，但换到其他账户前无法续期。"
 
 msgid "Clear"
 msgstr "清空"
+
+msgid "Client"
+msgstr "客户端"
 
 msgid "Client IP"
 msgstr "客户端 IP"
@@ -252,6 +258,9 @@ msgstr "隧道的域名不要开代理：代理会自己应答 HTTPS，且只用
 
 msgid "Domains"
 msgstr "域名"
+
+msgid "Douyin"
+msgstr "抖音"
 
 msgid "Download"
 msgstr "下行"
@@ -421,6 +430,9 @@ msgstr "手动"
 msgid "Multiplex connections"
 msgstr "多路复用连接"
 
+msgid "NAT traversal with wildcard domain routing."
+msgstr "内网穿透，支持泛域名路由。"
+
 msgid "Name"
 msgstr "名称"
 
@@ -501,6 +513,9 @@ msgstr "本路由器上的密钥文件路径。"
 
 msgid "Private key"
 msgstr "私钥"
+
+msgid "Project"
+msgstr "项目"
 
 msgid "Provider"
 msgstr "服务商"
@@ -771,6 +786,9 @@ msgstr "哪一端处理 HTTPS，证书就归哪一端。服务端用的证书在
 
 msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
 msgstr "不启用时，内网服务会把每个访客都记成本路由器。请先配置好服务，否则所有请求都会失败。\n\nnginx：\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
+
+msgid "Xiaohongshu"
+msgstr "小红书"
 
 msgid "You already have one running. Enter its address and token."
 msgstr "你已经有一台在运行，填写它的地址和令牌即可。"

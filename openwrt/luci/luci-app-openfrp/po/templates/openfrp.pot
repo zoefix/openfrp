@@ -83,6 +83,10 @@ msgstr ""
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:77
+msgid "About"
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:515
 msgid "Accounts"
 msgstr ""
@@ -217,6 +221,10 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:181
 msgid "Clear"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:82
+msgid "Client"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:779
@@ -394,6 +402,10 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:308
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:600
 msgid "Domains"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:28
+msgid "Douyin"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:311
@@ -642,6 +654,10 @@ msgstr ""
 msgid "Multiplex connections"
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:78
+msgid "NAT traversal with wildcard domain routing."
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:133
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:190
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:296
@@ -771,6 +787,10 @@ msgstr ""
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:311
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:335
 msgid "Private key"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:86
+msgid "Project"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:137
@@ -1137,6 +1157,7 @@ msgstr ""
 msgid "Value"
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:81
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:701
 msgid "Version"
 msgstr ""
@@ -1170,6 +1191,10 @@ msgid ""
 "Configure the service first, or every request fails.\n\nnginx:\n    listen "
 "PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    "
 "real_ip_header proxy_protocol;"
+msgstr ""
+
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:29
+msgid "Xiaohongshu"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:496
@@ -1233,6 +1258,7 @@ msgstr ""
 msgid "the request failed"
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:73
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:289
 msgid "unknown"
 msgstr ""

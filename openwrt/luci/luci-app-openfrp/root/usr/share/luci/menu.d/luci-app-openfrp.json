@@ -6,11 +6,14 @@
 			"type": "firstchild"
 		},
 		"depends": {
-			"acl": [ "luci-app-openfrp" ],
-			"uci": { "openfrp": true }
+			"acl": [
+				"luci-app-openfrp"
+			],
+			"uci": {
+				"openfrp": true
+			}
 		}
 	},
-
 	"admin/services/openfrp/status": {
 		"title": "Status",
 		"order": 10,
@@ -19,7 +22,6 @@
 			"path": "openfrp/status"
 		}
 	},
-
 	"admin/services/openfrp/tunnels": {
 		"title": "Tunnels",
 		"order": 20,
@@ -28,7 +30,6 @@
 			"path": "openfrp/tunnels"
 		}
 	},
-
 	"admin/services/openfrp/server": {
 		"title": "Server",
 		"order": 30,
@@ -37,7 +38,6 @@
 			"path": "openfrp/server"
 		}
 	},
-
 	"admin/services/openfrp/dns": {
 		"title": "DNS",
 		"order": 40,
@@ -46,13 +46,20 @@
 			"path": "openfrp/dns"
 		}
 	},
-
 	"admin/services/openfrp/cert": {
 		"title": "Certificates",
 		"order": 50,
 		"action": {
 			"type": "view",
 			"path": "openfrp/cert"
+		}
+	},
+	"admin/services/openfrp/about": {
+		"title": "About",
+		"order": 60,
+		"action": {
+			"type": "view",
+			"path": "openfrp/about"
 		}
 	}
 }

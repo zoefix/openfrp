@@ -68,8 +68,6 @@ type Login struct {
 
 	PoolCount int `json:"pool_count,omitempty"`
 
-	// Limits for everything this client publishes, in bytes and bytes per
-	// second. Zero for no limit. A tunnel's own limit nests inside these.
 	DownRate int64 `json:"down_rate,omitempty"`
 	UpRate   int64 `json:"up_rate,omitempty"`
 	Quota    int64 `json:"quota,omitempty"`
@@ -104,9 +102,6 @@ type ProxySpec struct {
 
 	SecretKey string `json:"secret_key,omitempty"`
 
-	// Limits travel with the tunnel because the server is where they are
-	// applied: it sees every visitor of a tunnel, while the client sees only
-	// the connections that reached it.
 	DownRate int64 `json:"down_rate,omitempty"`
 	UpRate   int64 `json:"up_rate,omitempty"`
 	Quota    int64 `json:"quota,omitempty"`

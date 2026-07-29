@@ -14,8 +14,6 @@ func TestLimiterPacesToTheRate(t *testing.T) {
 	limiter := NewLimiter(rate)
 	started := time.Now()
 
-	// Four times the burst, so the bucket cannot cover it and the limiter has
-	// to actually wait.
 	for range 4 {
 		limiter.wait(rate * int64(limiterWindow) / int64(time.Second))
 	}
@@ -43,13 +41,6 @@ func TestNoLimiterWhenRateIsZero(t *testing.T) {
 	none.wait(1 << 20)
 }
 
-// TestLimitedRelayKeepsTheKernelFastPath is the one that matters.
-//
-// Rate limiting by reading into a buffer of our own would have been simpler
-// and would have cost the zero-copy path for every limited tunnel — the one
-// property this data plane is built around. The kernel call takes a byte
-// count, so the limit is expressed as a bounded splice rather than a copy,
-// and this asserts the relay still reports itself spliced when limited.
 func TestLimitedRelayKeepsTheKernelFastPath(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("splice(2) is Linux-only")
@@ -61,7 +52,6 @@ func TestLimitedRelayKeepsTheKernelFastPath(t *testing.T) {
 	}
 	defer ln.Close()
 
-	// An echo on the far side, so the relay has both directions to move.
 	go func() {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -132,13 +122,6 @@ func TestLimitedRelayKeepsTheKernelFastPath(t *testing.T) {
 	}
 }
 
-// TestNestedLimiterIsSharedNotCopied guards the property that makes a
-// per-tunnel rate mean what it says.
-//
-// Attaching a wider limit by copying the limiter would hand every connection
-// its own bucket, and ten visitors on a one-megabyte tunnel would get ten
-// megabytes between them. The limiter has to be the same object every
-// connection of that tunnel draws from.
 func TestNestedLimiterIsSharedNotCopied(t *testing.T) {
 	tunnel := NewLimiter(1 << 20)
 	client := NewLimiter(4 << 20)
@@ -152,7 +135,6 @@ func TestNestedLimiterIsSharedNotCopied(t *testing.T) {
 		t.Error("the wider limit was not attached")
 	}
 
-	// A tunnel with no rate of its own falls through to the wider one.
 	var none *Limiter
 	if got := none.Under(client); got != client {
 		t.Error("an unlimited tunnel under a client-wide limit should use it")

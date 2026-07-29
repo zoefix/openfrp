@@ -274,12 +274,6 @@ func TestASaturatedCarrierDoesNotHangTheVisitor(t *testing.T) {
 	}
 }
 
-// TestQuotaRefusesOnceSpent covers the cap that stops a tunnel carrying more
-// than it was allowed.
-//
-// The check has to happen before a work connection is handed over: a visitor
-// refused after the handoff has already cost the client a dial across the
-// internet, which is the expensive part and cannot be taken back.
 func TestQuotaRefusesOnceSpent(t *testing.T) {
 	limits := NewLimits()
 	limits.Publish(protocol.ProxySpec{Name: "web", Quota: 1000})
@@ -305,8 +299,6 @@ func TestQuotaRefusesOnceSpent(t *testing.T) {
 	}
 }
 
-// TestRepublishKeepsWhatWasSpent: a quota that resets when the client
-// reconnects is not a quota, it is a suggestion to anyone willing to restart.
 func TestRepublishKeepsWhatWasSpent(t *testing.T) {
 	limits := NewLimits()
 	spec := protocol.ProxySpec{Name: "web", Quota: 1000}
@@ -320,9 +312,6 @@ func TestRepublishKeepsWhatWasSpent(t *testing.T) {
 	}
 }
 
-// TestNoLimitsMeansNoLimiter guards the ordinary case: a tunnel published
-// without rates or a quota must not acquire a limiter, so its relay keeps the
-// unpaced path.
 func TestNoLimitsMeansNoLimiter(t *testing.T) {
 	limits := NewLimits()
 	limits.Publish(protocol.ProxySpec{Name: "web"})
@@ -340,17 +329,10 @@ func TestNoLimitsMeansNoLimiter(t *testing.T) {
 	tunnel.Spend(1 << 30)
 }
 
-// TestTunnelLimitsNestUnderTheClientWide covers the ceiling that makes a
-// client-wide figure mean something.
-//
-// Without nesting, three tunnels at a megabyte each under a client limit of
-// one megabyte would take three: each would honour its own bucket and ignore
-// the wider one. The tunnel's limiter has to draw from both.
 func TestTunnelLimitsNestUnderTheClientWide(t *testing.T) {
 	limits := NewLimits()
 	limits.SetClientLimits(1<<20, 1<<20, 100)
 
-	// A tunnel with no limits of its own still inherits the client's.
 	limits.Publish(protocol.ProxySpec{Name: "plain"})
 	toClient, toVisitor := limits.For("plain").Rates()
 	if toClient == nil || toVisitor == nil {
@@ -365,7 +347,6 @@ func TestTunnelLimitsNestUnderTheClientWide(t *testing.T) {
 		t.Error("150 against a 100 byte client cap not reported as spent")
 	}
 
-	// With no client limits at all, an unlimited tunnel stays unlimited.
 	bare := NewLimits()
 	bare.Publish(protocol.ProxySpec{Name: "plain"})
 	if bare.For("plain") != nil {
@@ -373,8 +354,6 @@ func TestTunnelLimitsNestUnderTheClientWide(t *testing.T) {
 	}
 }
 
-// TestClientLimitsApplyToTunnelsPublishedFirst: login and publish race, and
-// which arrives first must not decide whether a limit applies.
 func TestClientLimitsApplyToTunnelsPublishedFirst(t *testing.T) {
 	limits := NewLimits()
 

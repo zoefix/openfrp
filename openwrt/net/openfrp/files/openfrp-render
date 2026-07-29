@@ -77,8 +77,6 @@ add_tunnel() {
 	json_add_object ""
 	json_add_string name "$name"
 
-	# The form asks in the units an operator thinks in — kilobytes a second,
-	# megabytes in total — and the daemon works in bytes.
 	[ "${down_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int down_rate $((down_rate * 1024))
 	[ "${up_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int up_rate $((up_rate * 1024))
 	[ "${quota:-0}" -gt 0 ] 2>/dev/null && json_add_int quota $((quota * 1024 * 1024))
@@ -228,8 +226,6 @@ main() {
 	config_foreach add_tunnel tunnel
 	json_close_array
 
-	# Client-wide, so a tunnel's own limit applies within these rather than
-	# beside them. Kilobytes and megabytes in the form, bytes on the wire.
 	[ "${g_down_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int down_rate $((g_down_rate * 1024))
 	[ "${g_up_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int up_rate $((g_up_rate * 1024))
 	[ "${g_quota:-0}" -gt 0 ] 2>/dev/null && json_add_int quota $((g_quota * 1024 * 1024))

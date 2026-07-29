@@ -1,9 +1,11 @@
 package netutil
 
 import (
+	"errors"
 	"io"
 	"net"
 	"sync/atomic"
+	"time"
 )
 
 type CloseWriter interface {
@@ -37,11 +39,26 @@ type RelayStats struct {
 	Spliced bool
 }
 
+const progressInterval = time.Second
+
+const trackedChunk = 1 << 30
+
+type RelayOptions struct {
+	AToBLimit *Limiter
+	BToALimit *Limiter
+
+	Progress func(aToB, bToA int64)
+}
+
 func Relay(a, b net.Conn) RelayStats {
-	return RelayLimited(a, b, nil, nil)
+	return RelayWith(a, b, RelayOptions{})
 }
 
 func RelayLimited(a, b net.Conn, aToB, bToA *Limiter) RelayStats {
+	return RelayWith(a, b, RelayOptions{AToBLimit: aToB, BToALimit: bToA})
+}
+
+func RelayWith(a, b net.Conn, opts RelayOptions) RelayStats {
 	stats := RelayStats{Spliced: CanSplice(a, b)}
 
 	if stats.Spliced {
@@ -50,53 +67,63 @@ func RelayLimited(a, b net.Conn, aToB, bToA *Limiter) RelayStats {
 		bufferedRelays.Add(1)
 	}
 
+	var aToBProgress, bToAProgress func(int64)
+	if opts.Progress != nil {
+		aToBProgress = func(n int64) { opts.Progress(n, 0) }
+		bToAProgress = func(n int64) { opts.Progress(0, n) }
+	}
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		stats.AToB = copyAndHalfClose(b, a, aToB)
+		stats.AToB = copyAndHalfClose(b, a, opts.AToBLimit, aToBProgress)
 	}()
-	stats.BToA = copyAndHalfClose(a, b, bToA)
+	stats.BToA = copyAndHalfClose(a, b, opts.BToALimit, bToAProgress)
 	<-done
 
 	return stats
 }
 
-func copyAndHalfClose(dst, src net.Conn, limit *Limiter) int64 {
-	n, _ := copyStream(dst, src, limit)
+func copyAndHalfClose(dst, src net.Conn, limit *Limiter, progress func(int64)) int64 {
+	n, _ := copyStream(dst, src, limit, progress)
 
 	if cw, ok := unwrap(dst).(CloseWriter); ok {
 		_ = cw.CloseWrite()
 	} else {
-
 		_ = dst.Close()
 	}
 	return n
 }
 
-func copyStream(dst, src net.Conn, limit *Limiter) (int64, error) {
+func copyStream(dst, src net.Conn, limit *Limiter, progress func(int64)) (int64, error) {
 	rawDst, rawSrc := unwrap(dst), unwrap(src)
 
 	tcpDst, dstIsTCP := rawDst.(*net.TCPConn)
 	_, srcIsTCP := rawSrc.(*net.TCPConn)
 	spliceable := dstIsTCP && srcIsTCP
 
-	if limit == nil {
+	if limit == nil && progress == nil {
 		if spliceable {
 			return tcpDst.ReadFrom(rawSrc)
 		}
 		return CopyBuffered(dst, src)
 	}
 
-	// Paced, and still spliced. The kernel call takes a byte count, and Go
-	// passes one through when the source is an io.LimitedReader wrapping a
-	// TCP connection — so a rate limit costs a bounded chunk per round and a
-	// sleep between rounds, not a copy through userspace. Limiting by reading
-	// into our own buffer would have cost the whole zero-copy path, which is
-	// the one property this data plane is built around.
-	chunk := limit.chunk()
+	chunk := int64(trackedChunk)
+	if limit != nil {
+		chunk = limit.chunk()
+	}
+
+	if progress != nil {
+		defer src.SetReadDeadline(time.Time{})
+	}
 
 	var total int64
 	for {
+		if progress != nil {
+			_ = src.SetReadDeadline(time.Now().Add(progressInterval))
+		}
+
 		var (
 			n   int64
 			err error
@@ -108,16 +135,26 @@ func copyStream(dst, src net.Conn, limit *Limiter) (int64, error) {
 		}
 		total += n
 		limit.wait(n)
+		if progress != nil && n > 0 {
+			progress(n)
+		}
 
 		if err != nil {
+			if progress != nil && isTimeout(err) {
+				continue
+			}
 			return total, err
 		}
-		// A LimitedReader reports EOF both when its budget runs out and when
-		// the connection really ends. Short of the budget means the second.
+
 		if n < chunk {
 			return total, nil
 		}
 	}
+}
+
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func CanSplice(a, b net.Conn) bool {

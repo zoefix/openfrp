@@ -65,10 +65,14 @@ func (s *session) forward(ctx context.Context, workConn net.Conn, start *protoco
 		}
 	}
 
-	transferred := netutil.Relay(workConn, localConn)
+	traffic := s.client.traffic
+	transferred := netutil.RelayWith(workConn, localConn, netutil.RelayOptions{
+		Progress: func(toLocal, toRemote int64) {
+			traffic.RecordProgress(start.ProxyName, toLocal, toRemote)
+		},
+	})
 
-	s.client.traffic.RecordTransfer(start.ProxyName,
-		transferred.AToB, transferred.BToA, transferred.Spliced)
+	traffic.RecordClose(start.ProxyName, transferred.Spliced)
 
 	if s.logger.Enabled(ctx, slog.LevelDebug) {
 		logger().Debug("transfer complete",

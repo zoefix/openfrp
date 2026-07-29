@@ -54,13 +54,9 @@ type Tunnel struct {
 
 	ProxyProtocol string `json:"proxy_protocol,omitempty"`
 
-	// Bytes per second, each direction, zero for no limit. Down is what
-	// visitors receive; up is what they send.
 	DownRate int64 `json:"down_rate,omitempty"`
 	UpRate   int64 `json:"up_rate,omitempty"`
 
-	// Total bytes this tunnel may carry, zero for no cap. Once reached the
-	// tunnel stops accepting connections until the quota is reset.
 	Quota int64 `json:"quota,omitempty"`
 }
 
@@ -108,7 +104,6 @@ func (t *Tunnel) Validate() error {
 		return fmt.Errorf("tunnel %q: unknown type %q", t.Name, t.Type)
 	}
 	if t.LocalIP != "" && net.ParseIP(t.LocalIP) == nil {
-
 		if strings.ContainsAny(t.LocalIP, ":/ ") {
 			return fmt.Errorf("tunnel %q: invalid local_ip %q", t.Name, t.LocalIP)
 		}
@@ -118,7 +113,6 @@ func (t *Tunnel) Validate() error {
 	}
 
 	if t.Type.NeedsRemotePort() {
-
 		if t.RemotePort != 0 {
 			if err := validatePort(t.RemotePort); err != nil {
 				return fmt.Errorf("tunnel %q: remote_port: %w", t.Name, err)

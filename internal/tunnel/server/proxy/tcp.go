@@ -142,8 +142,6 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 
 	source := userConn.RemoteAddr().String()
 
-	// Checked before a work connection is spent: a visitor turned away after
-	// the handoff has already cost the client a dial for nothing.
 	if p.limits != nil && p.limits.Exhausted(p.name) {
 		p.logger.Warn("tunnel has spent its traffic quota", "source", source)
 		return
@@ -164,15 +162,21 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 	if p.limits != nil {
 		toClient, toVisitor = p.limits.Rates(p.name)
 	}
-	transferred := netutil.RelayLimited(userConn, workConn, toClient, toVisitor)
-
-	if p.limits != nil {
-		p.limits.Spend(p.name, transferred.AToB+transferred.BToA)
-	}
+	transferred := netutil.RelayWith(userConn, workConn, netutil.RelayOptions{
+		AToBLimit: toClient,
+		BToALimit: toVisitor,
+		Progress: func(toClient, toVisitor int64) {
+			if p.limits != nil {
+				p.limits.Spend(p.name, toClient+toVisitor)
+			}
+			if p.recorder != nil {
+				p.recorder.RecordProgress(p.name, toClient, toVisitor)
+			}
+		},
+	})
 
 	if p.recorder != nil {
-		p.recorder.RecordTransfer(p.name,
-			transferred.AToB, transferred.BToA, transferred.Spliced)
+		p.recorder.RecordClose(p.name, transferred.Spliced)
 	}
 
 	if p.logger.Enabled(ctx, slog.LevelDebug) {

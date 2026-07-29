@@ -34,14 +34,6 @@ func (p Protocol) Valid() bool {
 	return false
 }
 
-// Implemented reports whether a transport exists rather than merely being a
-// name the configuration accepts.
-//
-// Only TCP is built. The other three are selectable, validate cleanly and
-// then carry traffic over TCP, which means the setting has been quietly
-// lying: an operator who chose QUIC got no error, no warning and no QUIC.
-// Saying so is the difference between an unimplemented feature and a
-// misleading one.
 func (p Protocol) Implemented() bool { return p == "" || p == ProtocolTCP }
 
 type Transport struct {
@@ -74,9 +66,6 @@ type Client struct {
 	SocketGID  int `json:"socket_gid,omitempty"`
 	SocketMark int `json:"socket_mark,omitempty"`
 
-	// Limits across every tunnel this client publishes to one server. A
-	// tunnel's own limit nests inside these, so the wider figure is a real
-	// ceiling rather than something each tunnel ignores separately.
 	DownRate int64 `json:"down_rate,omitempty"`
 	UpRate   int64 `json:"up_rate,omitempty"`
 	Quota    int64 `json:"quota,omitempty"`

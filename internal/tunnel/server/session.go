@@ -134,9 +134,7 @@ func (s *Session) RunID() string { return s.runID }
 func (s *Session) Name() string { return s.name }
 
 func (s *Session) AddWorkConn(conn net.Conn) {
-
 	if left := s.poolInFlight.Add(-1); left < 0 {
-
 		s.poolInFlight.Store(0)
 	}
 	s.poolArrivals.Add(1)
@@ -157,7 +155,6 @@ func (s *Session) AddWorkConn(conn net.Conn) {
 }
 
 func (s *Session) GetWorkConn(ctx context.Context, proxyName, sourceAddr string) (net.Conn, error) {
-
 	defer s.replenishPool()
 
 	var stale int
@@ -257,7 +254,6 @@ func (s *Session) overflowConn(ctx context.Context, proxyName, sourceAddr string
 
 		stream, err := source.Open(ctx)
 		if err != nil {
-
 			if ctx.Err() != nil {
 				s.logger.Warn("overflow carrier is saturated; falling back to a dial",
 					"proxy", proxyName, "carriers", len(carriers))
@@ -419,7 +415,6 @@ func (s *Session) tendPool() {
 			arrivals := s.poolArrivals.Load()
 			stalled := arrivals == lastArrivals && s.poolInFlight.Load() > 0
 			if stalled {
-
 				s.poolInFlight.Store(0)
 			}
 			lastArrivals = arrivals
@@ -607,13 +602,10 @@ func (s *Session) Close() error {
 	return err
 }
 
-// ClientExhausted reports whether this client has spent its overall cap.
 func (s *Session) ClientExhausted() bool { return s.limits.ClientExhausted() }
 
-// ClientUsage reports bytes spent against the overall cap.
 func (s *Session) ClientUsage() (used, quota int64) { return s.limits.ClientUsage() }
 
-// SpendTraffic counts bytes against both the tunnel's cap and the client's.
 func (s *Session) SpendTraffic(tunnel *TunnelLimits, bytes int64) {
 	tunnel.Spend(bytes)
 	if bytes > 0 {
@@ -621,7 +613,6 @@ func (s *Session) SpendTraffic(tunnel *TunnelLimits, bytes int64) {
 	}
 }
 
-// TunnelLimits reports what a published tunnel is held to, for the status view.
 func (s *Session) TunnelLimits(name string) *TunnelLimits {
 	return s.limits.For(name)
 }

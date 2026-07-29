@@ -70,10 +70,24 @@ func (r *Registry) For(name string) *Counters {
 }
 
 func (r *Registry) RecordTransfer(name string, in, out int64, spliced bool) {
+	r.RecordProgress(name, in, out)
+	r.RecordClose(name, spliced)
+}
+
+func (r *Registry) RecordProgress(name string, in, out int64) {
+	if in == 0 && out == 0 {
+		return
+	}
 	counters := r.For(name)
 
 	counters.BytesIn.Add(in)
 	counters.BytesOut.Add(out)
+	counters.lastSeen.Store(time.Now().Unix())
+}
+
+func (r *Registry) RecordClose(name string, spliced bool) {
+	counters := r.For(name)
+
 	counters.Connections.Add(1)
 	counters.lastSeen.Store(time.Now().Unix())
 

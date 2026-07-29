@@ -45,11 +45,6 @@ func runDaemon(ctx context.Context, args []string) error {
 		return err
 	}
 
-	// One database for both jobs. It is opened whenever it can be, not only
-	// when a certificate needs it, because the traffic history wants it too —
-	// and on a platform without SQLite (MIPS has no port) the failure is
-	// reported once and both features simply do without, rather than the
-	// tunnels refusing to run.
 	bound := boundCertificates(cfg)
 	if service, err := manage.New(dbPath); err != nil {
 		logger.Warn("the database cannot be opened, so certificate push and "+

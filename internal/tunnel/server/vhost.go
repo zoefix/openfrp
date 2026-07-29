@@ -146,7 +146,6 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 
 	session, err := v.registry.Get(route.RunID)
 	if err != nil {
-
 		v.logger.Warn("route points at a disconnected client",
 			"host", host, "run_id", route.RunID, "proxy", route.ProxyName)
 		v.router.RemoveClient(route.RunID)
@@ -154,9 +153,6 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 		return
 	}
 
-	// Before a work connection is spent, for the same reason as the tcp
-	// path: a visitor refused after the handoff has already cost the client
-	// a dial it cannot get back.
 	limits := session.TunnelLimits(route.ProxyName)
 	if session.ClientExhausted() || limits.Exhausted() {
 		v.logger.Warn("tunnel has spent its traffic quota",
@@ -195,8 +191,14 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	}
 
 	toClient, toVisitor := limits.Rates()
-	transferred := netutil.RelayLimited(userConn, workConn, toClient, toVisitor)
-	session.SpendTraffic(limits, transferred.AToB+transferred.BToA)
+	transferred := netutil.RelayWith(userConn, workConn, netutil.RelayOptions{
+		AToBLimit: toClient,
+		BToALimit: toVisitor,
+		Progress: func(toClient, toVisitor int64) {
+			session.SpendTraffic(limits, toClient+toVisitor)
+			v.progress(route.ProxyName, toClient, toVisitor)
+		},
+	})
 	v.record(route.ProxyName, transferred)
 
 	if v.logger.Enabled(ctx, slog.LevelDebug) {
@@ -211,11 +213,18 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	}
 }
 
+func (v *vhostListener) progress(proxyName string, in, out int64) {
+	if v.stats == nil {
+		return
+	}
+	v.stats.RecordProgress(proxyName, in, out)
+}
+
 func (v *vhostListener) record(proxyName string, transferred netutil.RelayStats) {
 	if v.stats == nil {
 		return
 	}
-	v.stats.RecordTransfer(proxyName, transferred.AToB, transferred.BToA, transferred.Spliced)
+	v.stats.RecordClose(proxyName, transferred.Spliced)
 }
 
 func (v *vhostListener) sniff(conn net.Conn) (host, path string, consumed []byte, err error) {
@@ -230,7 +239,6 @@ func (v *vhostListener) sniff(conn net.Conn) (host, path string, consumed []byte
 			return "", "", info.Consumed, err
 		}
 		if info.ServerName == "" {
-
 			return "", "", info.Consumed, nil
 		}
 		return info.ServerName, "", info.Consumed, nil
@@ -248,7 +256,6 @@ const (
 
 func (v *vhostListener) unclaimed(conn net.Conn, host string) {
 	if v.scheme != vhost.SchemeHTTP {
-
 		return
 	}
 
@@ -321,7 +328,6 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 	router *vhost.Router, registry *Registry, certs *CertStore,
 	challenges *ChallengeStore, traffic *stats.Registry,
 	logger *slog.Logger, acceptLoops int) *vhostListener {
-
 	return &vhostListener{
 		scheme:      scheme,
 		port:        port,
@@ -340,7 +346,6 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Conn,
 	consumed []byte, route *vhost.Route, host, source string,
 	session *Session, limits *TunnelLimits) {
-
 	if v.certs == nil || !v.certs.Has(host) {
 		v.logger.Warn("edge termination requested but no certificate covers the host",
 			"host", host, "proxy", route.ProxyName)
@@ -361,8 +366,14 @@ func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Co
 	}
 
 	toClient, toVisitor := limits.Rates()
-	transferred := netutil.RelayLimited(tlsConn, workConn, toClient, toVisitor)
-	session.SpendTraffic(limits, transferred.AToB+transferred.BToA)
+	transferred := netutil.RelayWith(tlsConn, workConn, netutil.RelayOptions{
+		AToBLimit: toClient,
+		BToALimit: toVisitor,
+		Progress: func(toClient, toVisitor int64) {
+			session.SpendTraffic(limits, toClient+toVisitor)
+			v.progress(route.ProxyName, toClient, toVisitor)
+		},
+	})
 	v.record(route.ProxyName, transferred)
 
 	v.logger.Debug("terminated connection closed",

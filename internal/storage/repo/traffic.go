@@ -7,10 +7,8 @@ import (
 	"time"
 )
 
-// DayFormat is how a calendar day is stored and asked for.
 const DayFormat = "2006-01-02"
 
-// DailyTraffic is one tunnel's total for one day.
 type DailyTraffic struct {
 	Day         string
 	Tunnel      string
@@ -25,13 +23,6 @@ type Traffic struct {
 
 func NewTraffic(db *sql.DB) *Traffic { return &Traffic{db: db} }
 
-// Add folds a period's counters into the running total for a day.
-//
-// Deltas rather than absolutes, because the caller reports what has happened
-// since it last spoke. Absolutes would be wrong across a restart: the
-// in-memory counters begin again at zero, and a day that had carried a
-// gigabyte would be recorded as having carried whatever arrived after the
-// restart.
 func (r *Traffic) Add(ctx context.Context, day, tunnel string, in, out, conns int64) error {
 	if in == 0 && out == 0 && conns == 0 {
 		return nil
@@ -52,7 +43,6 @@ func (r *Traffic) Add(ctx context.Context, day, tunnel string, in, out, conns in
 	return nil
 }
 
-// Recent returns the last n days, newest first, every tunnel.
 func (r *Traffic) Recent(ctx context.Context, days int) ([]DailyTraffic, error) {
 	if days < 1 {
 		days = 30
@@ -80,7 +70,6 @@ func (r *Traffic) Recent(ctx context.Context, days int) ([]DailyTraffic, error) 
 	return out, rows.Err()
 }
 
-// Totals sums a period into one row per tunnel.
 func (r *Traffic) Totals(ctx context.Context, days int) ([]DailyTraffic, error) {
 	if days < 1 {
 		days = 30
@@ -109,8 +98,6 @@ func (r *Traffic) Totals(ctx context.Context, days int) ([]DailyTraffic, error) 
 	return out, rows.Err()
 }
 
-// Prune drops days older than the retention window, so a router that has been
-// up for years does not accumulate rows nobody will read.
 func (r *Traffic) Prune(ctx context.Context, keepDays int) error {
 	if keepDays < 1 {
 		return nil

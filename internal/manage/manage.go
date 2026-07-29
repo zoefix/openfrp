@@ -30,6 +30,4 @@ func New(path string) (*Service, error) {
 
 func (s *Service) Close() error { return s.db.Close() }
 
-// Traffic exposes the daily history, so the daemon can record into the same
-// database the certificates already live in rather than opening a second one.
 func (s *Service) Traffic() *repo.Traffic { return s.traffic }

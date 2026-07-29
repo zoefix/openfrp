@@ -122,8 +122,21 @@ jobs:
       - name: Take the notes from the tag
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            git for-each-ref --format='%(contents)' \
-              "refs/tags/${GITHUB_REF_NAME}" > notes.md
+            # Fetched explicitly and checked: how the checkout happens to
+            # materialise a tag decides whether %(contents) is the tag's
+            # message or the commit's, and the wrong one looks like notes
+            # right up until you read them.
+            git fetch --force origin \
+              "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+
+            kind="$(git cat-file -t "refs/tags/${GITHUB_REF_NAME}" 2>/dev/null || echo none)"
+            if [ "$kind" != "tag" ]; then
+              echo "::error::${GITHUB_REF_NAME} is a $kind, not an annotated tag."
+              echo "::error::Tag with: git tag -a --cleanup=verbatim ${GITHUB_REF_NAME} -F notes"
+              exit 1
+            fi
+
+            git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" > notes.md
           fi
           if [ ! -s notes.md ]; then
             echo "::error::${GITHUB_REF_NAME:-this build} has no annotated tag message."

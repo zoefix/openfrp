@@ -12,7 +12,7 @@ LUCI_DESCRIPTION:=Configure NAT traversal tunnels, wildcard domain routing, \
 LUCI_DEPENDS:=+luci-base +openfrp +rpcd-mod-file +rpcd-mod-ucode
 LUCI_PKGARCH:=all
 
-PKG_VERSION:=1.0.6
+PKG_VERSION:=1.0.7
 PKG_RELEASE:=1
 PKG_MAINTAINER:=zoefix <zony1937@gmail.com>
 PKG_LICENSE:=MIT

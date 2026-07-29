@@ -1,9 +1,0 @@
-{
-  "mode": "throughput",
-  "label": "openfrp/lan",
-  "target": "openfrps:6000",
-  "seconds": 10.002,
-  "bytes": 39942520528,
-  "mb_per_second": 3808.36,
-  "errors": 0
-}

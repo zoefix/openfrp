@@ -1,9 +1,0 @@
-{
-  "mode": "throughput",
-  "label": "openfrp/rtt-200ms",
-  "target": "openfrps:6000",
-  "seconds": 10,
-  "bytes": 340061136,
-  "mb_per_second": 32.43,
-  "errors": 0
-}

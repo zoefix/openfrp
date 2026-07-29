@@ -5,6 +5,11 @@
 *.test
 *.out
 
+# The frp comparison harness. Docker images, generated load, and one JSON per
+# run — none of it ships, and the results are only meaningful on the machine
+# that produced them.
+/bench/
+
 # Go
 vendor/
 

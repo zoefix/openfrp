@@ -1,9 +1,0 @@
-{
-  "mode": "throughput",
-  "label": "frp/loss-1pct",
-  "target": "frps:6000",
-  "seconds": 10.003,
-  "bytes": 7241728,
-  "mb_per_second": 0.69,
-  "errors": 0
-}

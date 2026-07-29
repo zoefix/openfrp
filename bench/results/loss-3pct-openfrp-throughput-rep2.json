@@ -1,9 +1,0 @@
-{
-  "mode": "throughput",
-  "label": "openfrp/loss-3pct",
-  "target": "openfrps:6000",
-  "seconds": 10.003,
-  "bytes": 3550096,
-  "mb_per_second": 0.34,
-  "errors": 0
-}

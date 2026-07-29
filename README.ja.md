@@ -216,7 +216,7 @@ make test-linux  # Linux 上でのテスト。splice(2) が実際に効くのは
 make bundle      # インストーラーと更新機能が使うリリースバンドル
 ```
 
-`./bench/run.sh` は同じ `tc netem` 条件で OpenFrp と frp を比較し、結果を `bench/results.md` に書き出します。
+重要なのは `make test-linux` です。ゼロコピーに関する検証は macOS では飛ばされます。`splice(2)` が Linux にしかないからです。
 
 ## ライセンス
 

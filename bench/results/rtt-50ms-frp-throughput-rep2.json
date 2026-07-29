@@ -1,9 +1,0 @@
-{
-  "mode": "throughput",
-  "label": "frp/rtt-50ms",
-  "target": "frps:6000",
-  "seconds": 10,
-  "bytes": 1073381376,
-  "mb_per_second": 102.36,
-  "errors": 0
-}

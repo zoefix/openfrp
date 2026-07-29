@@ -216,7 +216,7 @@ make test-linux  # 在 Linux 上跑测试，splice(2) 只有那里才真正生�
 make bundle      # 安装脚本和更新功能用的发布包
 ```
 
-`./bench/run.sh` 在相同的 `tc netem` 条件下对比 OpenFrp 和 frp，结果写到 `bench/results.md`。
+`make test-linux` 是重要的那条：零拷贝相关的断言在 macOS 上会跳过，因为 `splice(2)` 只有 Linux 才有。
 
 ## 许可证
 

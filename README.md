@@ -278,8 +278,8 @@ make test-linux  # the suite on Linux, where splice(2) actually engages
 make bundle      # the release bundles the installer and updater use
 ```
 
-`./bench/run.sh` compares OpenFrp against frp under identical `tc netem`
-conditions and writes the numbers to `bench/results.md`.
+`make test-linux` is the one that matters: the zero-copy assertions are
+skipped on macOS, because `splice(2)` is Linux-only.
 
 ## Licence
 

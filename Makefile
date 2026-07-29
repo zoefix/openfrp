@@ -81,11 +81,6 @@ cross: ## Cross-compile release artefacts for every target platform
 bundle: ## Build the router-side release bundles the updater installs
 	VERSION=$(VERSION) COMMIT=$(COMMIT) DATE=$(DATE) ./scripts/bundle.sh
 
-.PHONY: bench
-bench: ## Run the frp comparison and publish the results
-	./bench/run.sh
-	./bench/publish.sh
-
 .PHONY: dev-up
 dev-up: ## Bring up the local server/client/service stack
 	docker compose -f deploy/dev/docker-compose.yml up --build

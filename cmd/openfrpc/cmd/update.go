@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/zoefix/openfrp/internal/update"
 )
@@ -27,6 +28,8 @@ func runUpdate(ctx context.Context, args []string) error {
 	cache := fs.String("cache", update.DefaultCachePath, "where a check result is stored")
 	repo := fs.String("repo", update.DefaultRepo, "the GitHub repository to look in")
 	root := fs.String("root", "/", "install under this directory")
+	api := fs.String("api", update.DefaultBaseURL, "the GitHub API to ask, for a mirror")
+	service := fs.String("service", "", "the command that restarts the service")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -34,14 +37,19 @@ func runUpdate(ctx context.Context, args []string) error {
 
 	client := update.NewClient()
 	client.Repo = *repo
+	client.BaseURL = *api
 
 	switch {
 	case *apply:
-		return update.Apply(ctx, update.Options{
+		opts := update.Options{
 			Root:   *root,
 			Client: client,
 			Log:    os.Stdout,
-		})
+		}
+		if *service != "" {
+			opts.ServiceCommand = strings.Fields(*service)
+		}
+		return update.Apply(ctx, opts)
 
 	case *check:
 		status := update.Check(ctx, client)

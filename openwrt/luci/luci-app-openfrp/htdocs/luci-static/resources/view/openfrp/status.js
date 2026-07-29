@@ -153,6 +153,60 @@ function updateBadge() {
 	return button;
 }
 
+function checkNowControl() {
+	if (updateInfo && updateInfo.available)
+		return null;
+
+	var link = E('a', {
+		'href': '#',
+		'style': 'margin-left:1em;font-size:90%'
+	}, _('Check for updates'));
+
+	var note = E('span', { 'style': 'margin-left:.6em;font-size:90%;opacity:0.7' }, '');
+	var wrap = E('span', {}, [link, note]);
+
+	link.addEventListener('click', function (ev) {
+		ev.preventDefault();
+
+		var before = (updateInfo && updateInfo.checked_at) || '';
+		link.style.display = 'none';
+		note.textContent = _('Checking…');
+
+		var waited = 0;
+		function look() {
+			return callUpdateCheck(waited === 0).then(function (res) {
+				waited++;
+
+				if (res && !res.error && res.checked_at && res.checked_at !== before) {
+					updateInfo = res;
+					if (res.available)
+						note.textContent = _('%s is available.').format(res.latest);
+					else
+						note.textContent = _('Already up to date.');
+					return;
+				}
+
+				if (waited > 20) {
+					note.textContent = (res && res.error)
+						? res.error
+						: _('Could not reach GitHub.');
+					link.style.display = '';
+					return;
+				}
+				return new Promise(function (resolve) {
+					window.setTimeout(function () { look().then(resolve); }, 1000);
+				});
+			}).catch(function () {
+				note.textContent = _('Could not reach GitHub.');
+				link.style.display = '';
+			});
+		}
+		look();
+	});
+
+	return wrap;
+}
+
 function showUpdateDialog() {
 	var info = updateInfo || {};
 
@@ -308,7 +362,8 @@ function overviewChildren(status, speed) {
 			status.client_version
 				? E('code', {}, status.client_version)
 				: E('em', {}, _('unknown')),
-			updateBadge()
+			updateBadge(),
+			checkNowControl()
 		].filter(Boolean)))
 	];
 

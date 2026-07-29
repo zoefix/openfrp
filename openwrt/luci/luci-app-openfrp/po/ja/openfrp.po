@@ -861,3 +861,18 @@ msgstr "更新しました。ページを再読み込みしてください。"
 
 msgid "Updating…"
 msgstr "更新しています…"
+
+msgid "%s is available."
+msgstr "%s が利用できます。"
+
+msgid "Already up to date."
+msgstr "すでに最新です。"
+
+msgid "Check for updates"
+msgstr "更新を確認"
+
+msgid "Checking…"
+msgstr "確認しています…"
+
+msgid "Could not reach GitHub."
+msgstr "GitHub に接続できませんでした。"

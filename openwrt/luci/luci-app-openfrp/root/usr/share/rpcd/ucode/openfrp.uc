@@ -12,7 +12,7 @@ const INIT = '/etc/init.d/openfrp';
 const CLIENT = '/usr/bin/openfrpc';
 const STATS = '/var/run/openfrp/stats.json';
 const UPDATE_CACHE = '/var/run/openfrp/update.json';
-const UPDATE_TTL = 6 * 3600;
+const UPDATE_TTL = 3600;
 
 const ACTIONS = {
 	dns: [

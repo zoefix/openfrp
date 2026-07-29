@@ -861,3 +861,18 @@ msgstr "已更新，请刷新页面。"
 
 msgid "Updating…"
 msgstr "正在更新…"
+
+msgid "%s is available."
+msgstr "有新版本 %s。"
+
+msgid "Already up to date."
+msgstr "已是最新版本。"
+
+msgid "Check for updates"
+msgstr "检查更新"
+
+msgid "Checking…"
+msgstr "正在检查…"
+
+msgid "Could not reach GitHub."
+msgstr "连不上 GitHub。"

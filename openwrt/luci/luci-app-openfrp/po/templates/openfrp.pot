@@ -31,14 +31,6 @@ msgstr ""
 msgid "%s accepted the credentials."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/openfrp/schema-form.js:176
-msgid "%s is not in the expected format"
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/openfrp/schema-form.js:172
-msgid "%s is required"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:240
 msgid "%s is too broad; a wildcard needs a domain beneath it"
 msgstr ""
@@ -133,7 +125,7 @@ msgid ""
 "well."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:679
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:671
 msgid ""
 "All tunnels share one congestion window; no kernel zero-copy. Rarely "
 "wanted."
@@ -185,7 +177,7 @@ msgstr ""
 msgid "Both fields are required."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:685
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:677
 msgid "Bypass the local proxy"
 msgstr ""
 
@@ -265,7 +257,7 @@ msgstr ""
 msgid "Connections"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:671
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:663
 msgid "Connections kept open so an arriving request does not wait for a dial."
 msgstr ""
 
@@ -418,7 +410,7 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:700
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:692
 msgid "Download URL"
 msgstr ""
 
@@ -530,7 +522,7 @@ msgstr ""
 msgid "History"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:690
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:682
 msgid "Host key fingerprint"
 msgstr ""
 
@@ -584,10 +576,6 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:101
 msgid "Job ended in state: %s"
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:664
-msgid "KCP (not implemented — runs as TCP)"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:93
@@ -695,7 +683,7 @@ msgid ""
 "connections once reached. 0 for no cap."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:676
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:668
 msgid "Multiplex connections"
 msgstr ""
 
@@ -851,10 +839,6 @@ msgstr ""
 msgid "Proxied — route through the provider"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:665
-msgid "QUIC (not implemented — runs as TCP)"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:397
 msgid "Reach a service on this network from the internet."
 msgstr ""
@@ -863,7 +847,7 @@ msgstr ""
 msgid "Recent log"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:691
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:683
 msgid "Recorded on first connection and checked afterwards."
 msgstr ""
 
@@ -1008,7 +992,7 @@ msgstr ""
 msgid "Server address"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:695
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:687
 msgid "Server binary"
 msgstr ""
 
@@ -1040,7 +1024,7 @@ msgstr ""
 msgid "Show"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:688
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:680
 msgid ""
 "Skips any transparent proxy on this router. The log shows the source "
 "address the server saw."
@@ -1056,12 +1040,6 @@ msgstr ""
 msgid "State"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/openfrp/schema-form.js:145
-msgid ""
-"Stored credentials are never displayed. Leave blank to keep the current "
-"value."
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:317
 msgid "Stored once and reused for every certificate from this authority."
 msgstr ""
@@ -1070,7 +1048,7 @@ msgstr ""
 msgid "TLS handling"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:681
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:673
 msgid "TLS on the control connection"
 msgstr ""
 
@@ -1160,10 +1138,6 @@ msgstr ""
 msgid "Traffic cap"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:662
-msgid "Transport"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:406
 msgid "Tunnel"
 msgstr ""
@@ -1195,7 +1169,7 @@ msgstr ""
 msgid "Upload limit"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:696
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:688
 msgid "Uploaded to the server, so it needs no outbound internet there."
 msgstr ""
 
@@ -1203,7 +1177,7 @@ msgstr ""
 msgid "Use letters, digits, dot, dash or underscore only"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:701
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:693
 msgid "Used when the file above is missing. {arch} and {os} are substituted."
 msgstr ""
 
@@ -1221,12 +1195,8 @@ msgstr ""
 msgid "Visitors must present this to reach the tunnel."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:670
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:662
 msgid "Warm connections"
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:666
-msgid "WebSocket (not implemented — runs as TCP)"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:206

@@ -19,22 +19,7 @@ const (
 
 type Protocol string
 
-const (
-	ProtocolTCP       Protocol = "tcp"
-	ProtocolKCP       Protocol = "kcp"
-	ProtocolQUIC      Protocol = "quic"
-	ProtocolWebsocket Protocol = "websocket"
-)
-
-func (p Protocol) Valid() bool {
-	switch p {
-	case ProtocolTCP, ProtocolKCP, ProtocolQUIC, ProtocolWebsocket:
-		return true
-	}
-	return false
-}
-
-func (p Protocol) Implemented() bool { return p == "" || p == ProtocolTCP }
+const ProtocolTCP Protocol = "tcp"
 
 type Transport struct {
 	Protocol Protocol `json:"protocol,omitempty"`
@@ -101,9 +86,7 @@ func (c *Client) ApplyDefaults() {
 }
 
 func (t *Transport) ApplyDefaults() {
-	if t.Protocol == "" {
-		t.Protocol = ProtocolTCP
-	}
+	t.Protocol = ProtocolTCP
 	if t.PoolCount == 0 {
 		t.PoolCount = DefaultPoolCount
 	}
@@ -122,9 +105,6 @@ func (t *Transport) ApplyDefaults() {
 }
 
 func (t Transport) Validate() error {
-	if !t.Protocol.Valid() {
-		return fmt.Errorf("transport.protocol: unknown value %q", t.Protocol)
-	}
 	if t.PoolCount < 1 {
 		return fmt.Errorf("transport.pool_count must be at least 1")
 	}

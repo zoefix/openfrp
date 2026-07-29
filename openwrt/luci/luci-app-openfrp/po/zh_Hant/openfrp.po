@@ -382,9 +382,6 @@ msgstr "簽發中…"
 msgid "Job ended in state: %s"
 msgstr "工作結束狀態：%s"
 
-msgid "KCP (not implemented — runs as TCP)"
-msgstr "KCP（未實作，以 TCP 執行）"
-
 msgid "Key"
 msgstr "金鑰"
 
@@ -552,9 +549,6 @@ msgstr "已代理"
 
 msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量經服務商中轉"
-
-msgid "QUIC (not implemented — runs as TCP)"
-msgstr "QUIC（未實作，以 TCP 執行）"
 
 msgid "Reach a service on this network from the internet."
 msgstr "從公網存取本地網路中的服務。"
@@ -766,9 +760,6 @@ msgstr "總流量"
 msgid "Traffic cap"
 msgstr "流量上限"
 
-msgid "Transport"
-msgstr "傳輸方式"
-
 msgid "Tunnel"
 msgstr "通道"
 
@@ -807,9 +798,6 @@ msgstr "訪問者必須提供此金鑰才能連線到該通道。"
 
 msgid "Warm connections"
 msgstr "預熱連線數"
-
-msgid "WebSocket (not implemented — runs as TCP)"
-msgstr "WebSocket（未實作，以 TCP 執行）"
 
 msgid "Where to find it"
 msgstr "在哪裡取得"

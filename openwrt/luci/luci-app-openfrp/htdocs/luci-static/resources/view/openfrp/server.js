@@ -659,14 +659,6 @@ return view.extend({
 		o.password = true;
 		o.modalonly = true;
 
-		o = s.option(form.ListValue, 'protocol', _('Transport'));
-		o.value('tcp', 'TCP');
-		o.value('kcp', _('KCP (not implemented — runs as TCP)'));
-		o.value('quic', _('QUIC (not implemented — runs as TCP)'));
-		o.value('websocket', _('WebSocket (not implemented — runs as TCP)'));
-		o.default = 'tcp';
-		o.modalonly = true;
-
 		o = s.option(form.Value, 'pool_count', _('Warm connections'),
 			_('Connections kept open so an arriving request does not wait for a dial.'));
 		o.datatype = 'range(1,64)';

@@ -382,9 +382,6 @@ msgstr "签发中…"
 msgid "Job ended in state: %s"
 msgstr "任务结束状态：%s"
 
-msgid "KCP (not implemented — runs as TCP)"
-msgstr "KCP（未实现，按 TCP 运行）"
-
 msgid "Key"
 msgstr "密钥"
 
@@ -552,9 +549,6 @@ msgstr "已代理"
 
 msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量经服务商中转"
-
-msgid "QUIC (not implemented — runs as TCP)"
-msgstr "QUIC（未实现，按 TCP 运行）"
 
 msgid "Reach a service on this network from the internet."
 msgstr "从公网访问本地网络中的服务。"
@@ -766,9 +760,6 @@ msgstr "总流量"
 msgid "Traffic cap"
 msgstr "流量上限"
 
-msgid "Transport"
-msgstr "传输方式"
-
 msgid "Tunnel"
 msgstr "隧道"
 
@@ -807,9 +798,6 @@ msgstr "访问者必须提供此密钥才能连接到该隧道。"
 
 msgid "Warm connections"
 msgstr "预热连接数"
-
-msgid "WebSocket (not implemented — runs as TCP)"
-msgstr "WebSocket（未实现，按 TCP 运行）"
 
 msgid "Where to find it"
 msgstr "在哪里获取"

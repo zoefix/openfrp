@@ -141,7 +141,7 @@ FIRST_SERVER=""
 
 add_server() {
 	local section="$1"
-	local addr port token protocol mux pool_count tls_enable client_name
+	local addr port token mux pool_count tls_enable client_name
 	local direct_egress
 	local kind tunnel_id zone
 
@@ -168,7 +168,6 @@ add_server() {
 
 	config_get port "$section" port "7000"
 	config_get token "$section" token
-	config_get protocol "$section" protocol "tcp"
 	config_get_bool mux "$section" mux 0
 	config_get pool_count "$section" pool_count "8"
 	config_get_bool tls_enable "$section" tls_enable 0
@@ -192,7 +191,6 @@ add_server() {
 	fi
 
 	json_add_object transport
-	json_add_string protocol "$protocol"
 	json_add_boolean mux "$mux"
 	json_add_int pool_count "$pool_count"
 	json_add_boolean tls_enable "$tls_enable"

@@ -876,3 +876,6 @@ msgstr "確認しています…"
 
 msgid "Could not reach GitHub."
 msgstr "GitHub に接続できませんでした。"
+
+msgid "Last check failed: %s"
+msgstr "前回の確認に失敗しました: %s"

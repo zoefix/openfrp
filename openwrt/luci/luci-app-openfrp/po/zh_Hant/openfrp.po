@@ -876,3 +876,6 @@ msgstr "正在檢查…"
 
 msgid "Could not reach GitHub."
 msgstr "連不上 GitHub。"
+
+msgid "Last check failed: %s"
+msgstr "上次檢查失敗：%s"

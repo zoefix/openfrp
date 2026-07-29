@@ -153,6 +153,15 @@ function updateBadge() {
 	return button;
 }
 
+function checkFailure() {
+	if (!updateInfo || !updateInfo.error || updateInfo.available)
+		return null;
+
+	return E('span', {
+		'style': 'margin-left:1em;font-size:90%;color:#c00'
+	}, _('Last check failed: %s').format(updateInfo.error));
+}
+
 function checkNowControl() {
 	if (updateInfo && updateInfo.available)
 		return null;
@@ -363,7 +372,8 @@ function overviewChildren(status, speed) {
 				? E('code', {}, status.client_version)
 				: E('em', {}, _('unknown')),
 			updateBadge(),
-			checkNowControl()
+			checkNowControl(),
+			checkFailure()
 		].filter(Boolean)))
 	];
 
@@ -435,13 +445,6 @@ function fetch() {
 	]);
 }
 
-function refreshUpdate() {
-	return callUpdateCheck(false).then(function (res) {
-		if (res && !res.error)
-			updateInfo = res;
-	}).catch(function () { });
-}
-
 function stylesheet() {
 	return E('link', {
 		'rel': 'stylesheet',
@@ -455,7 +458,7 @@ return view.extend({
 	render: function (data) {
 		var status = data[0];
 
-		if (data[2] && !data[2].error)
+		if (data[2])
 			updateInfo = data[2];
 
 		if (!status)
@@ -486,13 +489,13 @@ return view.extend({
 				dom.content(overview, overviewChildren(fresh[0], speed));
 				dom.content(tunnels, tunnelsChildren(fresh[0].tunnels, speed));
 				remember(fresh[0]);
+				if (fresh[2])
+					updateInfo = fresh[2];
 				var log = visibleLog(fresh[1] || '');
 				if (log !== logBox.textContent)
 					dom.content(logBox, log || _('No log output yet.'));
 			});
 		}, 5);
-
-		poll.add(refreshUpdate, 300);
 
 		return E('div', {}, [
 			stylesheet(),

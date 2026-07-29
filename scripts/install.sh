@@ -140,7 +140,10 @@ uninstall() {
 		while IFS= read -r file; do
 			[ -n "$file" ] || continue
 			case "$file" in
+				/etc/init.d/openfrp|/etc/init.d/openfrp-cloudflared| \
 				/usr/bin/openfrpc|/usr/lib/openfrp/*|/usr/libexec/openfrp/*| \
+				/usr/share/luci/menu.d/luci-app-openfrp.json| \
+				/usr/share/rpcd/acl.d/luci-app-openfrp.json| \
 				/usr/share/rpcd/ucode/openfrp.uc|/usr/lib/lua/luci/i18n/openfrp.*| \
 				/www/luci-static/resources/openfrp/*|/www/luci-static/resources/view/openfrp/*)
 					rm -f "$file" && count=$((count + 1))
@@ -264,12 +267,17 @@ chmod 0755 /usr/lib/openfrp /usr/libexec/openfrp \
 	/www/luci-static/resources/openfrp \
 	/www/luci-static/resources/view/openfrp 2>/dev/null || true
 chmod 0644 /usr/share/rpcd/ucode/openfrp.uc 2>/dev/null || true
+chmod 0644 /usr/share/luci/menu.d/luci-app-openfrp.json 2>/dev/null || true
+chmod 0644 /usr/share/rpcd/acl.d/luci-app-openfrp.json 2>/dev/null || true
 chmod 0644 /usr/lib/lua/luci/i18n/openfrp.*.lmo 2>/dev/null || true
 chmod 0644 /www/luci-static/resources/openfrp/*.js 2>/dev/null || true
 chmod 0644 /www/luci-static/resources/view/openfrp/*.js 2>/dev/null || true
 
 # Stated rather than inherited, for the same reason as the modes.
 chown -R root:root /usr/bin/openfrpc /usr/lib/openfrp /usr/libexec/openfrp \
+	/etc/init.d/openfrp /etc/init.d/openfrp-cloudflared \
+	/usr/share/luci/menu.d/luci-app-openfrp.json \
+	/usr/share/rpcd/acl.d/luci-app-openfrp.json \
 	/usr/share/rpcd/ucode/openfrp.uc \
 	/www/luci-static/resources/openfrp \
 	/www/luci-static/resources/view/openfrp 2>/dev/null || true

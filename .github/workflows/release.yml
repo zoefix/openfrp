@@ -106,6 +106,9 @@ jobs:
             for path in usr/bin/openfrpc usr/lib/openfrp/openfrps \
               usr/libexec/openfrp/render usr/libexec/openfrp/job \
               usr/share/rpcd/ucode/openfrp.uc \
+              usr/share/luci/menu.d/luci-app-openfrp.json \
+              usr/share/rpcd/acl.d/luci-app-openfrp.json \
+              etc/init.d/openfrp etc/init.d/openfrp-cloudflared \
               www/luci-static/resources/view/openfrp/status.js \
               usr/lib/lua/luci/i18n/openfrp.zh-cn.lmo; do
               tar -tzf "$bundle" | sed 's|^\./||' | grep -qx "$path" ||

@@ -74,6 +74,15 @@ func TestReleaseBundleIsInstallable(t *testing.T) {
 		"www/luci-static/resources/view/openfrp/tunnels.js",
 		"www/luci-static/resources/openfrp/schema-form.js",
 		"usr/lib/lua/luci/i18n/openfrp.zh-cn.lmo",
+
+		// A bundle without these installs onto a clean router and produces
+		// no menu entry, an interface whose every call rpcd refuses, and no
+		// way to start the service. It looked like it worked for a long
+		// while, because the machine it was tried on already had them.
+		"usr/share/luci/menu.d/luci-app-openfrp.json",
+		"usr/share/rpcd/acl.d/luci-app-openfrp.json",
+		"etc/init.d/openfrp",
+		"etc/init.d/openfrp-cloudflared",
 	}
 	for _, want := range required {
 		if !slices.Contains(written, want) {
@@ -82,7 +91,8 @@ func TestReleaseBundleIsInstallable(t *testing.T) {
 		}
 	}
 
-	for _, name := range []string{"usr/bin/openfrpc", "usr/libexec/openfrp/render", "usr/libexec/openfrp/job"} {
+	for _, name := range []string{"usr/bin/openfrpc", "usr/libexec/openfrp/render",
+		"usr/libexec/openfrp/job", "etc/init.d/openfrp", "etc/init.d/openfrp-cloudflared"} {
 		info, err := os.Stat(filepath.Join(unpacked, name))
 		if err != nil {
 			continue

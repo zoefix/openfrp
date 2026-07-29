@@ -38,7 +38,13 @@ func MkdirAllMode(dir string) error {
 // be obeyed, so the archive decides only which of these files it replaces,
 // never which places exist to replace.
 var allowedPrefixes = []string{
+	// Exact names under etc/init.d, never the directory: a release has to be
+	// able to replace its own service scripts, and nothing else there.
+	"etc/init.d/openfrp",
+	"etc/init.d/openfrp-cloudflared",
 	"usr/bin/openfrpc",
+	"usr/share/luci/menu.d/luci-app-openfrp.json",
+	"usr/share/rpcd/acl.d/luci-app-openfrp.json",
 	"usr/lib/openfrp/",
 	"usr/libexec/openfrp/",
 	"usr/share/rpcd/ucode/openfrp.uc",

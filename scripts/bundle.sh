@@ -36,9 +36,12 @@ for platform in $PLATFORMS; do
 	root="$DIST/.root-$os-$arch"
 	rm -rf "$root"
 
-	mkdir -p "$root/usr/bin" \
+	mkdir -p "$root/etc/init.d" \
+		"$root/usr/bin" \
 		"$root/usr/lib/openfrp" \
 		"$root/usr/libexec/openfrp" \
+		"$root/usr/share/luci/menu.d" \
+		"$root/usr/share/rpcd/acl.d" \
 		"$root/usr/share/rpcd/ucode" \
 		"$root/usr/lib/lua/luci/i18n" \
 		"$root/www/luci-static/resources/openfrp" \
@@ -54,6 +57,19 @@ for platform in $PLATFORMS; do
 	chmod 0755 "$root/usr/libexec/openfrp/render" "$root/usr/libexec/openfrp/job"
 
 	cp "$LUCI/root/usr/share/rpcd/ucode/openfrp.uc" "$root/usr/share/rpcd/ucode/openfrp.uc"
+
+	# Without the menu entry there is no OpenFrp tab, and without the ACL every
+	# ubus call is refused. A bundle carrying only the views installs an
+	# interface that cannot be reached or cannot talk to anything.
+	cp "$LUCI/root/usr/share/luci/menu.d/luci-app-openfrp.json" \
+		"$root/usr/share/luci/menu.d/luci-app-openfrp.json"
+	cp "$LUCI/root/usr/share/rpcd/acl.d/luci-app-openfrp.json" \
+		"$root/usr/share/rpcd/acl.d/luci-app-openfrp.json"
+
+	cp openwrt/net/openfrp/files/openfrp.init "$root/etc/init.d/openfrp"
+	cp openwrt/net/openfrp/files/openfrp-cloudflared.init \
+		"$root/etc/init.d/openfrp-cloudflared"
+	chmod 0755 "$root/etc/init.d/openfrp" "$root/etc/init.d/openfrp-cloudflared"
 	cp "$CATALOGUES"/openfrp.*.lmo "$root/usr/lib/lua/luci/i18n/"
 	cp "$RESOURCES"/openfrp/*.js "$root/www/luci-static/resources/openfrp/"
 	cp "$RESOURCES"/view/openfrp/*.js "$root/www/luci-static/resources/view/openfrp/"

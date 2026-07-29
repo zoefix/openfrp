@@ -48,7 +48,15 @@ func (s *session) runWorkConn(ctx context.Context) {
 		return
 	}
 
-	conn, err := s.client.dialer.DialWork(ctx)
+	// Greeting and registration in one write. This runs once per visitor
+	// connection, because each one consumes a work connection, and the write
+	// syscall is the largest single line in this data plane's CPU profile.
+	timestamp := time.Now().Unix()
+	conn, err := s.client.dialer.DialWorkWith(ctx, &protocol.NewWorkConn{
+		RunID:     s.runID,
+		Timestamp: timestamp,
+		AuthKey:   protocol.AuthKey(s.client.cfg.Token, timestamp),
+	})
 	<-s.dialSlots
 
 	if err != nil {
@@ -58,16 +66,6 @@ func (s *session) runWorkConn(ctx context.Context) {
 		return
 	}
 	defer conn.Close()
-
-	timestamp := time.Now().Unix()
-	if err := protocol.WriteMessage(conn, &protocol.NewWorkConn{
-		RunID:     s.runID,
-		Timestamp: timestamp,
-		AuthKey:   protocol.AuthKey(s.client.cfg.Token, timestamp),
-	}); err != nil {
-		s.logger.Warn("register work connection", "error", err)
-		return
-	}
 
 	// Close the connection when the session ends so this read unblocks.
 	stop := make(chan struct{})

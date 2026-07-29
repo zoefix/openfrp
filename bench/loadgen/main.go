@@ -18,6 +18,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -58,6 +59,7 @@ func main() {
 		warmup      = flag.Duration("warmup", 2*time.Second, "ignored settling period")
 		connectWait = flag.Duration("connect-wait", 60*time.Second, "how long to wait for the target to accept")
 		httpHost    = flag.String("http-host", "", "send an HTTP GET with this Host header (coldstart mode)")
+		useTLS      = flag.Bool("tls", false, "wrap each connection in TLS, as a browser does (coldstart mode)")
 	)
 	flag.Parse()
 
@@ -81,7 +83,7 @@ func main() {
 	case "latency":
 		result, err = runLatency(*target, *duration, *warmup, *concurrency, *payload)
 	case "coldstart":
-		result, err = runColdStart(*target, *duration, *warmup, *concurrency, *httpHost)
+		result, err = runColdStart(*target, *duration, *warmup, *concurrency, *httpHost, *useTLS)
 	default:
 		fmt.Fprintf(os.Stderr, "loadgen: unknown mode %q\n", *mode)
 		os.Exit(2)
@@ -330,7 +332,7 @@ func round(v float64, places int) float64 {
 // A browser opening six connections to load one page is exactly this
 // workload.
 func runColdStart(target string, duration, warmup time.Duration,
-	concurrency int, httpHost string) (report, error) {
+	concurrency int, httpHost string, useTLS bool) (report, error) {
 
 	var (
 		latencies = make([][]time.Duration, concurrency)
@@ -371,6 +373,28 @@ func runColdStart(target string, duration, warmup time.Duration,
 					continue
 				}
 				conn.SetDeadline(time.Now().Add(15 * time.Second))
+
+				// The handshake is part of what a visitor waits for, so it is
+				// inside the timed section. Measuring the tunnel without it
+				// measures a path no browser takes: an https tunnel spends two
+				// extra round trips here before the request has been sent, and
+				// where the edge terminates TLS it also gives up splice for the
+				// whole transfer.
+				if useTLS {
+					tlsConn := tls.Client(conn, &tls.Config{
+						ServerName: httpHost,
+						// The point is to time the path, not to check the
+						// certificate; a self-signed test tunnel should still
+						// be measurable.
+						InsecureSkipVerify: true,
+					})
+					if err := tlsConn.Handshake(); err != nil {
+						conn.Close()
+						errs.Add(1)
+						continue
+					}
+					conn = tlsConn
+				}
 
 				if _, err := conn.Write(request); err != nil {
 					conn.Close()

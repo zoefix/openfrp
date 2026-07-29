@@ -130,20 +130,16 @@ func (s *session) runOverflowCarrier(ctx context.Context) {
 
 // serveCarrier dials one carrier, offers it, and serves streams until it ends.
 func (s *session) serveCarrier(ctx context.Context) error {
-	conn, err := s.client.dialer.DialWork(ctx)
+	timestamp := time.Now().Unix()
+	conn, err := s.client.dialer.DialWorkWith(ctx, &protocol.NewMuxConn{
+		RunID:     s.runID,
+		Timestamp: timestamp,
+		AuthKey:   protocol.AuthKey(s.client.cfg.Token, timestamp),
+	})
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	timestamp := time.Now().Unix()
-	if err := protocol.WriteMessage(conn, &protocol.NewMuxConn{
-		RunID:     s.runID,
-		Timestamp: timestamp,
-		AuthKey:   protocol.AuthKey(s.client.cfg.Token, timestamp),
-	}); err != nil {
-		return err
-	}
 
 	// This client accepts; the server opens. That is the reverse of every
 	// other connection here, and it is the whole reason a multiplexer is

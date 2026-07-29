@@ -67,6 +67,33 @@ type Preamble struct {
 }
 
 // WritePreamble sends the greeting.
+// WriteGreeting writes the preamble and the first message in a single write.
+//
+// Two writes is two syscalls, and this runs once per work connection — which
+// is once per visitor connection, because each visitor consumes one. At the
+// rates this data plane reaches, the write syscall is the single largest line
+// in its CPU profile, so a syscall on the connection-setup path is not a
+// rounding error.
+//
+// The peer reads them as it always did: the preamble is fixed width, so two
+// reads of one packet parse exactly the same as two reads of two packets.
+func WriteGreeting(w io.Writer, p Preamble, m Message) error {
+	frame, err := encode(m)
+	if err != nil {
+		return err
+	}
+
+	buf := make([]byte, 0, preambleSize+len(frame))
+	buf = append(buf, Magic[:]...)
+	buf = append(buf, p.Version, byte(p.Mode))
+	buf = append(buf, frame...)
+
+	if _, err := w.Write(buf); err != nil {
+		return fmt.Errorf("protocol: write greeting: %w", err)
+	}
+	return nil
+}
+
 func WritePreamble(w io.Writer, p Preamble) error {
 	var buf [preambleSize]byte
 	copy(buf[:], Magic[:])

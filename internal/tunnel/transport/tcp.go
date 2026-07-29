@@ -85,6 +85,24 @@ func (d *Dialer) DialWork(ctx context.Context) (net.Conn, error) {
 	return conn, nil
 }
 
+// DialWorkWith opens a work connection and sends its opening message in the
+// same write as the greeting, so the whole handshake costs one syscall rather
+// than two.
+func (d *Dialer) DialWorkWith(ctx context.Context, m protocol.Message) (net.Conn, error) {
+	conn, err := d.dial(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := protocol.WriteGreeting(conn, protocol.Preamble{
+		Version: protocol.Version,
+		Mode:    protocol.ModePlain,
+	}, m); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
 // DialMux opens the single connection that will carry a yamux session.
 func (d *Dialer) DialMux(ctx context.Context) (net.Conn, error) {
 	conn, err := d.dial(ctx)

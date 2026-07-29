@@ -240,6 +240,39 @@ case "$KIND" in
 			finish failed
 		fi
 
+		# Where a package manager owns these files, upgrading through it is the
+		# only way the result stays describable: replacing them underneath it
+		# leaves its database naming a version that is no longer on disk.
+		owned=""
+		if command -v apk >/dev/null 2>&1 && apk info -e openfrp >/dev/null 2>&1; then
+			owned=apk
+		elif command -v opkg >/dev/null 2>&1 && opkg status openfrp 2>/dev/null | grep -q .; then
+			owned=opkg
+		fi
+
+		if [ -n "$owned" ]; then
+			log "==> installed by $owned; upgrading through it"
+			case "$owned" in
+				apk)
+					apk update >> "$LOG" 2>&1 || true
+					apk upgrade openfrp luci-app-openfrp >> "$LOG" 2>&1 || {
+						log "==> $owned could not upgrade it; is the feed carrying a newer build yet?"
+						finish failed
+					}
+					;;
+				opkg)
+					opkg update >> "$LOG" 2>&1 || true
+					opkg upgrade openfrp luci-app-openfrp >> "$LOG" 2>&1 || {
+						log "==> $owned could not upgrade it; is the feed carrying a newer build yet?"
+						finish failed
+					}
+					;;
+			esac
+			rm -f /var/run/openfrp/update.json
+			log "==> update finished"
+			finish succeeded
+		fi
+
 		log "==> updating openfrp"
 
 		if openfrpc update -apply >> "$LOG" 2>&1; then

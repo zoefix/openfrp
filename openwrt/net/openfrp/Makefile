@@ -4,17 +4,22 @@
 # Copyright (C) 2026 zoefix
 # Licensed under the MIT License. See /LICENSE for details.
 #
+# Builds unchanged whether this sits in the official packages feed or in this
+# repository used as an out-of-tree feed; see the golang-package.mk include.
+#
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openfrp
 PKG_VERSION:=0.3.0
 PKG_RELEASE:=1
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/zoefix/openfrp.git
-PKG_SOURCE_VERSION:=main
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
-PKG_MIRROR_HASH:=skip
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://codeload.github.com/zoefix/openfrp/tar.gz/v$(PKG_VERSION)?
+# Filled in per release by scripts/feed-hash.sh. A tagged tarball with a fixed
+# hash is what the official feed requires: tracking a branch would make two
+# builds of the same package version produce different binaries.
+PKG_HASH:=0000000000000000000000000000000000000000000000000000000000000000
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 PKG_MAINTAINER:=zoefix <zony1937@gmail.com>
 PKG_LICENSE:=MIT
@@ -36,10 +41,16 @@ GO_PKG_LDFLAGS:=-s -w
 GO_PKG_LDFLAGS_X:=github.com/zoefix/openfrp/internal/version.Version=$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
-# The absolute path is required from an out-of-tree feed. The relative form
-# used by packages inside the official feed (../../lang/golang/...) only
-# resolves when this Makefile lives within that feed.
-include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
+
+# Inside the official feed the relative path resolves; from an out-of-tree
+# feed it does not, and the absolute one is needed. Choosing between them here
+# keeps one Makefile valid in both places, so what is submitted upstream is
+# what was built and tested locally.
+GOLANG_PACKAGE_MK:=$(wildcard ../../lang/golang/golang-package.mk)
+ifeq ($(GOLANG_PACKAGE_MK),)
+GOLANG_PACKAGE_MK:=$(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
+endif
+include $(GOLANG_PACKAGE_MK)
 
 define Package/openfrp
   SECTION:=net

@@ -1,0 +1,244 @@
+#!/bin/sh
+
+set -eu
+
+REPO="${OPENFRP_REPO:-zoefix/openfrp}"
+API="${OPENFRP_API:-https://api.github.com}"
+PACKAGES="openfrp luci-app-openfrp"
+
+say() { printf '%s\n' "$*"; }
+step() { printf '==> %s\n' "$*"; }
+die() { printf 'install: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+	cat <<'EOF'
+usage: install.sh [options]
+
+  --uninstall        remove OpenFrp and its interface
+  --version VERSION  install a specific release, e.g. v0.4.0
+  --lang LANG        also install a translation: zh-cn, zh-tw or ja
+  --help             this
+
+Environment:
+  OPENFRP_REPO       the GitHub repository (default zoefix/openfrp)
+  OPENFRP_API        a GitHub API mirror, if github.com is unreachable
+EOF
+}
+
+WANT_VERSION=""
+WANT_LANG=""
+UNINSTALL=0
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--uninstall) UNINSTALL=1 ;;
+		--version) shift; WANT_VERSION="${1:-}" ;;
+		--lang) shift; WANT_LANG="${1:-}" ;;
+		--help|-h) usage; exit 0 ;;
+		*) die "unknown option $1 (try --help)" ;;
+	esac
+	shift
+done
+
+detect_pm() {
+	if command -v apk >/dev/null 2>&1 && apk --version 2>&1 | grep -qi 'apk-tools'; then
+		echo apk
+	elif command -v opkg >/dev/null 2>&1; then
+		echo opkg
+	else
+		die "neither apk nor opkg was found; this script installs on OpenWrt"
+	fi
+}
+
+# detect_arch maps OpenWrt's package architecture onto the one the release is
+# built for. The Go name is what the release asset is called; the OpenWrt name
+# is what the router calls itself, and the two do not always agree.
+detect_arch() {
+	arch=""
+	if [ -r /etc/os-release ]; then
+		. /etc/os-release 2>/dev/null || true
+		arch="${OPENWRT_ARCH:-}"
+	fi
+	[ -n "$arch" ] || arch="$(uname -m 2>/dev/null || echo unknown)"
+
+	case "$arch" in
+		x86_64|amd64) echo amd64 ;;
+		aarch64*|arm64*) echo arm64 ;;
+		armv7*|armv6*|arm_*) echo arm ;;
+		mipsel*|mipsle*) echo mipsle ;;
+		mips*) echo mips ;;
+		i386|i486|i586|i686|x86) echo 386 ;;
+		*) die "unsupported architecture: $arch" ;;
+	esac
+}
+
+fetch() {
+	url="$1"
+	out="$2"
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL --connect-timeout 20 -o "$out" "$url"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q -T 20 -O "$out" "$url"
+	else
+		die "neither curl nor wget is available"
+	fi
+}
+
+fetch_stdout() {
+	url="$1"
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL --connect-timeout 20 "$url"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q -T 20 -O - "$url"
+	else
+		die "neither curl nor wget is available"
+	fi
+}
+
+json_field() {
+	sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n 1
+}
+
+uninstall() {
+	pm="$(detect_pm)"
+	step "removing OpenFrp with $pm"
+
+	for pkg in luci-i18n-openfrp-zh-cn luci-i18n-openfrp-zh-tw luci-i18n-openfrp-ja \
+		luci-app-openfrp openfrp; do
+		case "$pm" in
+			apk) apk del "$pkg" >/dev/null 2>&1 || true ;;
+			opkg) opkg remove "$pkg" >/dev/null 2>&1 || true ;;
+		esac
+	done
+
+	say "Removed. /etc/config/openfrp was kept; delete it by hand if you want it gone."
+}
+
+if [ "$UNINSTALL" = 1 ]; then
+	uninstall
+	exit 0
+fi
+
+[ "$(id -u)" = 0 ] || die "run this as root"
+
+PM="$(detect_pm)"
+ARCH="$(detect_arch)"
+step "OpenWrt with $PM, architecture $ARCH"
+
+step "asking $REPO for a release"
+if [ -n "$WANT_VERSION" ]; then
+	RELEASE_JSON="$(fetch_stdout "$API/repos/$REPO/releases/tags/$WANT_VERSION")" ||
+		die "no release tagged $WANT_VERSION"
+else
+	RELEASE_JSON="$(fetch_stdout "$API/repos/$REPO/releases/latest")" ||
+		die "could not reach $API — set OPENFRP_API to a mirror if github.com is blocked"
+fi
+
+TAG="$(printf '%s' "$RELEASE_JSON" | json_field tag_name)"
+[ -n "$TAG" ] || die "the repository has published no releases yet"
+VERSION="${TAG#v}"
+step "installing $TAG"
+
+BUNDLE="openfrp-$VERSION-linux-$ARCH.tar.gz"
+BUNDLE_URL="$(printf '%s' "$RELEASE_JSON" | tr ',' '\n' |
+	grep 'browser_download_url' | grep -F "$BUNDLE" | json_field browser_download_url)"
+SUMS_URL="$(printf '%s' "$RELEASE_JSON" | tr ',' '\n' |
+	grep 'browser_download_url' | grep -F 'checksums.txt' | json_field browser_download_url)"
+
+[ -n "$BUNDLE_URL" ] || die "$TAG has no build for $ARCH"
+[ -n "$SUMS_URL" ] || die "$TAG publishes no checksums.txt; refusing to install an unverifiable download"
+
+WORK="$(mktemp -d /tmp/openfrp-install.XXXXXX)"
+trap 'rm -rf "$WORK"' EXIT INT TERM
+
+step "downloading $BUNDLE"
+fetch "$BUNDLE_URL" "$WORK/$BUNDLE"
+fetch "$SUMS_URL" "$WORK/checksums.txt"
+
+# The expected hash comes from the release, so a bundle that arrived intact
+# from somewhere else is still refused.
+WANT="$(grep -F " $BUNDLE" "$WORK/checksums.txt" | awk '{print $1}' | head -n 1)"
+[ -n "$WANT" ] || die "$BUNDLE is not listed in checksums.txt"
+
+if command -v sha256sum >/dev/null 2>&1; then
+	GOT="$(sha256sum "$WORK/$BUNDLE" | awk '{print $1}')"
+else
+	die "sha256sum is missing, so the download cannot be verified"
+fi
+
+[ "$GOT" = "$WANT" ] || die "checksum mismatch: got $GOT, expected $WANT"
+step "checksum verified"
+
+step "unpacking"
+mkdir -p "$WORK/root"
+tar -xzf "$WORK/$BUNDLE" -C "$WORK/root"
+
+[ -x "$WORK/root/usr/bin/openfrpc" ] || die "the bundle has no usable client"
+
+# Run it before replacing anything, so a build for the wrong architecture is
+# caught while the working install is still in place.
+"$WORK/root/usr/bin/openfrpc" version >/dev/null 2>&1 ||
+	die "the downloaded client does not run on this machine; wrong architecture?"
+
+step "installing dependencies"
+case "$PM" in
+	apk)
+		apk update >/dev/null 2>&1 || true
+		apk add jshn rpcd-mod-file rpcd-mod-ucode luci-base >/dev/null 2>&1 || true
+		;;
+	opkg)
+		opkg update >/dev/null 2>&1 || true
+		opkg install jshn rpcd-mod-file rpcd-mod-ucode luci-base >/dev/null 2>&1 || true
+		;;
+esac
+
+RUNNING=0
+if [ -x /etc/init.d/openfrp ]; then
+	/etc/init.d/openfrp running >/dev/null 2>&1 && RUNNING=1
+	/etc/init.d/openfrp stop >/dev/null 2>&1 || true
+fi
+
+step "installing files"
+tar -xzf "$WORK/$BUNDLE" -C /
+
+if [ ! -f /etc/config/openfrp ]; then
+	step "writing the default configuration"
+	cat > /etc/config/openfrp <<'EOF'
+config global 'global'
+	option enabled '0'
+	option log_level 'info'
+
+config server 'server'
+	option addr ''
+	option port '7000'
+	option token ''
+EOF
+fi
+
+for script in /etc/init.d/openfrp /etc/init.d/openfrp-cloudflared; do
+	[ -f "$script" ] && chmod 0755 "$script"
+done
+
+if [ -x /etc/init.d/openfrp ]; then
+	/etc/init.d/openfrp enable >/dev/null 2>&1 || true
+	[ "$RUNNING" = 1 ] && /etc/init.d/openfrp start >/dev/null 2>&1 || true
+fi
+
+[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd restart >/dev/null 2>&1 || true
+rm -f /tmp/luci-indexcache /tmp/luci-modulecache/* 2>/dev/null || true
+
+if [ -n "$WANT_LANG" ]; then
+	case "$PM" in
+		apk) apk add "luci-i18n-openfrp-$WANT_LANG" >/dev/null 2>&1 ||
+			say "note: luci-i18n-openfrp-$WANT_LANG is not in your feed; the bundle already carries the catalogue" ;;
+		opkg) opkg install "luci-i18n-openfrp-$WANT_LANG" >/dev/null 2>&1 ||
+			say "note: luci-i18n-openfrp-$WANT_LANG is not in your feed; the bundle already carries the catalogue" ;;
+	esac
+fi
+
+INSTALLED="$(/usr/bin/openfrpc version 2>/dev/null || echo unknown)"
+say ""
+say "Installed: $INSTALLED"
+say ""
+say "Open LuCI and go to Services -> OpenFrp."
+say "If the menu is not there, log out and back in."

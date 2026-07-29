@@ -1,0 +1,108 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet and format
+        run: |
+          go vet ./...
+          unformatted=$(gofmt -l cmd internal pkg tools)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed: $unformatted"
+            exit 1
+          fi
+
+      # On Linux, so the splice(2) assertions actually engage. The same suite
+      # passing on a laptop does not prove the zero-copy property holds.
+      - name: Test with the race detector
+        run: go test ./... -race -count=1 -timeout 900s
+
+      - name: Cross-compile every target
+        run: make cross
+
+      # Builds a real bundle and installs it through the updater, which is what
+      # keeps scripts/bundle.sh and internal/update from drifting apart.
+      - name: Build the release bundles
+        env:
+          VERSION: 0.0.0-ci
+        run: ./scripts/bundle.sh
+
+      - name: Shell scripts must parse
+        run: |
+          for f in scripts/*.sh \
+            openwrt/net/openfrp/files/openfrp-render \
+            openwrt/net/openfrp/files/openfrp.init \
+            openwrt/net/openfrp/files/openfrp-cloudflared.init \
+            openwrt/luci/luci-app-openfrp/root/usr/libexec/openfrp/job; do
+            sh -n "$f" || { echo "::error file=$f::syntax error"; exit 1; }
+          done
+
+      - name: Translations must be complete
+        run: |
+          resources=openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources
+          go run ./tools/luci-i18n extract /tmp/openfrp.pot \
+            "$resources/openfrp" "$resources/view/openfrp"
+          python3 - <<'PY'
+          import sys
+
+          def msgids(text):
+              out, ids = [], set()
+              for block in text.split('\n\n'):
+                  started, parts = False, []
+                  for line in block.split('\n'):
+                      if line.startswith('msgid '):
+                          started = True
+                          parts.append(line[6:])
+                      elif started and line.startswith('"'):
+                          parts.append(line)
+                      elif started:
+                          break
+                  if started:
+                      text_ = ''
+                      for p in parts:
+                          p = p.strip()
+                          if p.startswith('"') and p.endswith('"'):
+                              text_ += p[1:-1]
+                      if text_:
+                          ids.add(text_)
+              return ids
+
+          live = msgids(open('/tmp/openfrp.pot', encoding='utf-8').read())
+          failed = False
+          for lang in ('zh_Hans', 'zh_Hant', 'ja'):
+              path = f'openwrt/luci/luci-app-openfrp/po/{lang}/openfrp.po'
+              have = msgids(open(path, encoding='utf-8').read())
+              missing = live - have
+              orphan = have - live
+              if missing:
+                  print(f'::error file={path}::{len(missing)} untranslated: '
+                        + '; '.join(sorted(missing)[:5]))
+                  failed = True
+              if orphan:
+                  print(f'::error file={path}::{len(orphan)} entries no template '
+                        'claims: ' + '; '.join(sorted(orphan)[:5]))
+                  failed = True
+          sys.exit(1 if failed else 0)
+          PY

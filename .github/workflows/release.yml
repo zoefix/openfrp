@@ -13,6 +13,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -21,7 +25,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
+          cache: true
 
       - name: Work out the version
         id: version
@@ -31,26 +36,82 @@ jobs:
           else
             version="${{ github.event.inputs.version }}"
           fi
+          case "$version" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "\"$version\" is not an x.y.z version" >&2
+              exit 1
+              ;;
+          esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version"
 
-      - name: The tag and the source must agree
+      - name: Every copy of the version must agree
+        env:
+          WANT: ${{ steps.version.outputs.version }}
         run: |
-          declared=$(awk -F'"' '/^	Version = /{print $2}' internal/version/version.go)
-          if [ "$declared" != "${{ steps.version.outputs.version }}" ]; then
-            echo "the tag says ${{ steps.version.outputs.version }} but" \
-                 "internal/version/version.go says $declared" >&2
-            echo "a release whose binary reports a different number than its" \
-                 "tag will offer itself as an upgrade forever" >&2
+          fail=0
+          check() {
+            if [ "$2" != "$WANT" ]; then
+              echo "::error file=$1::says $2, the tag says $WANT"
+              fail=1
+            fi
+          }
+
+          check internal/version/version.go \
+            "$(awk -F'"' '/^\tVersion = /{print $2}' internal/version/version.go)"
+          check openwrt/net/openfrp/Makefile \
+            "$(awk -F':=' '/^PKG_VERSION/{print $2}' openwrt/net/openfrp/Makefile)"
+          check openwrt/luci/luci-app-openfrp/Makefile \
+            "$(awk -F':=' '/^PKG_VERSION/{print $2}' openwrt/luci/luci-app-openfrp/Makefile)"
+
+          if [ "$fail" = 1 ]; then
+            echo "A release whose binary reports a number other than its tag" \
+                 "offers itself as an upgrade forever. Bump every copy." >&2
+            exit 1
+          fi
+
+      - name: Vet and format
+        run: |
+          go vet ./...
+          unformatted=$(gofmt -l cmd internal pkg tools)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed: $unformatted"
             exit 1
           fi
 
       - name: Test
-        run: go test ./... -count=1 -timeout 600s
+        run: go test ./... -count=1 -timeout 900s
+
+      - name: Cross-compile every target
+        run: make cross
 
       - name: Build the bundles
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/bundle.sh
+
+      - name: The bundles must be what the installer expects
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          for arch in amd64 arm64; do
+            bundle="dist/openfrp-$VERSION-linux-$arch.tar.gz"
+            [ -f "$bundle" ] || { echo "::error::missing $bundle"; exit 1; }
+
+            for path in usr/bin/openfrpc usr/lib/openfrp/openfrps \
+              usr/libexec/openfrp/render usr/libexec/openfrp/job \
+              usr/share/rpcd/ucode/openfrp.uc \
+              www/luci-static/resources/view/openfrp/status.js \
+              usr/lib/lua/luci/i18n/openfrp.zh-cn.lmo; do
+              tar -tzf "$bundle" | sed 's|^\./||' | grep -qx "$path" ||
+                { echo "::error::$bundle has no $path"; exit 1; }
+            done
+
+            grep -q " openfrp-$VERSION-linux-$arch.tar.gz" dist/checksums.txt ||
+              { echo "::error::checksums.txt does not list $arch"; exit 1; }
+          done
+          echo "Bundles and checksums verified"
 
       - name: Publish
         uses: softprops/action-gh-release@v2

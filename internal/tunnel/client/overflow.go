@@ -41,15 +41,42 @@ const (
 	carrierRetryMax = 30 * time.Second
 )
 
+// carrierGiveUpAfter is how many immediate failures are read as "this server
+// does not know what a carrier is".
+//
+// A server that predates the message answers the handshake with an error and
+// hangs up, which looks exactly like a failure that is worth retrying — and
+// retrying it forever against a server that will never say yes is a
+// connection attempt every thirty seconds for the life of the session, in the
+// log and on the wire, achieving nothing. Fleets run mixed versions during an
+// upgrade, so this is the ordinary case rather than a corner one.
+const carrierGiveUpAfter = 3
+
 // runOverflowCarrier keeps one carrier connection up until ctx is cancelled.
 func (s *session) runOverflowCarrier(ctx context.Context) {
 	delay := carrierRetryMin
+	var immediateFailures int
 
 	for ctx.Err() == nil {
 		started := time.Now()
 
-		if err := s.serveCarrier(ctx); err != nil && ctx.Err() == nil {
+		err := s.serveCarrier(ctx)
+		if err != nil && ctx.Err() == nil {
 			s.logger.Debug("overflow carrier ended", "error", err)
+		}
+
+		// Failing before the connection could plausibly have been useful is
+		// the signature of a server that refuses these outright, as opposed
+		// to a path that is briefly down.
+		if err != nil && time.Since(started) < carrierRetryMin {
+			immediateFailures++
+			if immediateFailures >= carrierGiveUpAfter {
+				s.logger.Info("server does not accept an overflow carrier; " +
+					"an empty pool will wait for a fresh connection instead")
+				return
+			}
+		} else {
+			immediateFailures = 0
 		}
 
 		// A carrier that stayed up is evidence the path is fine, so the next

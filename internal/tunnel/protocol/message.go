@@ -68,10 +68,6 @@ type Login struct {
 
 	PoolCount int `json:"pool_count,omitempty"`
 
-	DownRate int64 `json:"down_rate,omitempty"`
-	UpRate   int64 `json:"up_rate,omitempty"`
-	Quota    int64 `json:"quota,omitempty"`
-
 	RunID string `json:"run_id,omitempty"`
 }
 

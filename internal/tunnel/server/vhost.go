@@ -154,7 +154,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	}
 
 	limits := session.TunnelLimits(route.ProxyName)
-	if session.ClientExhausted() || limits.Exhausted() {
+	if limits.Exhausted() {
 		v.logger.Warn("tunnel has spent its traffic quota",
 			"host", host, "proxy", route.ProxyName, "source", source)
 		v.reject(userConn, statusBadGateway)

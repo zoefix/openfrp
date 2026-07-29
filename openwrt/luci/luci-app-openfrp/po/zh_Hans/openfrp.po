@@ -388,12 +388,6 @@ msgstr "密钥"
 msgid "Key type"
 msgstr "密钥类型"
 
-msgid "Kilobytes per second across every tunnel. 0 for no limit."
-msgstr "所有隧道合计，单位 KB/s。0 表示不限。"
-
-msgid "Kilobytes per second across every tunnel. A tunnel's own limit applies within this. 0 for no limit."
-msgstr "所有隧道合计，单位 KB/s。隧道自身的限速在此范围内生效。0 表示不限。"
-
 msgid "Kilobytes per second from visitors. 0 for no limit."
 msgstr "来自访客方向，单位 KB/s。0 表示不限。"
 
@@ -444,9 +438,6 @@ msgstr "用于管理解析记录、以及签发证书时验证所有权。泛域
 
 msgid "Manual"
 msgstr "手动"
-
-msgid "Megabytes in total across every tunnel. All tunnels stop accepting connections once reached. 0 for no cap."
-msgstr "所有隧道合计，单位 MB。达到后全部隧道停止接受新连接。0 表示不限。"
 
 msgid "Megabytes in total, both directions. The tunnel stops accepting connections once reached. 0 for no cap."
 msgstr "双向合计，单位 MB。达到后隧道停止接受新连接。0 表示不限。"

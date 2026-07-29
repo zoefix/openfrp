@@ -17,11 +17,6 @@ type TunnelLimits struct {
 }
 
 type Limits struct {
-	clientDown *netutil.Limiter
-	clientUp   *netutil.Limiter
-	clientCap  int64
-	clientUsed atomic.Int64
-
 	mu      sync.RWMutex
 	tunnels map[string]*TunnelLimits
 }
@@ -30,40 +25,8 @@ func NewLimits() *Limits {
 	return &Limits{tunnels: map[string]*TunnelLimits{}}
 }
 
-func (l *Limits) SetClientLimits(downRate, upRate, quota int64) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.clientDown = netutil.NewLimiter(downRate)
-	l.clientUp = netutil.NewLimiter(upRate)
-	l.clientCap = quota
-
-	for _, t := range l.tunnels {
-		t.down = t.down.Under(l.clientDown)
-		t.up = t.up.Under(l.clientUp)
-	}
-}
-
-func (l *Limits) ClientExhausted() bool {
-	l.mu.RLock()
-	cap := l.clientCap
-	l.mu.RUnlock()
-
-	return cap > 0 && l.clientUsed.Load() >= cap
-}
-
-func (l *Limits) ClientUsage() (used, quota int64) {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	return l.clientUsed.Load(), l.clientCap
-}
-
 func (l *Limits) Publish(spec protocol.ProxySpec) {
-	l.mu.RLock()
-	inherits := l.clientDown != nil || l.clientUp != nil
-	l.mu.RUnlock()
-
-	if spec.DownRate <= 0 && spec.UpRate <= 0 && spec.Quota <= 0 && !inherits {
+	if spec.DownRate <= 0 && spec.UpRate <= 0 && spec.Quota <= 0 {
 		l.Remove(spec.Name)
 		return
 	}
@@ -71,8 +34,8 @@ func (l *Limits) Publish(spec protocol.ProxySpec) {
 	l.mu.Lock()
 
 	limits := &TunnelLimits{
-		down:  netutil.NewLimiter(spec.DownRate).Under(l.clientDown),
-		up:    netutil.NewLimiter(spec.UpRate).Under(l.clientUp),
+		down:  netutil.NewLimiter(spec.DownRate),
+		up:    netutil.NewLimiter(spec.UpRate),
 		quota: spec.Quota,
 	}
 
@@ -130,12 +93,9 @@ func (s sessionLimits) Rates(tunnel string) (toClient, toVisitor *netutil.Limite
 }
 
 func (s sessionLimits) Exhausted(tunnel string) bool {
-	return s.limits.ClientExhausted() || s.limits.For(tunnel).Exhausted()
+	return s.limits.For(tunnel).Exhausted()
 }
 
 func (s sessionLimits) Spend(tunnel string, bytes int64) {
 	s.limits.For(tunnel).Spend(bytes)
-	if bytes > 0 {
-		s.limits.clientUsed.Add(bytes)
-	}
 }

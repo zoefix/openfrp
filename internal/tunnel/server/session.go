@@ -602,15 +602,8 @@ func (s *Session) Close() error {
 	return err
 }
 
-func (s *Session) ClientExhausted() bool { return s.limits.ClientExhausted() }
-
-func (s *Session) ClientUsage() (used, quota int64) { return s.limits.ClientUsage() }
-
 func (s *Session) SpendTraffic(tunnel *TunnelLimits, bytes int64) {
 	tunnel.Spend(bytes)
-	if bytes > 0 {
-		s.limits.clientUsed.Add(bytes)
-	}
 }
 
 func (s *Session) TunnelLimits(name string) *TunnelLimits {

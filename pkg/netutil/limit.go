@@ -16,8 +16,6 @@ const (
 type Limiter struct {
 	rate int64
 
-	parent *Limiter
-
 	mu      sync.Mutex
 	tokens  int64
 	updated time.Time
@@ -29,14 +27,6 @@ func NewLimiter(bytesPerSecond int64) *Limiter {
 	}
 	l := &Limiter{rate: bytesPerSecond, updated: time.Now()}
 	l.tokens = l.burst()
-	return l
-}
-
-func (l *Limiter) Under(parent *Limiter) *Limiter {
-	if l == nil {
-		return parent
-	}
-	l.parent = parent
 	return l
 }
 
@@ -52,11 +42,7 @@ func (l *Limiter) burst() int64 {
 }
 
 func (l *Limiter) chunk() int64 {
-	chunk := min(l.burst(), limiterMaxChunk)
-	if l.parent != nil {
-		chunk = min(chunk, l.parent.chunk())
-	}
-	return chunk
+	return min(l.burst(), limiterMaxChunk)
 }
 
 func (l *Limiter) wait(n int64) {
@@ -78,5 +64,4 @@ func (l *Limiter) wait(n int64) {
 		time.Sleep(time.Duration(-owed) * time.Second / time.Duration(l.rate))
 	}
 
-	l.parent.wait(n)
 }

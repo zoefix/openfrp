@@ -155,9 +155,6 @@ func (s *Supervisor) scopedConfig(server config.Upstream) (*config.Client, error
 		Transport:  server.Transport,
 		SocketGID:  server.SocketGID,
 		SocketMark: server.SocketMark,
-		DownRate:   s.cfg.DownRate,
-		UpRate:     s.cfg.UpRate,
-		Quota:      s.cfg.Quota,
 		Tunnels:    tunnels,
 		Log:        s.cfg.Log,
 	}

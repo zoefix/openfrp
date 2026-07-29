@@ -296,13 +296,16 @@ by the consumer; `pkg/` free of business logic.
 | **P6** | ACME issuance, edge TLS termination, hot cert reload | ✅ done |
 | P7 | the remaining twelve DNS providers | in progress |
 | P8–P9 | renewal scheduling, traffic accounting | ✅ done |
-| P10 | QUIC and KCP transports, bandwidth limits | accepted in config, behave as TCP |
+| P10 | bandwidth limits, traffic quota, daily history | ✅ done |
+| | QUIC and KCP transports | selectable, marked unimplemented, run as TCP |
 | P11 | eBPF sockmap | not started |
 
 ### Known gaps
 
-- **QUIC and KCP are accepted in configuration and behave as TCP.** The
-  transport selector exists; the transports do not.
+- **QUIC and KCP are selectable and run as TCP.** The transport selector
+  exists; the transports do not. They are labelled as unimplemented in the
+  interface and the client warns at startup, so the setting no longer
+  misleads.
 - **Twelve of the nineteen planned DNS providers are unwritten.** The seven
   present are Aliyun, DNSPod, Huawei, Cloudflare, NameSilo, PowerDNS and West.
 - **DNS and certificate management need SQLite, which has no MIPS port.** On a

@@ -154,6 +154,17 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 		return
 	}
 
+	// Before a work connection is spent, for the same reason as the tcp
+	// path: a visitor refused after the handoff has already cost the client
+	// a dial it cannot get back.
+	limits := session.TunnelLimits(route.ProxyName)
+	if limits.Exhausted() {
+		v.logger.Warn("tunnel has spent its traffic quota",
+			"host", host, "proxy", route.ProxyName, "source", source)
+		v.reject(userConn, statusBadGateway)
+		return
+	}
+
 	workConn, err := session.GetWorkConn(ctx, route.ProxyName, source)
 	if err != nil {
 		v.logger.Warn("no work connection for vhost request",
@@ -165,7 +176,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 
 	if v.scheme == vhost.SchemeHTTPS && terminationRoute(route) {
 		consumedPooled = false
-		v.terminate(ctx, userConn, workConn, consumed, route, host, source)
+		v.terminate(ctx, userConn, workConn, consumed, route, host, source, limits)
 		return
 	}
 
@@ -183,7 +194,9 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 		return
 	}
 
-	transferred := netutil.Relay(userConn, workConn)
+	toClient, toVisitor := limits.Rates()
+	transferred := netutil.RelayLimited(userConn, workConn, toClient, toVisitor)
+	limits.Spend(transferred.AToB + transferred.BToA)
 	v.record(route.ProxyName, transferred)
 
 	if v.logger.Enabled(ctx, slog.LevelDebug) {
@@ -325,7 +338,7 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 }
 
 func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Conn,
-	consumed []byte, route *vhost.Route, host, source string) {
+	consumed []byte, route *vhost.Route, host, source string, limits *TunnelLimits) {
 
 	if v.certs == nil || !v.certs.Has(host) {
 		v.logger.Warn("edge termination requested but no certificate covers the host",
@@ -346,7 +359,9 @@ func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Co
 		return
 	}
 
-	transferred := netutil.Relay(tlsConn, workConn)
+	toClient, toVisitor := limits.Rates()
+	transferred := netutil.RelayLimited(tlsConn, workConn, toClient, toVisitor)
+	limits.Spend(transferred.AToB + transferred.BToA)
 	v.record(route.ProxyName, transferred)
 
 	v.logger.Debug("terminated connection closed",

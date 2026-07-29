@@ -46,8 +46,12 @@ append_prefixed() {
 add_tunnel() {
 	local section="$1"
 	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol server https
+	local down_rate up_rate quota
 
 	config_get name "$section" name
+	config_get down_rate "$section" down_rate 0
+	config_get up_rate "$section" up_rate 0
+	config_get quota "$section" quota 0
 	config_get_bool enabled "$section" enabled 0
 	config_get type "$section" type "tcp"
 	config_get local_ip "$section" local_ip "127.0.0.1"
@@ -72,6 +76,12 @@ add_tunnel() {
 
 	json_add_object ""
 	json_add_string name "$name"
+
+	# The form asks in the units an operator thinks in — kilobytes a second,
+	# megabytes in total — and the daemon works in bytes.
+	[ "${down_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int down_rate $((down_rate * 1024))
+	[ "${up_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int up_rate $((up_rate * 1024))
+	[ "${quota:-0}" -gt 0 ] 2>/dev/null && json_add_int quota $((quota * 1024 * 1024))
 	json_add_boolean enabled "$enabled"
 	json_add_string type "$type"
 	json_add_string local_ip "$local_ip"

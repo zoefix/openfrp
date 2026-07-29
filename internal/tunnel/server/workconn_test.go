@@ -273,3 +273,69 @@ func TestASaturatedCarrierDoesNotHangTheVisitor(t *testing.T) {
 		t.Error("a saturated carrier was discarded; it is busy, not dead")
 	}
 }
+
+// TestQuotaRefusesOnceSpent covers the cap that stops a tunnel carrying more
+// than it was allowed.
+//
+// The check has to happen before a work connection is handed over: a visitor
+// refused after the handoff has already cost the client a dial across the
+// internet, which is the expensive part and cannot be taken back.
+func TestQuotaRefusesOnceSpent(t *testing.T) {
+	limits := NewLimits()
+	limits.Publish(protocol.ProxySpec{Name: "web", Quota: 1000})
+
+	tunnel := limits.For("web")
+	if tunnel.Exhausted() {
+		t.Fatal("a fresh quota reports itself already spent")
+	}
+
+	tunnel.Spend(600)
+	if tunnel.Exhausted() {
+		t.Error("600 of 1000 bytes reported as exhausted")
+	}
+
+	tunnel.Spend(500)
+	if !tunnel.Exhausted() {
+		t.Error("1100 of 1000 bytes not reported as exhausted")
+	}
+
+	used, quota := tunnel.Usage()
+	if used != 1100 || quota != 1000 {
+		t.Errorf("usage = %d/%d, want 1100/1000", used, quota)
+	}
+}
+
+// TestRepublishKeepsWhatWasSpent: a quota that resets when the client
+// reconnects is not a quota, it is a suggestion to anyone willing to restart.
+func TestRepublishKeepsWhatWasSpent(t *testing.T) {
+	limits := NewLimits()
+	spec := protocol.ProxySpec{Name: "web", Quota: 1000}
+
+	limits.Publish(spec)
+	limits.For("web").Spend(900)
+
+	limits.Publish(spec)
+	if used, _ := limits.For("web").Usage(); used != 900 {
+		t.Errorf("after republishing, used = %d, want the 900 already spent", used)
+	}
+}
+
+// TestNoLimitsMeansNoLimiter guards the ordinary case: a tunnel published
+// without rates or a quota must not acquire a limiter, so its relay keeps the
+// unpaced path.
+func TestNoLimitsMeansNoLimiter(t *testing.T) {
+	limits := NewLimits()
+	limits.Publish(protocol.ProxySpec{Name: "web"})
+
+	tunnel := limits.For("web")
+	if tunnel != nil {
+		t.Fatal("a tunnel with no limits was given a limit record")
+	}
+	if toClient, toVisitor := tunnel.Rates(); toClient != nil || toVisitor != nil {
+		t.Error("an unlimited tunnel produced limiters")
+	}
+	if tunnel.Exhausted() {
+		t.Error("an unlimited tunnel reports itself exhausted")
+	}
+	tunnel.Spend(1 << 30)
+}

@@ -271,6 +271,9 @@ msgstr "下り"
 msgid "Download URL"
 msgstr "ダウンロード URL"
 
+msgid "Download limit"
+msgstr "下り制限"
+
 msgid "EAB HMAC key"
 msgstr "EAB HMAC キー"
 
@@ -379,11 +382,20 @@ msgstr "発行中…"
 msgid "Job ended in state: %s"
 msgstr "ジョブの終了状態: %s"
 
+msgid "KCP (not implemented — runs as TCP)"
+msgstr "KCP（未実装 — TCP として動作）"
+
 msgid "Key"
 msgstr "鍵"
 
 msgid "Key type"
 msgstr "鍵の種類"
+
+msgid "Kilobytes per second from visitors. 0 for no limit."
+msgstr "訪問者からの方向、KB/s 単位。0 で無制限。"
+
+msgid "Kilobytes per second toward visitors. 0 for no limit."
+msgstr "訪問者方向、KB/s 単位。0 で無制限。"
 
 msgid "Leave empty to let the server allocate one."
 msgstr "空欄にするとサーバーが自動的に割り当てます。"
@@ -429,6 +441,9 @@ msgstr "レコード管理と証明書発行時の所有権証明に使用。ワ
 
 msgid "Manual"
 msgstr "手動"
+
+msgid "Megabytes in total, both directions. The tunnel stops accepting connections once reached. 0 for no cap."
+msgstr "双方向の合計、MB 単位。到達するとトンネルは新規接続を受け付けません。0 で無制限。"
 
 msgid "Multiplex connections"
 msgstr "接続の多重化"
@@ -528,6 +543,9 @@ msgstr "プロキシ経由"
 
 msgid "Proxied — route through the provider"
 msgstr "プロキシ経由 — プロバイダを通す"
+
+msgid "QUIC (not implemented — runs as TCP)"
+msgstr "QUIC（未実装 — TCP として動作）"
 
 msgid "Reach a service on this network from the internet."
 msgstr "インターネットからこのネットワーク上のサービスへ接続します。"
@@ -736,6 +754,9 @@ msgstr "トークン"
 msgid "Total traffic"
 msgstr "合計トラフィック"
 
+msgid "Traffic cap"
+msgstr "通信量上限"
+
 msgid "Transport"
 msgstr "トランスポート"
 
@@ -753,6 +774,9 @@ msgstr "種類"
 
 msgid "Upload"
 msgstr "上り"
+
+msgid "Upload limit"
+msgstr "上り制限"
 
 msgid "Uploaded to the server, so it needs no outbound internet there."
 msgstr "サーバーへアップロードするため、サーバー側に外部接続は不要です。"
@@ -774,6 +798,9 @@ msgstr "このトンネルに接続するには、利用者がこれを提示す
 
 msgid "Warm connections"
 msgstr "ウォーム接続数"
+
+msgid "WebSocket (not implemented — runs as TCP)"
+msgstr "WebSocket（未実装 — TCP として動作）"
 
 msgid "Where to find it"
 msgstr "取得方法"

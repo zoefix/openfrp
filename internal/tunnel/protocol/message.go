@@ -97,6 +97,13 @@ type ProxySpec struct {
 	TLSMode string `json:"tls_mode,omitempty"`
 
 	SecretKey string `json:"secret_key,omitempty"`
+
+	// Limits travel with the tunnel because the server is where they are
+	// applied: it sees every visitor of a tunnel, while the client sees only
+	// the connections that reached it.
+	DownRate int64 `json:"down_rate,omitempty"`
+	UpRate   int64 `json:"up_rate,omitempty"`
+	Quota    int64 `json:"quota,omitempty"`
 }
 
 type NewProxy struct {

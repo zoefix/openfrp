@@ -61,6 +61,8 @@ type Session struct {
 	recorder       proxy.Recorder
 	vhostHTTPPort  int
 	vhostHTTPSPort int
+
+	limits *Limits
 }
 
 type runningProxy struct {
@@ -117,6 +119,7 @@ func newSession(opts SessionOptions) *Session {
 		vhostHTTPSPort: opts.VhostHTTPSPort,
 	}
 
+	s.limits = NewLimits()
 	s.poolMax = capacity
 	s.refillTarget.Store(int64(opts.PoolTarget))
 
@@ -481,6 +484,8 @@ func (s *Session) AddProxy(ctx context.Context, spec protocol.ProxySpec) (int, e
 	}
 	s.proxiesMu.Unlock()
 
+	s.limits.Publish(spec)
+
 	p, err := proxy.New(proxy.Options{
 		Spec:        spec,
 		Source:      s,
@@ -492,6 +497,7 @@ func (s *Session) AddProxy(ctx context.Context, spec protocol.ProxySpec) (int, e
 
 		Routes:         s.routes,
 		Recorder:       s.recorder,
+		Limits:         sessionLimits{limits: s.limits},
 		VhostHTTPPort:  s.vhostHTTPPort,
 		VhostHTTPSPort: s.vhostHTTPSPort,
 	})
@@ -534,6 +540,7 @@ func (s *Session) RemoveProxy(name string) error {
 		return fmt.Errorf("proxy %q is not published", name)
 	}
 
+	s.limits.Remove(name)
 	running.cancel()
 	return running.proxy.Close()
 }
@@ -598,4 +605,9 @@ func (s *Session) Close() error {
 	})
 
 	return err
+}
+
+// TunnelLimits reports what a published tunnel is held to, for the status view.
+func (s *Session) TunnelLimits(name string) *TunnelLimits {
+	return s.limits.For(name)
 }

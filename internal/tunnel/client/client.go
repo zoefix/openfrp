@@ -84,6 +84,12 @@ func New(cfg *config.Client, logger *slog.Logger, version string) (*Client, erro
 }
 
 func (c *Client) Run(ctx context.Context) error {
+	if !c.cfg.Transport.Protocol.Implemented() {
+		c.logger.Warn("this transport is not implemented and the connection "+
+			"will use TCP",
+			"requested", string(c.cfg.Transport.Protocol))
+	}
+
 	if c.cfg.Transport.Mux {
 		c.logger.Warn("multiplexing is enabled: every tunnel will share one " +
 			"congestion window and none can use the kernel zero-copy path")

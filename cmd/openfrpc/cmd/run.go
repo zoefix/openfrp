@@ -45,17 +45,26 @@ func runDaemon(ctx context.Context, args []string) error {
 		return err
 	}
 
-	if bound := boundCertificates(cfg); bound > 0 {
-		service, err := manage.New(dbPath)
-		if err != nil {
-			logger.Warn("tunnels are bound to certificates but the database "+
-				"cannot be opened, so none will be pushed",
-				"bound", bound, "error", err)
-		} else {
-			defer service.Close()
+	// One database for both jobs. It is opened whenever it can be, not only
+	// when a certificate needs it, because the traffic history wants it too —
+	// and on a platform without SQLite (MIPS has no port) the failure is
+	// reported once and both features simply do without, rather than the
+	// tunnels refusing to run.
+	bound := boundCertificates(cfg)
+	if service, err := manage.New(dbPath); err != nil {
+		logger.Warn("the database cannot be opened, so certificate push and "+
+			"traffic history are unavailable; tunnels are unaffected",
+			"error", err)
+	} else {
+		defer service.Close()
+
+		if bound > 0 {
 			supervisor.SetCertSource(service.NewCertSource())
 			logger.Info("certificate push enabled", "bound_tunnels", bound)
 		}
+
+		history := client.NewTrafficHistory(supervisor.Traffic(), service.Traffic(), logger)
+		go history.Run(ctx)
 	}
 
 	logger.Info("starting openfrpc",

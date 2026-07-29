@@ -8,12 +8,25 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/zoefix/openfrp/pkg/netutil"
+
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 	"github.com/zoefix/openfrp/internal/tunnel/vhost"
 )
 
 type WorkConnSource interface {
 	GetWorkConn(ctx context.Context, proxyName, sourceAddr string) (net.Conn, error)
+}
+
+// Limits is declared here, on the consuming side, so proxy depends on the
+// three operations it performs rather than on the whole limit registry.
+type Limits interface {
+	// Rates returns the limiters for one tunnel's relay, or nils.
+	Rates(tunnel string) (toClient, toVisitor *netutil.Limiter)
+	// Exhausted reports that the tunnel has spent its quota.
+	Exhausted(tunnel string) bool
+	// Spend adds to what the tunnel has used.
+	Spend(tunnel string, bytes int64)
 }
 
 type Recorder interface {
@@ -51,6 +64,9 @@ type Options struct {
 	ReusePort bool
 
 	Recorder Recorder
+
+	// Limits enforces per-tunnel rates and quota. Nil means unlimited.
+	Limits Limits
 
 	Routes RouteRegistrar
 

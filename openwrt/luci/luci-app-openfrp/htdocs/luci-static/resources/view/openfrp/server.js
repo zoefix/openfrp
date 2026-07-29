@@ -646,9 +646,9 @@ return view.extend({
 
 		o = s.option(form.ListValue, 'protocol', _('Transport'));
 		o.value('tcp', 'TCP');
-		o.value('kcp', 'KCP');
-		o.value('quic', 'QUIC');
-		o.value('websocket', 'WebSocket');
+		o.value('kcp', _('KCP (not implemented — runs as TCP)'));
+		o.value('quic', _('QUIC (not implemented — runs as TCP)'));
+		o.value('websocket', _('WebSocket (not implemented — runs as TCP)'));
 		o.default = 'tcp';
 		o.modalonly = true;
 

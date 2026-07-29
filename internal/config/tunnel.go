@@ -53,6 +53,15 @@ type Tunnel struct {
 	SecretKey string `json:"secret_key,omitempty"`
 
 	ProxyProtocol string `json:"proxy_protocol,omitempty"`
+
+	// Bytes per second, each direction, zero for no limit. Down is what
+	// visitors receive; up is what they send.
+	DownRate int64 `json:"down_rate,omitempty"`
+	UpRate   int64 `json:"up_rate,omitempty"`
+
+	// Total bytes this tunnel may carry, zero for no cap. Once reached the
+	// tunnel stops accepting connections until the quota is reset.
+	Quota int64 `json:"quota,omitempty"`
 }
 
 func (t TunnelType) NeedsRemotePort() bool {

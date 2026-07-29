@@ -271,6 +271,9 @@ msgstr "下行"
 msgid "Download URL"
 msgstr "下載網址"
 
+msgid "Download limit"
+msgstr "下行限速"
+
 msgid "EAB HMAC key"
 msgstr "EAB HMAC 金鑰"
 
@@ -379,11 +382,20 @@ msgstr "簽發中…"
 msgid "Job ended in state: %s"
 msgstr "工作結束狀態：%s"
 
+msgid "KCP (not implemented — runs as TCP)"
+msgstr "KCP（未實作，以 TCP 執行）"
+
 msgid "Key"
 msgstr "金鑰"
 
 msgid "Key type"
 msgstr "金鑰類型"
+
+msgid "Kilobytes per second from visitors. 0 for no limit."
+msgstr "來自訪客方向，單位 KB/s。0 表示不限。"
+
+msgid "Kilobytes per second toward visitors. 0 for no limit."
+msgstr "發往訪客方向，單位 KB/s。0 表示不限。"
 
 msgid "Leave empty to let the server allocate one."
 msgstr "留空則由伺服器自動分配。"
@@ -429,6 +441,9 @@ msgstr "用於管理解析記錄、以及簽發憑證時驗證所有權。泛網
 
 msgid "Manual"
 msgstr "手動"
+
+msgid "Megabytes in total, both directions. The tunnel stops accepting connections once reached. 0 for no cap."
+msgstr "雙向合計，單位 MB。達到後隧道停止接受新連線。0 表示不限。"
 
 msgid "Multiplex connections"
 msgstr "多工連線"
@@ -528,6 +543,9 @@ msgstr "已代理"
 
 msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量經服務商中轉"
+
+msgid "QUIC (not implemented — runs as TCP)"
+msgstr "QUIC（未實作，以 TCP 執行）"
 
 msgid "Reach a service on this network from the internet."
 msgstr "從公網存取本地網路中的服務。"
@@ -736,6 +754,9 @@ msgstr "權杖"
 msgid "Total traffic"
 msgstr "總流量"
 
+msgid "Traffic cap"
+msgstr "流量上限"
+
 msgid "Transport"
 msgstr "傳輸方式"
 
@@ -753,6 +774,9 @@ msgstr "類型"
 
 msgid "Upload"
 msgstr "上行"
+
+msgid "Upload limit"
+msgstr "上行限速"
 
 msgid "Uploaded to the server, so it needs no outbound internet there."
 msgstr "上傳到伺服器，因此伺服器無需存取外網。"
@@ -774,6 +798,9 @@ msgstr "訪問者必須提供此金鑰才能連線到該通道。"
 
 msgid "Warm connections"
 msgstr "預熱連線數"
+
+msgid "WebSocket (not implemented — runs as TCP)"
+msgstr "WebSocket（未實作，以 TCP 執行）"
 
 msgid "Where to find it"
 msgstr "在哪裡取得"

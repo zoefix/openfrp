@@ -575,6 +575,24 @@ return view.extend({
 			return false;
 		};
 
+		o = s.option(form.Value, 'down_rate', _('Download limit'));
+		o.datatype = 'uinteger';
+		o.placeholder = '0';
+		o.modalonly = true;
+		o.description = _('Kilobytes per second toward visitors. 0 for no limit.');
+
+		o = s.option(form.Value, 'up_rate', _('Upload limit'));
+		o.datatype = 'uinteger';
+		o.placeholder = '0';
+		o.modalonly = true;
+		o.description = _('Kilobytes per second from visitors. 0 for no limit.');
+
+		o = s.option(form.Value, 'quota', _('Traffic cap'));
+		o.datatype = 'uinteger';
+		o.placeholder = '0';
+		o.modalonly = true;
+		o.description = _('Megabytes in total, both directions. The tunnel stops accepting connections once reached. 0 for no cap.');
+
 		o = s.option(form.ListValue, 'tls_mode', _('TLS handling'));
 		o.depends({ type: 'http', https: '1' });
 		limitToOpenFrp(o, openfrp);

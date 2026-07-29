@@ -26,6 +26,7 @@ type tcpProxy struct {
 	acceptLoops int
 	reusePort   bool
 	recorder    Recorder
+	limits      Limits
 
 	listenOpts netutil.ListenOptions
 
@@ -54,6 +55,7 @@ func newTCPProxy(opts Options) (Proxy, error) {
 		acceptLoops: opts.AcceptLoops,
 		reusePort:   opts.ReusePort,
 		recorder:    opts.Recorder,
+		limits:      opts.Limits,
 	}, nil
 }
 
@@ -140,6 +142,13 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 
 	source := userConn.RemoteAddr().String()
 
+	// Checked before a work connection is spent: a visitor turned away after
+	// the handoff has already cost the client a dial for nothing.
+	if p.limits != nil && p.limits.Exhausted(p.name) {
+		p.logger.Warn("tunnel has spent its traffic quota", "source", source)
+		return
+	}
+
 	workConn, err := p.source.GetWorkConn(ctx, p.name, source)
 	if err != nil {
 		p.logger.Warn("no work connection available", "source", source, "error", err)
@@ -151,7 +160,15 @@ func (p *tcpProxy) handle(ctx context.Context, userConn net.Conn) {
 		p.logger.Debug("tune user connection", "error", err)
 	}
 
-	transferred := netutil.Relay(userConn, workConn)
+	var toClient, toVisitor *netutil.Limiter
+	if p.limits != nil {
+		toClient, toVisitor = p.limits.Rates(p.name)
+	}
+	transferred := netutil.RelayLimited(userConn, workConn, toClient, toVisitor)
+
+	if p.limits != nil {
+		p.limits.Spend(p.name, transferred.AToB+transferred.BToA)
+	}
 
 	if p.recorder != nil {
 		p.recorder.RecordTransfer(p.name,

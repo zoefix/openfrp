@@ -34,6 +34,16 @@ func (p Protocol) Valid() bool {
 	return false
 }
 
+// Implemented reports whether a transport exists rather than merely being a
+// name the configuration accepts.
+//
+// Only TCP is built. The other three are selectable, validate cleanly and
+// then carry traffic over TCP, which means the setting has been quietly
+// lying: an operator who chose QUIC got no error, no warning and no QUIC.
+// Saying so is the difference between an unimplemented feature and a
+// misleading one.
+func (p Protocol) Implemented() bool { return p == "" || p == ProtocolTCP }
+
 type Transport struct {
 	Protocol Protocol `json:"protocol,omitempty"`
 

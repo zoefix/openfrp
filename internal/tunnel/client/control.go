@@ -114,6 +114,9 @@ func (s *session) publishTunnel(tunnel config.Tunnel) error {
 		Domains:    tunnel.Domains,
 		TLSMode:    string(tunnel.TLSMode),
 		SecretKey:  tunnel.SecretKey,
+		DownRate:   tunnel.DownRate,
+		UpRate:     tunnel.UpRate,
+		Quota:      tunnel.Quota,
 	}
 	if err := s.codec.Write(&protocol.NewProxy{Proxy: spec}); err != nil {
 		return fmt.Errorf("client: publish tunnel %q: %w", tunnel.Name, err)

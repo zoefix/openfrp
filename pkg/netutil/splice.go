@@ -38,6 +38,10 @@ type RelayStats struct {
 }
 
 func Relay(a, b net.Conn) RelayStats {
+	return RelayLimited(a, b, nil, nil)
+}
+
+func RelayLimited(a, b net.Conn, aToB, bToA *Limiter) RelayStats {
 	stats := RelayStats{Spliced: CanSplice(a, b)}
 
 	if stats.Spliced {
@@ -49,16 +53,16 @@ func Relay(a, b net.Conn) RelayStats {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		stats.AToB = copyAndHalfClose(b, a)
+		stats.AToB = copyAndHalfClose(b, a, aToB)
 	}()
-	stats.BToA = copyAndHalfClose(a, b)
+	stats.BToA = copyAndHalfClose(a, b, bToA)
 	<-done
 
 	return stats
 }
 
-func copyAndHalfClose(dst, src net.Conn) int64 {
-	n, _ := copyStream(dst, src)
+func copyAndHalfClose(dst, src net.Conn, limit *Limiter) int64 {
+	n, _ := copyStream(dst, src, limit)
 
 	if cw, ok := unwrap(dst).(CloseWriter); ok {
 		_ = cw.CloseWrite()
@@ -69,17 +73,51 @@ func copyAndHalfClose(dst, src net.Conn) int64 {
 	return n
 }
 
-func copyStream(dst, src net.Conn) (int64, error) {
+func copyStream(dst, src net.Conn, limit *Limiter) (int64, error) {
 	rawDst, rawSrc := unwrap(dst), unwrap(src)
 
-	if tcpDst, ok := rawDst.(*net.TCPConn); ok {
-		if _, ok := rawSrc.(*net.TCPConn); ok {
+	tcpDst, dstIsTCP := rawDst.(*net.TCPConn)
+	_, srcIsTCP := rawSrc.(*net.TCPConn)
+	spliceable := dstIsTCP && srcIsTCP
 
+	if limit == nil {
+		if spliceable {
 			return tcpDst.ReadFrom(rawSrc)
 		}
+		return CopyBuffered(dst, src)
 	}
 
-	return CopyBuffered(dst, src)
+	// Paced, and still spliced. The kernel call takes a byte count, and Go
+	// passes one through when the source is an io.LimitedReader wrapping a
+	// TCP connection — so a rate limit costs a bounded chunk per round and a
+	// sleep between rounds, not a copy through userspace. Limiting by reading
+	// into our own buffer would have cost the whole zero-copy path, which is
+	// the one property this data plane is built around.
+	chunk := limit.chunk()
+
+	var total int64
+	for {
+		var (
+			n   int64
+			err error
+		)
+		if spliceable {
+			n, err = tcpDst.ReadFrom(&io.LimitedReader{R: rawSrc, N: chunk})
+		} else {
+			n, err = CopyBuffered(dst, &io.LimitedReader{R: src, N: chunk})
+		}
+		total += n
+		limit.wait(n)
+
+		if err != nil {
+			return total, err
+		}
+		// A LimitedReader reports EOF both when its budget runs out and when
+		// the connection really ends. Short of the budget means the second.
+		if n < chunk {
+			return total, nil
+		}
+	}
 }
 
 func CanSplice(a, b net.Conn) bool {

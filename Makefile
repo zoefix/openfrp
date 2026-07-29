@@ -81,14 +81,6 @@ cross: ## Cross-compile release artefacts for every target platform
 bundle: ## Build the router-side release bundles the updater installs
 	VERSION=$(VERSION) COMMIT=$(COMMIT) DATE=$(DATE) ./scripts/bundle.sh
 
-.PHONY: dev-up
-dev-up: ## Bring up the local server/client/service stack
-	docker compose -f deploy/dev/docker-compose.yml up --build
-
-.PHONY: dev-down
-dev-down:
-	docker compose -f deploy/dev/docker-compose.yml down -v
-
 .PHONY: clean
 clean:
 	rm -rf $(BIN) $(DIST)

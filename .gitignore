@@ -10,6 +10,13 @@
 # that produced them.
 /bench/
 
+# The local three-container stack. A way to try a tunnel on a laptop, not
+# something a router or a build ever reads.
+#
+# Anchored: deploy/ unanchored would also match internal/deploy, which is the
+# SSH provisioner and very much ships.
+/deploy/
+
 # Go
 vendor/
 

@@ -32,37 +32,8 @@ type Session struct {
 	// it so that a user connection does not have to wait a full round trip for
 	// one to be dialled.
 	workConns chan net.Conn
-	// poolFloor is how many connections the client said it would keep warm,
-	// and the size the pool returns to when nothing is happening.
-	poolFloor int
-	// poolMax is the ceiling the server will let this client hold.
-	poolMax int
-
-	// poolWant is how many are currently being asked for, which rises with
-	// demand and settles back to poolFloor. See adaptPool.
-	poolWant atomic.Int64
-	// poolMisses counts visitors who found the pool empty since the last
-	// decay tick, which is the signal the pool is too small.
-	poolMisses atomic.Int64
-	// poolPeak is the largest target reached, so growth is reported once
-	// rather than on every step.
-	poolPeak atomic.Int64
-
-	// poolArrivals counts work connections received, so a request that was
-	// never answered can be told from one that is still on its way.
-	poolArrivals atomic.Int64
-
-	// poolInFlight counts connections already asked for and not yet arrived.
-	//
-	// Without it the pool has no flow control and asks again for everything
-	// still in transit. Every visitor tops the pool up, a dial across the
-	// internet takes a round trip to land, and in that window every other
-	// visitor computes the same deficit and asks for it again — so a burst of
-	// thirty-two visitors against an eight-deep pool does not request
-	// twenty-four connections, it requests them over and over until the
-	// client is dialling thousands. Measured on a real 50 ms path: 84,952
-	// failures in fifteen seconds, where the unadapted pool merely queued.
-	poolInFlight atomic.Int64
+	// poolTarget is how many connections the client said it would keep warm.
+	poolTarget int
 
 	// reqPending accumulates work-connection requests between writes, and
 	// reqKick wakes the requester goroutine that flushes them. One control
@@ -132,8 +103,7 @@ func newSession(opts SessionOptions) *Session {
 		codec:       opts.Codec,
 		logger:      opts.Logger,
 		workConns:   make(chan net.Conn, capacity),
-		poolFloor:   opts.PoolTarget,
-		poolMax:     capacity,
+		poolTarget:  opts.PoolTarget,
 		reqKick:     make(chan struct{}, 1),
 		proxies:     make(map[string]*runningProxy),
 		done:        make(chan struct{}),
@@ -147,119 +117,11 @@ func newSession(opts SessionOptions) *Session {
 		vhostHTTPPort:  opts.VhostHTTPPort,
 		vhostHTTPSPort: opts.VhostHTTPSPort,
 	}
-	s.poolWant.Store(int64(opts.PoolTarget))
-	s.poolPeak.Store(int64(opts.PoolTarget))
 
-	// Both stopped by Close via the done channel.
+	// Stopped by Close via the done channel.
 	go s.workConnRequester()
-	go s.adaptPool()
 
 	return s
-}
-
-// Pool adaptation constants.
-//
-// poolDecayInterval is how long the pool must go without a single visitor
-// finding it empty before it starts giving connections back. It is generous
-// on purpose: a pool that shrinks between two bursts has to be rebuilt at the
-// cost of the very stalls it grew to prevent, and an idle pooled connection
-// costs a socket and nothing else.
-const (
-	poolDecayInterval = 90 * time.Second
-	poolDecayFraction = 4 // give back a quarter of the surplus per interval
-
-	// poolSweepInterval is how often the in-flight count is checked against
-	// arrivals. A client whose dials are failing answers no request, and the
-	// count would otherwise stay high forever and stop the pool ever being
-	// topped up again — a flow-control deadlock disguised as an empty pool.
-	poolSweepInterval = 5 * time.Second
-)
-
-// adaptPool returns the pool toward its floor during quiet periods.
-//
-// Growth is not here — it happens where the evidence appears, in the miss
-// path of GetWorkConn. This is only the other half of the loop: without it a
-// pool that grew for one burst would hold those sockets until the client
-// disconnected.
-func (s *Session) adaptPool() {
-	ticker := time.NewTicker(poolSweepInterval)
-	defer ticker.Stop()
-
-	ticksPerDecay := int(poolDecayInterval / poolSweepInterval)
-	lastArrivals := s.poolArrivals.Load()
-	ticks := 0
-
-	for {
-		select {
-		case <-s.done:
-			return
-		case <-ticker.C:
-		}
-
-		s.sweepInFlight(&lastArrivals)
-
-		if ticks++; ticks >= ticksPerDecay {
-			ticks = 0
-			s.decayPool()
-		}
-	}
-}
-
-// sweepInFlight reclaims requests that were never answered.
-//
-// A client dialling into a network that is briefly down answers nothing, and
-// holding those in the count forever would leave the pool permanently unable
-// to ask for the connections it needs — a flow-control deadlock that would
-// look, from the outside, exactly like a pool that will not fill.
-func (s *Session) sweepInFlight(lastArrivals *int64) {
-	arrivals := s.poolArrivals.Load()
-	if arrivals == *lastArrivals && s.poolInFlight.Load() > 0 {
-		s.poolInFlight.Store(0)
-	}
-	*lastArrivals = arrivals
-}
-
-// decayPool gives back part of the surplus if the last interval passed
-// without a single visitor finding the pool empty.
-func (s *Session) decayPool() {
-	// Any miss at all means the last interval needed what it had.
-	if s.poolMisses.Swap(0) > 0 {
-		return
-	}
-
-	want := s.poolWant.Load()
-	surplus := want - int64(s.poolFloor)
-	if surplus <= 0 {
-		return
-	}
-
-	s.poolWant.Store(want - max(surplus/poolDecayFraction, 1))
-}
-
-// growPool records that a visitor found the pool empty and widens it.
-//
-// One connection per miss, which needs no estimate of the arrival rate to be
-// right: a burst of forty simultaneous visitors produces forty misses and
-// forty steps, landing exactly where the demand was. The cost of being wrong
-// upward is an idle socket; the cost of being wrong downward is a visitor
-// waiting about two round trips — the server asking, the client dialling,
-// the connection being registered — before their request moves at all.
-func (s *Session) growPool() {
-	s.poolMisses.Add(1)
-
-	want := s.poolWant.Add(1)
-	if want > int64(s.poolMax) {
-		s.poolWant.Store(int64(s.poolMax))
-		want = int64(s.poolMax)
-	}
-
-	// Reported once per new high, not per step: a burst is many misses and
-	// would otherwise be many lines saying the same thing.
-	if peak := s.poolPeak.Load(); want > peak &&
-		s.poolPeak.CompareAndSwap(peak, want) {
-		s.logger.Info("widening the warm pool to keep up with demand",
-			"pool", want, "configured", s.poolFloor, "max", s.poolMax)
-	}
 }
 
 // RunID identifies the session.
@@ -273,17 +135,6 @@ func (s *Session) Name() string { return s.name }
 // If the pool is already full the connection is closed rather than queued: a
 // client that over-supplies should not be able to pin server memory.
 func (s *Session) AddWorkConn(conn net.Conn) {
-	// It arrived, so it is no longer on its way. Both outcomes below count:
-	// what matters to the request accounting is that this connection is no
-	// longer something to wait for.
-	if left := s.poolInFlight.Add(-1); left < 0 {
-		// More arrived than were asked for — the priming batch, or a client
-		// that supplies eagerly. Not an error, but the counter must not go
-		// negative or it would mask a real deficit later.
-		s.poolInFlight.Store(0)
-	}
-	s.poolArrivals.Add(1)
-
 	select {
 	case <-s.done:
 		conn.Close()
@@ -394,11 +245,6 @@ func (s *Session) takePooled() (net.Conn, bool) {
 }
 
 // waitWorkConn asks the client to dial one and waits for it to arrive.
-//
-// Reaching here is the miss: this visitor is about to wait out a request to
-// the client and a fresh dial back, which on a real path is roughly two round
-// trips before their first byte moves. It is the evidence the pool is too
-// small, and the only place that evidence exists.
 func (s *Session) waitWorkConn(ctx context.Context) (net.Conn, error) {
 	select {
 	case <-s.done:
@@ -406,11 +252,6 @@ func (s *Session) waitWorkConn(ctx context.Context) (net.Conn, error) {
 	default:
 	}
 
-	s.growPool()
-
-	// Counted like any other request: this one is on its way too, and a
-	// visitor who asks for it must not make the next visitor ask again.
-	s.poolInFlight.Add(1)
 	s.requestWorkConns(1)
 
 	timer := time.NewTimer(workConnTimeout)
@@ -428,34 +269,12 @@ func (s *Session) waitWorkConn(ctx context.Context) (net.Conn, error) {
 	}
 }
 
-// replenishPool tops the warm pool back up toward its current target,
-// counting what is already on its way.
-//
-// The in-flight term is what makes this safe to call per visitor. A dial
-// takes a round trip to land, and without it every visitor arriving inside
-// that window asks again for connections that are already coming.
+// replenishPool tops the warm pool back up toward its target.
 func (s *Session) replenishPool() {
-	inFlight := s.poolInFlight.Load()
-
-	deficit := int64(s.poolWant.Load()) - int64(len(s.workConns)) - inFlight
-	if deficit <= 0 {
-		return
+	if deficit := s.poolTarget - len(s.workConns); deficit > 0 {
+		s.requestWorkConns(deficit)
 	}
-
-	// Never ask for more than the pool could hold, however far behind it is.
-	if room := int64(s.poolMax) - int64(len(s.workConns)) - inFlight; deficit > room {
-		deficit = room
-	}
-	if deficit <= 0 {
-		return
-	}
-
-	s.poolInFlight.Add(deficit)
-	s.requestWorkConns(int(deficit))
 }
-
-// PoolTarget reports how many warm connections are currently being asked for.
-func (s *Session) PoolTarget() int { return int(s.poolWant.Load()) }
 
 // requestWorkConns asks the client to open n more work connections.
 //

@@ -61,6 +61,12 @@ for platform in $PLATFORMS; do
 	bundle="openfrp-$VERSION-$os-$arch.tar.gz"
 	TAR_FLAGS=""
 	tar --no-xattrs --version >/dev/null 2>&1 && TAR_FLAGS="--no-xattrs"
+	# Whoever built this is not who should own it once installed. Without
+	# these, tar records the build account's uid and a root extract restores
+	# it, leaving /usr/bin/openfrpc owned by a number that means nothing on
+	# the router — and everything to a local account that happens to match.
+	tar --owner=0 --group=0 --version >/dev/null 2>&1 &&
+		TAR_FLAGS="$TAR_FLAGS --owner=0 --group=0"
 	COPYFILE_DISABLE=1 tar $TAR_FLAGS -czf "$DIST/$bundle" -C "$root" .
 	rm -rf "$root"
 	echo "$DIST/$bundle"

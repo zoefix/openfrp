@@ -247,7 +247,13 @@ if [ -x /etc/init.d/openfrp ]; then
 fi
 
 step "installing files"
-tar -xzf "$WORK/$BUNDLE" -C /
+# --no-same-owner where tar has it: root extracting an archive restores the
+# uid it records, which is the build account's, not this machine's root.
+if tar --help 2>&1 | grep -q -- --no-same-owner; then
+	tar --no-same-owner -xzf "$WORK/$BUNDLE" -C /
+else
+	tar -xzf "$WORK/$BUNDLE" -C /
+fi
 
 # tar as root restores the archive's modes, but not every tar does when a
 # umask is set, and a 0600 interface file is served as 403 rather than as a
@@ -261,6 +267,15 @@ chmod 0644 /usr/share/rpcd/ucode/openfrp.uc 2>/dev/null || true
 chmod 0644 /usr/lib/lua/luci/i18n/openfrp.*.lmo 2>/dev/null || true
 chmod 0644 /www/luci-static/resources/openfrp/*.js 2>/dev/null || true
 chmod 0644 /www/luci-static/resources/view/openfrp/*.js 2>/dev/null || true
+
+# Stated rather than inherited, for the same reason as the modes.
+chown -R root:root /usr/bin/openfrpc /usr/lib/openfrp /usr/libexec/openfrp \
+	/usr/share/rpcd/ucode/openfrp.uc \
+	/www/luci-static/resources/openfrp \
+	/www/luci-static/resources/view/openfrp 2>/dev/null || true
+for lmo in /usr/lib/lua/luci/i18n/openfrp.*.lmo; do
+	[ -e "$lmo" ] && chown root:root "$lmo" 2>/dev/null || true
+done
 
 # Record what was installed so --uninstall removes exactly this and nothing
 # else. A hardcoded list would miss whatever a later release adds.

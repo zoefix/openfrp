@@ -491,9 +491,7 @@ return view.extend({
 		var openfrp = openfrpServers();
 		var cloudflare = cloudflareServers();
 
-		m = new form.Map('openfrp', _('Tunnels'),
-			_('Each tunnel exposes one local service through the server.') + ' ' +
-			_('\"*\" matches one level, at any depth: *.aaa.com matches www.aaa.com, not x.bb.aaa.com. Exact beats wildcard.'));
+		m = new form.Map('openfrp', _('Tunnels'));
 
 		s = m.section(form.GridSection, 'tunnel', null);
 		s.addremove = true;
@@ -599,7 +597,7 @@ return view.extend({
 		limitToOpenFrp(o, openfrp);
 
 		o = s.option(form.DynamicList, 'domains', _('Domains'),
-			_('Patterns routed to this tunnel over the shared HTTP and HTTPS ports.'));
+			_('Routed to this tunnel. \"*\" matches one level: *.aaa.com matches www.aaa.com, not x.bb.aaa.com.'));
 		o.depends('type', 'http');
 		o.depends('type', 'https');
 		o.placeholder = '*.aaa.com';

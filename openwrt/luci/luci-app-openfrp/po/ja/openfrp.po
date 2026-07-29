@@ -274,9 +274,6 @@ msgstr "各サーバーが独自の制御接続を持ち、トンネルは公開
 msgid "Each is published with .%s after it. Use @ for %s itself."
 msgstr "それぞれ .%s を付けて公開されます。%s 自体には @ を使います。"
 
-msgid "Each tunnel exposes one local service through the server."
-msgstr "各トンネルはローカルのサービスを 1 つ、サーバー経由で公開します。"
-
 msgid "Edit"
 msgstr "編集"
 
@@ -508,9 +505,6 @@ msgstr "パスワード"
 msgid "Path to a key on this router."
 msgstr "このルーター上の鍵ファイルのパスです。"
 
-msgid "Patterns routed to this tunnel over the shared HTTP and HTTPS ports."
-msgstr "共有 HTTP / HTTPS ポート経由でこのトンネルに振り分けるパターンです。"
-
 msgid "Private key"
 msgstr "秘密鍵"
 
@@ -585,6 +579,9 @@ msgstr "再起動しました。"
 
 msgid "Restarting…"
 msgstr "再起動中…"
+
+msgid "Routed to this tunnel. \"*\" matches one level: *.aaa.com matches www.aaa.com, not x.bb.aaa.com."
+msgstr "このトンネルへ振り分けます。\"*\" は 1 階層のみ一致：*.aaa.com は www.aaa.com に一致し、x.bb.aaa.com には一致しません。"
 
 msgid "Running"
 msgstr "実行中"
@@ -783,9 +780,6 @@ msgstr "ゾーン"
 
 msgid "\"*\" is only allowed as the leftmost label"
 msgstr "\"*\" は最も左のラベルにのみ指定できます"
-
-msgid "\"*\" matches one level, at any depth: *.aaa.com matches www.aaa.com, not x.bb.aaa.com. Exact beats wildcard."
-msgstr "\"*\" は任意の階層で 1 レベルのみ一致：*.aaa.com は www.aaa.com に一致し、x.bb.aaa.com には一致しません。完全一致が優先されます。"
 
 msgid "\"*\" must be a whole label, not part of one"
 msgstr "\"*\" はラベル全体である必要があり、一部にはできません"

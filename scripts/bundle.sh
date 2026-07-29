@@ -1,0 +1,77 @@
+#!/bin/sh
+
+set -eu
+
+VERSION="${VERSION:?VERSION is required}"
+COMMIT="${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+DATE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+PLATFORMS="${PLATFORMS:-linux/amd64 linux/arm64}"
+DIST="${DIST:-dist}"
+
+MODULE=github.com/zoefix/openfrp
+LDFLAGS="-s -w \
+	-X $MODULE/internal/version.Version=$VERSION \
+	-X $MODULE/internal/version.Commit=$COMMIT \
+	-X $MODULE/internal/version.Date=$DATE"
+
+LUCI=openwrt/luci/luci-app-openfrp
+RESOURCES=$LUCI/htdocs/luci-static/resources
+
+rm -rf "$DIST"
+mkdir -p "$DIST"
+
+CATALOGUES="$DIST/.lmo"
+mkdir -p "$CATALOGUES"
+for pair in zh_Hans:zh-cn zh_Hant:zh-tw ja:ja; do
+	src="${pair%%:*}"
+	out="${pair##*:}"
+	go run ./tools/luci-i18n compile "$LUCI/po/$src/openfrp.po" \
+		"$CATALOGUES/openfrp.$out.lmo" >/dev/null
+done
+
+for platform in $PLATFORMS; do
+	os="${platform%/*}"
+	arch="${platform#*/}"
+
+	root="$DIST/.root-$os-$arch"
+	rm -rf "$root"
+
+	mkdir -p "$root/usr/bin" \
+		"$root/usr/lib/openfrp" \
+		"$root/usr/libexec/openfrp" \
+		"$root/usr/share/rpcd/ucode" \
+		"$root/usr/lib/lua/luci/i18n" \
+		"$root/www/luci-static/resources/openfrp" \
+		"$root/www/luci-static/resources/view/openfrp"
+
+	CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+		go build -trimpath -ldflags "$LDFLAGS" -o "$root/usr/bin/openfrpc" ./cmd/openfrpc
+	CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+		go build -trimpath -ldflags "$LDFLAGS" -o "$root/usr/lib/openfrp/openfrps" ./cmd/openfrps
+
+	cp openwrt/net/openfrp/files/openfrp-render "$root/usr/libexec/openfrp/render"
+	cp "$LUCI/root/usr/libexec/openfrp/job" "$root/usr/libexec/openfrp/job"
+	chmod 0755 "$root/usr/libexec/openfrp/render" "$root/usr/libexec/openfrp/job"
+
+	cp "$LUCI/root/usr/share/rpcd/ucode/openfrp.uc" "$root/usr/share/rpcd/ucode/openfrp.uc"
+	cp "$CATALOGUES"/openfrp.*.lmo "$root/usr/lib/lua/luci/i18n/"
+	cp "$RESOURCES"/openfrp/*.js "$root/www/luci-static/resources/openfrp/"
+	cp "$RESOURCES"/view/openfrp/*.js "$root/www/luci-static/resources/view/openfrp/"
+
+	bundle="openfrp-$VERSION-$os-$arch.tar.gz"
+	COPYFILE_DISABLE=1 tar -czf "$DIST/$bundle" -C "$root" .
+	rm -rf "$root"
+	echo "$DIST/$bundle"
+done
+
+rm -rf "$CATALOGUES"
+
+(
+	cd "$DIST"
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum ./*.tar.gz | sed 's| \./| |' > checksums.txt
+	else
+		shasum -a 256 ./*.tar.gz | sed 's| \./| |' > checksums.txt
+	fi
+	cat checksums.txt
+)

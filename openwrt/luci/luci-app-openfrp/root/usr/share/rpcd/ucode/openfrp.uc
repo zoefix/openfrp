@@ -11,6 +11,8 @@ const WORKER = '/usr/libexec/openfrp/job';
 const INIT = '/etc/init.d/openfrp';
 const CLIENT = '/usr/bin/openfrpc';
 const STATS = '/var/run/openfrp/stats.json';
+const UPDATE_CACHE = '/var/run/openfrp/update.json';
+const UPDATE_TTL = 6 * 3600;
 
 const ACTIONS = {
 	dns: [
@@ -252,6 +254,41 @@ const methods = {
 
 			const out = runCommand('logread -e openfrp 2>/dev/null | tail -n ' + int(lines));
 			return { log: out ?? '' };
+		}
+	},
+
+	update_check: {
+		args: { refresh: false },
+		call: function(req) {
+			if (!stat(CLIENT))
+				return { error: 'openfrpc is not installed' };
+
+			const raw = readFile(UPDATE_CACHE);
+			let cached = null;
+			if (raw) {
+				const parsed = json(trim(raw));
+				if (type(parsed) == 'object')
+					cached = parsed;
+			}
+
+			const info = stat(UPDATE_CACHE);
+			const age = info ? (time() - info.mtime) : null;
+			const stale = (age == null) || (age > UPDATE_TTL) || (age < 0);
+
+			if (req.args?.refresh || stale) {
+				mkdir(RUNDIR, 0o750);
+				const cmd = sprintf('setsid %s update -check -json -cache %s >/dev/null 2>&1 &',
+					shellQuote(CLIENT), shellQuote(UPDATE_CACHE));
+				const proc = popen(cmd, 'r');
+				if (proc)
+					proc.close();
+			}
+
+			if (!cached)
+				return { checking: true };
+
+			cached.checking = stale;
+			return cached;
 		}
 	},
 

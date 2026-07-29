@@ -28,7 +28,15 @@ var callLogTail = rpc.declare({
 	expect: { log: '' }
 });
 
+var callUpdateCheck = rpc.declare({
+	object: 'luci.openfrp',
+	method: 'update_check',
+	params: ['refresh'],
+	expect: {}
+});
+
 var previous = null;
+var updateInfo = null;
 
 function formatBytes(value) {
 	value = Number(value) || 0;
@@ -141,6 +149,103 @@ function visibleLog(text) {
 
 var restartControl = null;
 
+function updateBadge() {
+	if (!updateInfo || !updateInfo.available || !updateInfo.latest)
+		return null;
+
+	var button = E('button', {
+		'class': 'btn cbi-button-action',
+		'style': 'margin-left:1em'
+	}, _('Update to %s').format(updateInfo.latest));
+
+	button.addEventListener('click', function () { showUpdateDialog(); });
+	return button;
+}
+
+function showUpdateDialog() {
+	var info = updateInfo || {};
+
+	var notes = E('pre', {
+		'style': 'max-height:22em;overflow:auto;white-space:pre-wrap;' +
+			'background:#f6f6f6;padding:.8em;border-radius:4px;margin:0'
+	});
+	notes.textContent = info.notes || _('This release published no notes.');
+
+	var progress = E('pre', {
+		'style': 'display:none;max-height:16em;overflow:auto;white-space:pre-wrap;' +
+			'background:#111;color:#eee;padding:.8em;border-radius:4px;margin:.8em 0 0'
+	});
+
+	var note = E('span', { 'style': 'margin-right:1em' }, '');
+	var confirmButton = E('button', { 'class': 'btn cbi-button-positive' }, _('Update now'));
+	var closeButton = E('button', { 'class': 'btn' }, _('Cancel'));
+
+	closeButton.addEventListener('click', function () { ui.hideModal(); });
+
+	confirmButton.addEventListener('click', function () {
+		confirmButton.disabled = true;
+		closeButton.disabled = true;
+		note.textContent = _('Updating…');
+		progress.style.display = '';
+		progress.textContent = '';
+
+		callJobStart('update', '').then(function (res) {
+			if (!res || res.error || !res.id) {
+				note.textContent = (res && res.error) || _('no response');
+				confirmButton.disabled = false;
+				closeButton.disabled = false;
+				return;
+			}
+			followUpdate(res.id, progress, note, confirmButton, closeButton);
+		});
+	});
+
+	ui.showModal(_('Update to %s').format(info.latest || ''), [
+		E('p', {}, _('Running %s. The client, the server binary and this interface are all replaced, then the service restarts. If it does not come back up the previous version is put back automatically.').format(info.current || '')),
+		notes,
+		progress,
+		E('div', { 'class': 'right', 'style': 'margin-top:1em' }, [
+			note, closeButton, ' ', confirmButton
+		])
+	]);
+}
+
+function followUpdate(jobId, progress, note, confirmButton, closeButton) {
+	var seen = 0;
+
+	function tick() {
+		return callJobStatus(jobId, seen).then(function (res) {
+			if (!res || res.error)
+				return;
+
+			if (res.log) {
+				progress.textContent += res.log;
+				progress.scrollTop = progress.scrollHeight;
+			}
+			if (typeof res.offset === 'number')
+				seen = res.offset;
+
+			if (res.state === 'running')
+				return;
+
+			poll.remove(tick);
+			closeButton.disabled = false;
+			closeButton.textContent = _('Close');
+
+			if (res.state === 'succeeded') {
+				note.textContent = _('Updated. Reload the page.');
+				updateInfo = null;
+			} else {
+				note.textContent = _('The update failed — the previous version is still running.');
+				confirmButton.disabled = false;
+			}
+		});
+	}
+
+	poll.add(tick, 1);
+	tick();
+}
+
 function restartButton() {
 	if (restartControl)
 		return restartControl;
@@ -216,9 +321,12 @@ function overviewChildren(status, speed) {
 			E('span', { 'style': 'margin-left:1em' }, restartButton())
 		])),
 
-		infoRow(_('Client version'), status.client_version
-			? E('code', {}, status.client_version)
-			: E('em', {}, _('unknown'))),
+		infoRow(_('Client version'), E('span', {}, [
+			status.client_version
+				? E('code', {}, status.client_version)
+				: E('em', {}, _('unknown')),
+			updateBadge()
+		].filter(Boolean))),
 		infoRow(_('Total traffic'), traffic)
 	];
 
@@ -285,8 +393,16 @@ function tunnelsChildren(tunnels, speed) {
 function fetch() {
 	return Promise.all([
 		callStatus().catch(function () { return null; }),
-		callLogTail(200).catch(function () { return ''; })
+		callLogTail(200).catch(function () { return ''; }),
+		callUpdateCheck(false).catch(function () { return null; })
 	]);
+}
+
+function refreshUpdate() {
+	return callUpdateCheck(false).then(function (res) {
+		if (res && !res.error)
+			updateInfo = res;
+	}).catch(function () { });
 }
 
 function stylesheet() {
@@ -301,6 +417,9 @@ return view.extend({
 
 	render: function (data) {
 		var status = data[0];
+
+		if (data[2] && !data[2].error)
+			updateInfo = data[2];
 
 		if (!status)
 			return E('div', { 'class': 'alert-message warning' }, [
@@ -335,6 +454,8 @@ return view.extend({
 					dom.content(logBox, log || _('No log output yet.'));
 			});
 		}, 5);
+
+		poll.add(refreshUpdate, 300);
 
 		return E('div', {}, [
 			stylesheet(),

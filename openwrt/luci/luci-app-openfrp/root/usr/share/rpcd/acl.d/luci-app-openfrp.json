@@ -7,7 +7,8 @@
 				"luci.openfrp": [
 					"status",
 					"job_status",
-					"log_tail"
+					"log_tail",
+					"update_check"
 				],
 				"luci": [ "setInitAction" ]
 			},

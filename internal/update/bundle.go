@@ -1,0 +1,128 @@
+package update
+
+import (
+	"archive/tar"
+	"compress/gzip"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+const maxBundleSize = 128 << 20
+
+// allowedPrefixes bounds where a bundle may write.
+//
+// A release is fetched over the network and unpacked by root. Without a
+// destination allowlist a tarball that named etc/passwd or etc/init.d/ would
+// be obeyed, so the archive decides only which of these files it replaces,
+// never which places exist to replace.
+var allowedPrefixes = []string{
+	"usr/bin/openfrpc",
+	"usr/lib/openfrp/",
+	"usr/libexec/openfrp/",
+	"usr/share/rpcd/ucode/openfrp.uc",
+	"usr/lib/lua/luci/i18n/openfrp.",
+	"www/luci-static/resources/openfrp/",
+	"www/luci-static/resources/view/openfrp/",
+}
+
+func permitted(name string) bool {
+	for _, prefix := range allowedPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// cleanEntry rejects anything that would escape the staging directory.
+func cleanEntry(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("update: the bundle has an unnamed entry")
+	}
+	if filepath.IsAbs(name) || strings.HasPrefix(name, "/") {
+		return "", fmt.Errorf("update: the bundle names an absolute path %q", name)
+	}
+
+	cleaned := filepath.Clean(name)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", fmt.Errorf("update: the bundle names a path outside itself: %q", name)
+	}
+	return cleaned, nil
+}
+
+// Extract unpacks a bundle into dir and reports the files it wrote, relative
+// to the bundle root.
+func Extract(archive io.Reader, dir string) ([]string, error) {
+	gz, err := gzip.NewReader(io.LimitReader(archive, maxBundleSize))
+	if err != nil {
+		return nil, fmt.Errorf("update: the bundle is not gzip: %w", err)
+	}
+	defer gz.Close()
+
+	reader := tar.NewReader(gz)
+	var written []string
+
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("update: read the bundle: %w", err)
+		}
+
+		name, err := cleanEntry(header.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			continue
+
+		case tar.TypeReg:
+
+		default:
+			// A symlink in the archive could point anywhere once installed,
+			// and nothing in a release needs one.
+			return nil, fmt.Errorf("update: the bundle holds %q, which is not a regular file", name)
+		}
+
+		if !permitted(name) {
+			return nil, fmt.Errorf("update: the bundle writes to %q, which is "+
+				"outside what an update may replace", name)
+		}
+
+		target := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return nil, err
+		}
+
+		mode := os.FileMode(0o644)
+		if header.FileInfo().Mode()&0o111 != 0 {
+			mode = 0o755
+		}
+
+		file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := io.Copy(file, io.LimitReader(reader, maxBundleSize)); err != nil {
+			file.Close()
+			return nil, fmt.Errorf("update: unpack %q: %w", name, err)
+		}
+		if err := file.Close(); err != nil {
+			return nil, err
+		}
+
+		written = append(written, name)
+	}
+
+	if len(written) == 0 {
+		return nil, fmt.Errorf("update: the bundle is empty")
+	}
+	return written, nil
+}

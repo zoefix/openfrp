@@ -233,6 +233,24 @@ case "$KIND" in
 		finish failed
 		;;
 
+	update)
+
+		if ! command -v openfrpc >/dev/null 2>&1; then
+			log "openfrpc is not installed"
+			finish failed
+		fi
+
+		log "==> updating openfrp"
+
+		if openfrpc update -apply >> "$LOG" 2>&1; then
+			rm -f /var/run/openfrp/update.json
+			log "==> update finished"
+			finish succeeded
+		fi
+		log "==> update failed"
+		finish failed
+		;;
+
 	restart)
 
 		log "==> restarting openfrp"

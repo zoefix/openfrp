@@ -77,6 +77,10 @@ cross: ## Cross-compile release artefacts for every target platform
 	done
 	@ls -lh $(DIST)
 
+.PHONY: bundle
+bundle: ## Build the router-side release bundles the updater installs
+	VERSION=$(VERSION) COMMIT=$(COMMIT) DATE=$(DATE) ./scripts/bundle.sh
+
 .PHONY: bench
 bench: ## Run the frp comparison and publish the results
 	./bench/run.sh

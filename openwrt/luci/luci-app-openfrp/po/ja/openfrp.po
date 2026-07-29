@@ -843,3 +843,24 @@ msgstr "不明"
 
 msgid "unnamed"
 msgstr "名称未設定"
+
+msgid "Running %s. The client, the server binary and this interface are all replaced, then the service restarts. If it does not come back up the previous version is put back automatically."
+msgstr "現在 %s が動作しています。クライアント、サーバーのバイナリ、この画面をまとめて入れ替えてからサービスを再起動します。起動しなかった場合は元のバージョンに自動で戻します。"
+
+msgid "The update failed — the previous version is still running."
+msgstr "更新に失敗しました。以前のバージョンがそのまま動いています。"
+
+msgid "This release published no notes."
+msgstr "このリリースには変更内容の記載がありません。"
+
+msgid "Update now"
+msgstr "今すぐ更新"
+
+msgid "Update to %s"
+msgstr "%s に更新"
+
+msgid "Updated. Reload the page."
+msgstr "更新しました。ページを再読み込みしてください。"
+
+msgid "Updating…"
+msgstr "更新しています…"

@@ -73,18 +73,39 @@ func (s *session) runOverflowCarriers(ctx context.Context) {
 	}
 }
 
+// carrierRefusalsBeforeGivingUp is how many consecutive unanswered
+// handshakes are read as "this server does not know what a carrier is".
+//
+// More than one, because a single unanswered round trip does not distinguish
+// a server that predates carriers from one that is restarting, or a moment of
+// loss on the path. Concluding "unsupported" from the first was a real
+// regression: a client that happened to reconnect while the server was coming
+// back up disabled its own fallback permanently, and then had no relief valve
+// for the rest of the session — on a server that supported one perfectly
+// well.
+const carrierRefusalsBeforeGivingUp = 3
+
 // runOverflowCarrier keeps one carrier connection up until ctx is cancelled.
 func (s *session) runOverflowCarrier(ctx context.Context) {
 	delay := carrierRetryMin
+	var refusals int
 
 	for ctx.Err() == nil {
 		started := time.Now()
 
 		err := s.serveCarrier(ctx)
-		if errors.Is(err, errUnsupportedCarrier) {
-			s.logger.Info("server does not accept an overflow carrier; " +
-				"an empty pool will wait for a fresh connection instead")
-			return
+		switch {
+		case errors.Is(err, errUnsupportedCarrier):
+			refusals++
+			if refusals >= carrierRefusalsBeforeGivingUp {
+				s.logger.Info("server does not accept an overflow carrier; " +
+					"an empty pool will wait for a fresh connection instead")
+				return
+			}
+		default:
+			// Anything else, including success, is evidence the server is
+			// reachable and speaking to us, so the count starts over.
+			refusals = 0
 		}
 		if err != nil && ctx.Err() == nil {
 			s.logger.Debug("overflow carrier ended", "error", err)

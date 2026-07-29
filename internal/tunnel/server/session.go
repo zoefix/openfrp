@@ -607,6 +607,20 @@ func (s *Session) Close() error {
 	return err
 }
 
+// ClientExhausted reports whether this client has spent its overall cap.
+func (s *Session) ClientExhausted() bool { return s.limits.ClientExhausted() }
+
+// ClientUsage reports bytes spent against the overall cap.
+func (s *Session) ClientUsage() (used, quota int64) { return s.limits.ClientUsage() }
+
+// SpendTraffic counts bytes against both the tunnel's cap and the client's.
+func (s *Session) SpendTraffic(tunnel *TunnelLimits, bytes int64) {
+	tunnel.Spend(bytes)
+	if bytes > 0 {
+		s.limits.clientUsed.Add(bytes)
+	}
+}
+
 // TunnelLimits reports what a published tunnel is held to, for the status view.
 func (s *Session) TunnelLimits(name string) *TunnelLimits {
 	return s.limits.For(name)

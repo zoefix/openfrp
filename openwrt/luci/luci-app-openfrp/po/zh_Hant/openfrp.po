@@ -391,6 +391,12 @@ msgstr "金鑰"
 msgid "Key type"
 msgstr "金鑰類型"
 
+msgid "Kilobytes per second across every tunnel. 0 for no limit."
+msgstr "所有隧道合計，單位 KB/s。0 表示不限。"
+
+msgid "Kilobytes per second across every tunnel. A tunnel's own limit applies within this. 0 for no limit."
+msgstr "所有隧道合計，單位 KB/s。隧道自身的限速在此範圍內生效。0 表示不限。"
+
 msgid "Kilobytes per second from visitors. 0 for no limit."
 msgstr "來自訪客方向，單位 KB/s。0 表示不限。"
 
@@ -441,6 +447,9 @@ msgstr "用於管理解析記錄、以及簽發憑證時驗證所有權。泛網
 
 msgid "Manual"
 msgstr "手動"
+
+msgid "Megabytes in total across every tunnel. All tunnels stop accepting connections once reached. 0 for no cap."
+msgstr "所有隧道合計，單位 MB。達到後全部隧道停止接受新連線。0 表示不限。"
 
 msgid "Megabytes in total, both directions. The tunnel stops accepting connections once reached. 0 for no cap."
 msgstr "雙向合計，單位 MB。達到後隧道停止接受新連線。0 表示不限。"

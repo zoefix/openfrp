@@ -204,11 +204,14 @@ add_server() {
 }
 
 main() {
-	local log_level
+	local log_level g_down_rate g_up_rate g_quota
 
 	config_load openfrp
 
 	config_get log_level global log_level "info"
+	config_get g_down_rate global down_rate 0
+	config_get g_up_rate   global up_rate 0
+	config_get g_quota     global quota 0
 
 	json_init
 
@@ -224,6 +227,12 @@ main() {
 	json_add_array tunnels
 	config_foreach add_tunnel tunnel
 	json_close_array
+
+	# Client-wide, so a tunnel's own limit applies within these rather than
+	# beside them. Kilobytes and megabytes in the form, bytes on the wire.
+	[ "${g_down_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int down_rate $((g_down_rate * 1024))
+	[ "${g_up_rate:-0}" -gt 0 ] 2>/dev/null && json_add_int up_rate $((g_up_rate * 1024))
+	[ "${g_quota:-0}" -gt 0 ] 2>/dev/null && json_add_int quota $((g_quota * 1024 * 1024))
 
 	json_add_object log
 	json_add_string level "$log_level"

@@ -339,3 +339,53 @@ func TestNoLimitsMeansNoLimiter(t *testing.T) {
 	}
 	tunnel.Spend(1 << 30)
 }
+
+// TestTunnelLimitsNestUnderTheClientWide covers the ceiling that makes a
+// client-wide figure mean something.
+//
+// Without nesting, three tunnels at a megabyte each under a client limit of
+// one megabyte would take three: each would honour its own bucket and ignore
+// the wider one. The tunnel's limiter has to draw from both.
+func TestTunnelLimitsNestUnderTheClientWide(t *testing.T) {
+	limits := NewLimits()
+	limits.SetClientLimits(1<<20, 1<<20, 100)
+
+	// A tunnel with no limits of its own still inherits the client's.
+	limits.Publish(protocol.ProxySpec{Name: "plain"})
+	toClient, toVisitor := limits.For("plain").Rates()
+	if toClient == nil || toVisitor == nil {
+		t.Error("a tunnel under a client-wide limit was left unlimited")
+	}
+
+	if limits.ClientExhausted() {
+		t.Fatal("a fresh client cap reports itself spent")
+	}
+	limits.clientUsed.Add(150)
+	if !limits.ClientExhausted() {
+		t.Error("150 against a 100 byte client cap not reported as spent")
+	}
+
+	// With no client limits at all, an unlimited tunnel stays unlimited.
+	bare := NewLimits()
+	bare.Publish(protocol.ProxySpec{Name: "plain"})
+	if bare.For("plain") != nil {
+		t.Error("a tunnel with no limits, under a client with none, was given a record")
+	}
+}
+
+// TestClientLimitsApplyToTunnelsPublishedFirst: login and publish race, and
+// which arrives first must not decide whether a limit applies.
+func TestClientLimitsApplyToTunnelsPublishedFirst(t *testing.T) {
+	limits := NewLimits()
+
+	limits.Publish(protocol.ProxySpec{Name: "early", DownRate: 1 << 20})
+	limits.SetClientLimits(2<<20, 2<<20, 0)
+
+	toClient, _ := limits.For("early").Rates()
+	if toClient == nil {
+		t.Fatal("the tunnel lost its limiter")
+	}
+	if toClient.Rate() == 0 {
+		t.Error("the tunnel's own rate was discarded")
+	}
+}

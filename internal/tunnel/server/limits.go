@@ -22,8 +22,17 @@ type TunnelLimits struct {
 	used atomic.Int64
 }
 
-// Limits holds every published tunnel's limits for one session.
+// Limits holds one session's limits: the client-wide pair every tunnel draws
+// from, and each tunnel's own.
 type Limits struct {
+	// Client-wide, from the login. Every tunnel's limiter is nested under
+	// these, so the wider figure is a ceiling rather than something each
+	// tunnel ignores separately.
+	clientDown *netutil.Limiter
+	clientUp   *netutil.Limiter
+	clientCap  int64
+	clientUsed atomic.Int64
+
 	mu      sync.RWMutex
 	tunnels map[string]*TunnelLimits
 }
@@ -32,24 +41,64 @@ func NewLimits() *Limits {
 	return &Limits{tunnels: map[string]*TunnelLimits{}}
 }
 
+// SetClientLimits applies the figures a client declared at login.
+func (l *Limits) SetClientLimits(downRate, upRate, quota int64) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.clientDown = netutil.NewLimiter(downRate)
+	l.clientUp = netutil.NewLimiter(upRate)
+	l.clientCap = quota
+
+	// Tunnels published before the figures arrived are re-nested, so the
+	// order of login and publish does not decide whether a limit applies.
+	for _, t := range l.tunnels {
+		t.down = t.down.Under(l.clientDown)
+		t.up = t.up.Under(l.clientUp)
+	}
+}
+
+// ClientExhausted reports whether the client has spent its overall cap.
+func (l *Limits) ClientExhausted() bool {
+	l.mu.RLock()
+	cap := l.clientCap
+	l.mu.RUnlock()
+
+	return cap > 0 && l.clientUsed.Load() >= cap
+}
+
+// ClientUsage reports bytes spent against the overall cap.
+func (l *Limits) ClientUsage() (used, quota int64) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.clientUsed.Load(), l.clientCap
+}
+
 // Publish records the limits a tunnel was published with.
 //
 // The rates are per tunnel rather than per connection: every connection of a
 // tunnel shares one limiter, so ten visitors at a megabyte a second get a
 // megabyte a second between them rather than ten.
 func (l *Limits) Publish(spec protocol.ProxySpec) {
-	if spec.DownRate <= 0 && spec.UpRate <= 0 && spec.Quota <= 0 {
+	// A tunnel with no limits of its own still needs a record when the client
+	// has limits: that is how it inherits them.
+	l.mu.RLock()
+	inherits := l.clientDown != nil || l.clientUp != nil
+	l.mu.RUnlock()
+
+	if spec.DownRate <= 0 && spec.UpRate <= 0 && spec.Quota <= 0 && !inherits {
 		l.Remove(spec.Name)
 		return
 	}
 
+	l.mu.Lock()
+
 	limits := &TunnelLimits{
-		down:  netutil.NewLimiter(spec.DownRate),
-		up:    netutil.NewLimiter(spec.UpRate),
+		down:  netutil.NewLimiter(spec.DownRate).Under(l.clientDown),
+		up:    netutil.NewLimiter(spec.UpRate).Under(l.clientUp),
 		quota: spec.Quota,
 	}
 
-	l.mu.Lock()
 	// A republish keeps what has been spent. Otherwise restarting a client
 	// would hand back a fresh quota, and the cap would mean nothing to
 	// anyone willing to reconnect.
@@ -115,9 +164,12 @@ func (s sessionLimits) Rates(tunnel string) (toClient, toVisitor *netutil.Limite
 }
 
 func (s sessionLimits) Exhausted(tunnel string) bool {
-	return s.limits.For(tunnel).Exhausted()
+	return s.limits.ClientExhausted() || s.limits.For(tunnel).Exhausted()
 }
 
 func (s sessionLimits) Spend(tunnel string, bytes int64) {
 	s.limits.For(tunnel).Spend(bytes)
+	if bytes > 0 {
+		s.limits.clientUsed.Add(bytes)
+	}
 }

@@ -131,3 +131,33 @@ func TestLimitedRelayKeepsTheKernelFastPath(t *testing.T) {
 		t.Fatal("the relay did not finish")
 	}
 }
+
+// TestNestedLimiterIsSharedNotCopied guards the property that makes a
+// per-tunnel rate mean what it says.
+//
+// Attaching a wider limit by copying the limiter would hand every connection
+// its own bucket, and ten visitors on a one-megabyte tunnel would get ten
+// megabytes between them. The limiter has to be the same object every
+// connection of that tunnel draws from.
+func TestNestedLimiterIsSharedNotCopied(t *testing.T) {
+	tunnel := NewLimiter(1 << 20)
+	client := NewLimiter(4 << 20)
+
+	combined := tunnel.Under(client)
+	if combined != tunnel {
+		t.Fatal("Under returned a different limiter; the per-tunnel bucket " +
+			"must be shared by every connection of that tunnel, not copied")
+	}
+	if combined.parent != client {
+		t.Error("the wider limit was not attached")
+	}
+
+	// A tunnel with no rate of its own falls through to the wider one.
+	var none *Limiter
+	if got := none.Under(client); got != client {
+		t.Error("an unlimited tunnel under a client-wide limit should use it")
+	}
+	if got := none.Under(nil); got != nil {
+		t.Error("no limits anywhere should stay unlimited")
+	}
+}

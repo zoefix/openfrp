@@ -391,6 +391,12 @@ msgstr "鍵"
 msgid "Key type"
 msgstr "鍵の種類"
 
+msgid "Kilobytes per second across every tunnel. 0 for no limit."
+msgstr "全トンネル合計、KB/s 単位。0 で無制限。"
+
+msgid "Kilobytes per second across every tunnel. A tunnel's own limit applies within this. 0 for no limit."
+msgstr "全トンネル合計、KB/s 単位。個別トンネルの制限はこの範囲内で適用されます。0 で無制限。"
+
 msgid "Kilobytes per second from visitors. 0 for no limit."
 msgstr "訪問者からの方向、KB/s 単位。0 で無制限。"
 
@@ -441,6 +447,9 @@ msgstr "レコード管理と証明書発行時の所有権証明に使用。ワ
 
 msgid "Manual"
 msgstr "手動"
+
+msgid "Megabytes in total across every tunnel. All tunnels stop accepting connections once reached. 0 for no cap."
+msgstr "全トンネル合計、MB 単位。到達すると全トンネルが新規接続を受け付けません。0 で無制限。"
 
 msgid "Megabytes in total, both directions. The tunnel stops accepting connections once reached. 0 for no cap."
 msgstr "双方向の合計、MB 単位。到達するとトンネルは新規接続を受け付けません。0 で無制限。"

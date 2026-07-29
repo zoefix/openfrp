@@ -75,6 +75,8 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		VhostHTTPSPort: s.cfg.VhostHTTPSPort,
 	})
 
+	session.limits.SetClientLimits(login.DownRate, login.UpRate, login.Quota)
+
 	if replaced := s.registry.Add(session); replaced != nil {
 		logger.Info("replacing stale session", "run_id", runID)
 		replaced.Close()

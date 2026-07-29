@@ -158,7 +158,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 	// path: a visitor refused after the handoff has already cost the client
 	// a dial it cannot get back.
 	limits := session.TunnelLimits(route.ProxyName)
-	if limits.Exhausted() {
+	if session.ClientExhausted() || limits.Exhausted() {
 		v.logger.Warn("tunnel has spent its traffic quota",
 			"host", host, "proxy", route.ProxyName, "source", source)
 		v.reject(userConn, statusBadGateway)
@@ -176,7 +176,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 
 	if v.scheme == vhost.SchemeHTTPS && terminationRoute(route) {
 		consumedPooled = false
-		v.terminate(ctx, userConn, workConn, consumed, route, host, source, limits)
+		v.terminate(ctx, userConn, workConn, consumed, route, host, source, session, limits)
 		return
 	}
 
@@ -196,7 +196,7 @@ func (v *vhostListener) handle(ctx context.Context, userConn net.Conn) {
 
 	toClient, toVisitor := limits.Rates()
 	transferred := netutil.RelayLimited(userConn, workConn, toClient, toVisitor)
-	limits.Spend(transferred.AToB + transferred.BToA)
+	session.SpendTraffic(limits, transferred.AToB+transferred.BToA)
 	v.record(route.ProxyName, transferred)
 
 	if v.logger.Enabled(ctx, slog.LevelDebug) {
@@ -338,7 +338,8 @@ func newVhostListener(scheme vhost.Scheme, port int, cfgBindAddr string,
 }
 
 func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Conn,
-	consumed []byte, route *vhost.Route, host, source string, limits *TunnelLimits) {
+	consumed []byte, route *vhost.Route, host, source string,
+	session *Session, limits *TunnelLimits) {
 
 	if v.certs == nil || !v.certs.Has(host) {
 		v.logger.Warn("edge termination requested but no certificate covers the host",
@@ -361,7 +362,7 @@ func (v *vhostListener) terminate(ctx context.Context, userConn, workConn net.Co
 
 	toClient, toVisitor := limits.Rates()
 	transferred := netutil.RelayLimited(tlsConn, workConn, toClient, toVisitor)
-	limits.Spend(transferred.AToB + transferred.BToA)
+	session.SpendTraffic(limits, transferred.AToB+transferred.BToA)
 	v.record(route.ProxyName, transferred)
 
 	v.logger.Debug("terminated connection closed",

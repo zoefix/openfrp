@@ -71,10 +71,18 @@ type Client struct {
 
 	Transport Transport `json:"transport,omitempty"`
 
-	SocketGID  int      `json:"socket_gid,omitempty"`
-	SocketMark int      `json:"socket_mark,omitempty"`
-	Tunnels    []Tunnel `json:"tunnels,omitempty"`
-	Log        Log      `json:"log,omitempty"`
+	SocketGID  int `json:"socket_gid,omitempty"`
+	SocketMark int `json:"socket_mark,omitempty"`
+
+	// Limits across every tunnel this client publishes to one server. A
+	// tunnel's own limit nests inside these, so the wider figure is a real
+	// ceiling rather than something each tunnel ignores separately.
+	DownRate int64 `json:"down_rate,omitempty"`
+	UpRate   int64 `json:"up_rate,omitempty"`
+	Quota    int64 `json:"quota,omitempty"`
+
+	Tunnels []Tunnel `json:"tunnels,omitempty"`
+	Log     Log      `json:"log,omitempty"`
 }
 
 func LoadClient(path string) (*Client, error) {

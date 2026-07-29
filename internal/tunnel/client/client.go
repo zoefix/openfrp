@@ -210,6 +210,9 @@ func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
 		AuthKey:    protocol.AuthKey(c.cfg.Token, timestamp),
 		PoolCount:  c.cfg.Transport.PoolCount,
 		RunID:      previousRunID,
+		DownRate:   c.cfg.DownRate,
+		UpRate:     c.cfg.UpRate,
+		Quota:      c.cfg.Quota,
 	}
 
 	codec := protocol.NewCodec(conn)

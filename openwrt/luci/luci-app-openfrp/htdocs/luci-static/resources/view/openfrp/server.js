@@ -511,6 +511,21 @@ return view.extend({
 		o = s.option(form.Flag, 'enabled', _('Enable OpenFrp'));
 		o.rmempty = false;
 
+		o = s.option(form.Value, 'down_rate', _('Download limit'));
+		o.datatype = 'uinteger';
+		o.placeholder = '0';
+		o.description = _('Kilobytes per second across every tunnel. A tunnel\'s own limit applies within this. 0 for no limit.');
+
+		o = s.option(form.Value, 'up_rate', _('Upload limit'));
+		o.datatype = 'uinteger';
+		o.placeholder = '0';
+		o.description = _('Kilobytes per second across every tunnel. 0 for no limit.');
+
+		o = s.option(form.Value, 'quota', _('Traffic cap'));
+		o.datatype = 'uinteger';
+		o.placeholder = '0';
+		o.description = _('Megabytes in total across every tunnel. All tunnels stop accepting connections once reached. 0 for no cap.');
+
 		o = s.option(form.ListValue, 'log_level', _('Log level'));
 		o.value('debug', 'debug');
 		o.value('info', 'info');

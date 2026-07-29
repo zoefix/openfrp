@@ -634,12 +634,6 @@ msgstr "以明文儲存在本機，更新時無需再次詢問即可部署。"
 msgid "Saved — leave blank to keep"
 msgstr "已儲存 — 留空則沿用"
 
-msgid "Secret TCP"
-msgstr "私密 TCP"
-
-msgid "Secret key"
-msgstr "存取金鑰"
-
 msgid "Serve HTTPS"
 msgstr "啟用 HTTPS"
 
@@ -783,9 +777,6 @@ msgstr "記錄值"
 
 msgid "Version"
 msgstr "版本"
-
-msgid "Visitors must present this to reach the tunnel."
-msgstr "訪問者必須提供此金鑰才能連線到該通道。"
 
 msgid "Warm connections"
 msgstr "預熱連線數"

@@ -442,7 +442,6 @@ return view.extend({
 		o.value('tcp', 'TCP');
 		o.value('udp', 'UDP');
 		o.value('http', 'HTTP');
-		o.value('stcp', _('Secret TCP'));
 
 		o.default = 'http';
 		o.validate = function (section_id, value) {
@@ -655,17 +654,9 @@ return view.extend({
 		o.depends('type', 'tcp');
 		o.depends('type', 'http');
 		o.depends('type', 'https');
-		o.depends('type', 'stcp');
-
 		limitToOpenFrp(o, openfrp);
 
 		o.description = _('Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;');
-
-		o = s.option(form.Value, 'secret_key', _('Secret key'),
-			_('Visitors must present this to reach the tunnel.'));
-		o.depends('type', 'stcp');
-		o.modalonly = true;
-		o.password = true;
 
 		return m.render().then(function (node) {
 			return E('div', {}, [stylesheet(), node]);

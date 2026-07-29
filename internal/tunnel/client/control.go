@@ -113,7 +113,6 @@ func (s *session) publishTunnel(tunnel config.Tunnel) error {
 		RemotePort: tunnel.RemotePort,
 		Domains:    tunnel.Domains,
 		TLSMode:    string(tunnel.TLSMode),
-		SecretKey:  tunnel.SecretKey,
 		DownRate:   tunnel.DownRate,
 		UpRate:     tunnel.UpRate,
 		Quota:      tunnel.Quota,

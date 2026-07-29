@@ -96,8 +96,6 @@ type ProxySpec struct {
 
 	TLSMode string `json:"tls_mode,omitempty"`
 
-	SecretKey string `json:"secret_key,omitempty"`
-
 	DownRate int64 `json:"down_rate,omitempty"`
 	UpRate   int64 `json:"up_rate,omitempty"`
 	Quota    int64 `json:"quota,omitempty"`

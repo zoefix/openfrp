@@ -45,7 +45,7 @@ append_prefixed() {
 
 add_tunnel() {
 	local section="$1"
-	local name enabled type local_ip local_port remote_port tls_mode secret_key cert_id proxy_protocol server https
+	local name enabled type local_ip local_port remote_port tls_mode cert_id proxy_protocol server https
 	local down_rate up_rate quota
 
 	config_get name "$section" name
@@ -67,7 +67,6 @@ add_tunnel() {
 		type="https"
 		[ -n "$tls_mode" ] || tls_mode="terminate"
 	fi
-	config_get secret_key "$section" secret_key
 
 	if [ -z "$name" ] || [ -z "$local_port" ]; then
 		say "skipping tunnel '$section': name and local_port are required"
@@ -92,7 +91,6 @@ add_tunnel() {
 	add_string proxy_protocol "$proxy_protocol"
 
 	add_string server "$server"
-	add_string secret_key "$secret_key"
 
 	local owner owner_kind zone prefix
 	owner="$server"

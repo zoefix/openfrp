@@ -94,9 +94,9 @@ func TestTunnelValidation(t *testing.T) {
 			wantErr: "only applies to https",
 		},
 		{
-			name:    "stcp without a secret",
-			tunnel:  Tunnel{Name: "priv", Type: TunnelSTCP, LocalPort: 22},
-			wantErr: "requires a secret_key",
+			name:    "a type the server has no proxy for",
+			tunnel:  Tunnel{Name: "priv", Type: "stcp", LocalPort: 22},
+			wantErr: "unknown type",
 		},
 	}
 

@@ -634,12 +634,6 @@ msgstr "平文で保存され、更新時に再入力なしでデプロイでき
 msgid "Saved — leave blank to keep"
 msgstr "保存済み — 空欄なら維持"
 
-msgid "Secret TCP"
-msgstr "シークレット TCP"
-
-msgid "Secret key"
-msgstr "シークレットキー"
-
 msgid "Serve HTTPS"
 msgstr "HTTPS を提供"
 
@@ -783,9 +777,6 @@ msgstr "値"
 
 msgid "Version"
 msgstr "バージョン"
-
-msgid "Visitors must present this to reach the tunnel."
-msgstr "このトンネルに接続するには、利用者がこれを提示する必要があります。"
 
 msgid "Warm connections"
 msgstr "ウォーム接続数"

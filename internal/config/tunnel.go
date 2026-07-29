@@ -18,8 +18,6 @@ const (
 	TunnelHTTP TunnelType = "http"
 
 	TunnelHTTPS TunnelType = "https"
-
-	TunnelSTCP TunnelType = "stcp"
 )
 
 type TLSMode string
@@ -50,8 +48,6 @@ type Tunnel struct {
 
 	CertID int `json:"cert_id,omitempty"`
 
-	SecretKey string `json:"secret_key,omitempty"`
-
 	ProxyProtocol string `json:"proxy_protocol,omitempty"`
 
 	DownRate int64 `json:"down_rate,omitempty"`
@@ -70,7 +66,7 @@ func (t TunnelType) NeedsDomains() bool {
 
 func (t TunnelType) Valid() bool {
 	switch t {
-	case TunnelTCP, TunnelUDP, TunnelHTTP, TunnelHTTPS, TunnelSTCP:
+	case TunnelTCP, TunnelUDP, TunnelHTTP, TunnelHTTPS:
 		return true
 	}
 	return false
@@ -131,10 +127,6 @@ func (t *Tunnel) Validate() error {
 	}
 	if t.TLSMode != TLSNone && t.Type != TunnelHTTPS {
 		return fmt.Errorf("tunnel %q: tls_mode %q only applies to https tunnels", t.Name, t.TLSMode)
-	}
-
-	if t.Type == TunnelSTCP && t.SecretKey == "" {
-		return fmt.Errorf("tunnel %q: stcp requires a secret_key", t.Name)
 	}
 
 	if !netutil.ValidProxyProtocol(t.ProxyProtocol) {

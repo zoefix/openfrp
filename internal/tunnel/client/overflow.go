@@ -41,42 +41,28 @@ const (
 	carrierRetryMax = 30 * time.Second
 )
 
-// carrierGiveUpAfter is how many immediate failures are read as "this server
-// does not know what a carrier is".
-//
-// A server that predates the message answers the handshake with an error and
-// hangs up, which looks exactly like a failure that is worth retrying — and
-// retrying it forever against a server that will never say yes is a
-// connection attempt every thirty seconds for the life of the session, in the
-// log and on the wire, achieving nothing. Fleets run mixed versions during an
-// upgrade, so this is the ordinary case rather than a corner one.
-const carrierGiveUpAfter = 3
+// errUnsupportedCarrier means the server did not answer the multiplexer, so
+// it predates carriers and never will. Retrying it would be a connection
+// attempt every thirty seconds for the life of the session, achieving
+// nothing — and fleets run mixed versions for as long as an upgrade takes,
+// so this is the ordinary case rather than a corner one.
+var errUnsupportedCarrier = errors.New("client: server does not accept an overflow carrier")
 
 // runOverflowCarrier keeps one carrier connection up until ctx is cancelled.
 func (s *session) runOverflowCarrier(ctx context.Context) {
 	delay := carrierRetryMin
-	var immediateFailures int
 
 	for ctx.Err() == nil {
 		started := time.Now()
 
 		err := s.serveCarrier(ctx)
+		if errors.Is(err, errUnsupportedCarrier) {
+			s.logger.Info("server does not accept an overflow carrier; " +
+				"an empty pool will wait for a fresh connection instead")
+			return
+		}
 		if err != nil && ctx.Err() == nil {
 			s.logger.Debug("overflow carrier ended", "error", err)
-		}
-
-		// Failing before the connection could plausibly have been useful is
-		// the signature of a server that refuses these outright, as opposed
-		// to a path that is briefly down.
-		if err != nil && time.Since(started) < carrierRetryMin {
-			immediateFailures++
-			if immediateFailures >= carrierGiveUpAfter {
-				s.logger.Info("server does not accept an overflow carrier; " +
-					"an empty pool will wait for a fresh connection instead")
-				return
-			}
-		} else {
-			immediateFailures = 0
 		}
 
 		// A carrier that stayed up is evidence the path is fine, so the next
@@ -122,6 +108,16 @@ func (s *session) serveCarrier(ctx context.Context) error {
 		return err
 	}
 	defer acceptor.Close()
+
+	// Make the server answer a round trip before believing in this. Starting
+	// a session is lazy and succeeds against a peer that has never heard of a
+	// carrier, so without this the client announces a fallback path that does
+	// not exist and keeps offering it to a server that will never take one.
+	if confirmer, ok := acceptor.(transport.Confirmer); ok {
+		if err := confirmer.Confirm(); err != nil {
+			return errUnsupportedCarrier
+		}
+	}
 
 	// Close on cancellation so the blocking Accept below returns.
 	stop := make(chan struct{})

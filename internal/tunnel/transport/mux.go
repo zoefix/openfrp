@@ -137,3 +137,24 @@ func (a *muxAcceptor) Accept() (net.Conn, error) {
 func (a *muxAcceptor) Close() error { return a.session.Close() }
 
 func (a *muxAcceptor) Multiplexed() bool { return true }
+
+// Confirm proves the peer is really speaking this protocol, by making it
+// answer a round trip.
+//
+// Starting a session does not: the handshake is lazy, so wrapping a
+// connection whose far end has no idea what a multiplexer is succeeds
+// immediately and fails only later, when a stream is finally wanted. A caller
+// that announced success on that basis would be reporting a working fallback
+// path that does not exist — and would keep offering it to a peer that will
+// never accept one.
+func (a *muxAcceptor) Confirm() error {
+	_, err := a.session.Ping()
+	return err
+}
+
+// Confirmer is implemented by acceptors that can prove the far end agrees.
+type Confirmer interface {
+	Confirm() error
+}
+
+var _ Confirmer = (*muxAcceptor)(nil)

@@ -21,7 +21,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Full history and tags: the notes are read out of the annotated tag,
+      # which a shallow fetch does not reliably bring with it.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -113,11 +117,26 @@ jobs:
           done
           echo "Bundles and checksums verified"
 
+      # The annotated tag is the release notes. Left to itself GitHub writes a
+      # link to a commit range, which is the changelog equivalent of shrugging.
+      - name: Take the notes from the tag
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            git for-each-ref --format='%(contents)' \
+              "refs/tags/${GITHUB_REF_NAME}" > notes.md
+          fi
+          if [ ! -s notes.md ]; then
+            echo "::error::${GITHUB_REF_NAME:-this build} has no annotated tag message."
+            echo "::error::Tag with: git tag -a vX.Y.Z -m '…'"
+            exit 1
+          fi
+          cat notes.md
+
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*.tar.gz
             dist/checksums.txt
-          generate_release_notes: true
+          body_path: notes.md
           fail_on_unmatched_files: true

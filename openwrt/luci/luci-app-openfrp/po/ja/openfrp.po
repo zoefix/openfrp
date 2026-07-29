@@ -523,6 +523,9 @@ msgstr "プロキシ経由 — プロバイダを通す"
 msgid "Pushed to the server and hot-loaded. Used by tunnels that terminate TLS there."
 msgstr "サーバーへ配布しホットロードされます。サーバー側で TLS を終端するトンネルが使用します。"
 
+msgid "Reach a service on this network from the internet."
+msgstr "インターネットからこのネットワーク上のサービスへ接続します。"
+
 msgid "Recent log"
 msgstr "最近のログ"
 

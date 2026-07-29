@@ -523,6 +523,9 @@ msgstr "已代理 — 流量经服务商中转"
 msgid "Pushed to the server and hot-loaded. Used by tunnels that terminate TLS there."
 msgstr "推送到服务端并热加载。供在服务端终结 TLS 的隧道使用。"
 
+msgid "Reach a service on this network from the internet."
+msgstr "从公网访问本地网络中的服务。"
+
 msgid "Recent log"
 msgstr "最近日志"
 

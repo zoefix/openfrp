@@ -491,7 +491,8 @@ return view.extend({
 		var openfrp = openfrpServers();
 		var cloudflare = cloudflareServers();
 
-		m = new form.Map('openfrp', _('Tunnels'));
+		m = new form.Map('openfrp', _('Tunnels'),
+			_('Reach a service on this network from the internet.'));
 
 		s = m.section(form.GridSection, 'tunnel', null);
 		s.addremove = true;

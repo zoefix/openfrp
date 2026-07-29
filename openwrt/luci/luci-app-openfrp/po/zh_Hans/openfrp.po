@@ -46,6 +46,9 @@ msgstr "名称不能为空"
 msgid "A name you will recognise, for example aliyun-main"
 msgstr "一个你能认出来的名称，例如 aliyun-main"
 
+msgid "A single static binary with no libc dependency, for x86_64, ARM, RISC-V, LoongArch and MIPS."
+msgstr "单个静态二进制，不依赖 libc，覆盖 x86_64、ARM、RISC-V、龙芯与 MIPS 架构。"
+
 msgid "A wildcard can only be proved through DNS."
 msgstr "泛域名只能通过 DNS 验证。"
 
@@ -115,6 +118,9 @@ msgstr "自动"
 msgid "Both fields are required."
 msgstr "两项都必须填写。"
 
+msgid "Bursts"
+msgstr "突发流量"
+
 msgid "Bypass the local proxy"
 msgstr "绕过本机代理"
 
@@ -131,7 +137,7 @@ msgid "Certificate management is unavailable."
 msgstr "证书管理不可用。"
 
 msgid "Certificates"
-msgstr "证书"
+msgstr "证书管理"
 
 msgid "Certificates issued through it are kept, but cannot renew until moved elsewhere."
 msgstr "已签发的证书会保留，但换到其他账户前无法续期。"
@@ -157,11 +163,14 @@ msgstr "Cloudflare Tunnel"
 msgid "Cloudflare carries the traffic. Authorise this router by opening a link."
 msgstr "流量由 Cloudflare 承载。打开链接即可授权本路由器。"
 
+msgid "Concurrency"
+msgstr "并发处理"
+
 msgid "Connection details are filled in from what the deployment installs."
 msgstr "连接信息由部署结果自动填入。"
 
 msgid "Connections"
-msgstr "连接数"
+msgstr "连接模型"
 
 msgid "Connections kept open so an arriving request does not wait for a dial."
 msgstr "预先保持的连接数，使新请求无需等待建立连接。"
@@ -207,6 +216,9 @@ msgstr "仅 DNS"
 
 msgid "DNS only — answer with this address"
 msgstr "仅 DNS — 直接返回该地址"
+
+msgid "Data plane"
+msgstr "数据面"
 
 msgid "Delete"
 msgstr "删除"
@@ -340,6 +352,9 @@ msgstr "历史"
 msgid "Host key fingerprint"
 msgstr "主机密钥指纹"
 
+msgid "How it works"
+msgstr "技术实现"
+
 msgid "How ownership is proved. HTTP needs the name already pointing here; wildcards need DNS."
 msgstr "所有权的验证方式。HTTP 需要域名已指向此处；泛域名必须用 DNS。"
 
@@ -360,6 +375,9 @@ msgstr "签发"
 
 msgid "Issued and bound, but applying it failed: %s"
 msgstr "已签发并绑定,但应用失败:%s"
+
+msgid "Issued and renewed here, then pushed to the server and loaded without dropping a connection."
+msgstr "在本机签发与自动续期，推送到服务端后热加载生效，全程不中断任何连接。"
 
 msgid "Issued, bound, and deployed to the server."
 msgstr "已签发、已绑定,并已部署到服务端。"
@@ -430,9 +448,6 @@ msgstr "手动"
 msgid "Multiplex connections"
 msgstr "多路复用连接"
 
-msgid "NAT traversal with wildcard domain routing."
-msgstr "内网穿透，支持泛域名路由。"
-
 msgid "Name"
 msgstr "名称"
 
@@ -487,6 +502,15 @@ msgstr "尚未签发"
 msgid "Nothing has happened to this certificate yet."
 msgstr "该证书还没有任何记录。"
 
+msgid "One TCP connection per tunnel by default, each with its own congestion window, so a lost packet stalls only the tunnel that lost it."
+msgstr "默认每条隧道独占一条 TCP 连接，各自拥有独立的拥塞窗口——丢包只会拖慢丢包的那条隧道，不会连累其他隧道。"
+
+msgid "One accept loop per CPU over SO_REUSEPORT, and socket options set once at bind rather than on every connection."
+msgstr "基于 SO_REUSEPORT 的多核并行 accept，每个 CPU 一条独立循环；套接字选项在绑定时一次设定，而非逐连接重复设置。"
+
+msgid "One client serves several at once; one going down does not disturb the rest."
+msgstr "一个客户端可同时连接多台服务器，其中一台故障不影响其余各台。"
+
 msgid "One label only: letters, digits and dashes."
 msgstr "只能是一段：字母、数字和短横线。"
 
@@ -495,6 +519,9 @@ msgstr "每行一个。\"*\" 只覆盖一级：*.aiqno.com 不含 a.b.aiqno.com�
 
 msgid "Only certificates covering every domain are listed. Pushed without dropping connections."
 msgstr "仅列出覆盖全部域名的证书。推送时不会中断连接。"
+
+msgid "OpenFrp publishes a service on this network to the internet, through a server of your own. It is written in Go, and built so that the bytes it carries stay out of its way."
+msgstr "OpenFrp 通过你自己的服务器，把本地网络中的服务发布到公网。使用 Go 编写，整体设计围绕一个目标：让它转发的数据尽可能不经过它自己。"
 
 msgid "Overview"
 msgstr "概览"
@@ -510,6 +537,9 @@ msgstr "密码"
 
 msgid "Path to a key on this router."
 msgstr "本路由器上的密钥文件路径。"
+
+msgid "Portability"
+msgstr "跨平台"
 
 msgid "Private key"
 msgstr "私钥"
@@ -592,6 +622,9 @@ msgstr "正在重启…"
 msgid "Routed to this tunnel. \"*\" matches one level: *.aaa.com matches www.aaa.com, not x.bb.aaa.com."
 msgstr "路由到本隧道。\"*\" 只匹配一级：*.aaa.com 匹配 www.aaa.com，不匹配 x.bb.aaa.com。"
 
+msgid "Routing"
+msgstr "域名路由"
+
 msgid "Running"
 msgstr "运行中"
 
@@ -641,7 +674,7 @@ msgid "Server binary"
 msgstr "服务端程序"
 
 msgid "Servers"
-msgstr "服务器"
+msgstr "多服务器"
 
 msgid "Service"
 msgstr "服务"
@@ -775,6 +808,9 @@ msgstr "访问者必须提供此密钥才能连接到该隧道。"
 msgid "Warm connections"
 msgstr "预热连接数"
 
+msgid "When the warm pool empties, visitors are served over a multiplexed carrier that is already open, instead of waiting for a new connection."
+msgstr "预热连接池耗尽时，访客会被切换到一条已经建立的多路复用载体上，无需等待新连接建立，也不会向出口增加连接压力。"
+
 msgid "Where to find it"
 msgstr "在哪里获取"
 
@@ -783,6 +819,9 @@ msgstr "由哪台服务器发布这条隧道。留空则用第一台。"
 
 msgid "Whichever end handles HTTPS needs the certificate. The server's is issued here and pushed to it."
 msgstr "哪一端处理 HTTPS，证书就归哪一端。服务端用的证书在此签发并推送过去。"
+
+msgid "Wildcards at any depth, matched by prefix tree, with exact names taking precedence."
+msgstr "支持任意层级的泛域名，使用前缀树匹配，精确域名优先于通配。"
 
 msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
 msgstr "不启用时，内网服务会把每个访客都记成本路由器。请先配置好服务，否则所有请求都会失败。\n\nnginx：\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
@@ -828,6 +867,9 @@ msgstr "端口 %s"
 
 msgid "server-allocated"
 msgstr "由服务端分配"
+
+msgid "splice(2) on Linux: payload moves kernel to kernel and never enters this process."
+msgstr "Linux 上使用 splice(2) 零拷贝：数据在内核之间直接搬运，从不进入本进程的地址空间。"
 
 msgid "the request failed"
 msgstr "请求失败"

@@ -332,6 +332,8 @@ func (s *Server) handlePlain(ctx context.Context, conn net.Conn) {
 		s.handleLogin(ctx, conn, m)
 	case *protocol.NewWorkConn:
 		s.attachWorkConn(conn, m)
+	case *protocol.NewMuxConn:
+		s.attachMuxConn(conn, m)
 	default:
 		s.logger.Debug("unexpected opening message", "type", msg.Type())
 		protocol.WriteMessage(conn, &protocol.LoginResp{
@@ -368,6 +370,47 @@ func (s *Server) attachWorkConn(conn net.Conn, msg *protocol.NewWorkConn) {
 	}
 
 	session.AddWorkConn(conn)
+}
+
+// attachMuxConn takes a connection the client has offered as an overflow
+// carrier and makes the server the side that opens streams on it.
+//
+// The role reversal is the point. Every other connection in this protocol is
+// dialled by the client because the client is the one that can reach out; on
+// this one the server needs to initiate, since it is the server that learns a
+// visitor has arrived. Multiplexing is what allows that without the client
+// having to be reachable.
+func (s *Server) attachMuxConn(conn net.Conn, msg *protocol.NewMuxConn) {
+	if err := protocol.VerifyAuth(s.cfg.Token, msg.AuthKey, msg.Timestamp,
+		time.Now(), protocol.DefaultAuthSkew); err != nil {
+		s.logger.Warn("overflow carrier failed authentication",
+			"remote", conn.RemoteAddr().String(), "run_id", msg.RunID)
+		conn.Close()
+		return
+	}
+
+	session, err := s.registry.Get(msg.RunID)
+	if err != nil {
+		s.logger.Debug("overflow carrier for unknown session", "run_id", msg.RunID)
+		conn.Close()
+		return
+	}
+
+	// The carrier outlives the handshake by design: it stays open for as long
+	// as the client does, so the deadline has to go or it would kill it.
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		conn.Close()
+		return
+	}
+
+	source, err := transport.NewMuxSource(conn, transport.DefaultMuxConfig())
+	if err != nil {
+		s.logger.Warn("could not start the overflow carrier", "error", err)
+		conn.Close()
+		return
+	}
+
+	session.SetOverflow(source)
 }
 
 // Close stops the listener and every session.

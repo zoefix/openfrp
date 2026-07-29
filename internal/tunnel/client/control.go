@@ -87,6 +87,15 @@ func (s *session) serve(ctx context.Context) error {
 		s.heartbeat(ctx)
 	}()
 
+	// The relief valve for an empty pool. Started after the tunnels are
+	// published, since a carrier is only useful once there is something for
+	// the server to route onto it.
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.runOverflowCarrier(ctx)
+	}()
+
 	go func() {
 		<-ctx.Done()
 		s.conn.Close()

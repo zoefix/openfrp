@@ -37,6 +37,7 @@ func TestCodecRoundTripsEveryMessageType(t *testing.T) {
 		&CertPushResp{},
 		&HTTPChallenge{Domain: "openwrt.arm.moe", Token: "tok", KeyAuth: "tok.thumb"},
 		&HTTPChallengeResp{},
+		&NewMuxConn{RunID: "abc", Timestamp: 1700000000, AuthKey: "cafe"},
 	}
 
 	if len(cases) != len(factories) {

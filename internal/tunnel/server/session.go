@@ -12,6 +12,7 @@ import (
 
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
 	"github.com/zoefix/openfrp/internal/tunnel/server/proxy"
+	"github.com/zoefix/openfrp/internal/tunnel/transport"
 )
 
 // workConnTimeout bounds how long a user connection waits for the client to
@@ -34,6 +35,19 @@ type Session struct {
 	workConns chan net.Conn
 	// poolTarget is how many connections the client said it would keep warm.
 	poolTarget int
+
+	// overflow opens multiplexed streams to the client over a connection that
+	// is already established. It is the relief valve for an empty pool, and
+	// nil when the client did not offer one.
+	//
+	// Deliberately not the default path. A stream shares its carrier's
+	// congestion window with every other stream and cannot be spliced, so
+	// serving everything this way would give up both properties the direct
+	// pool exists for. It is strictly better than the alternative it replaces,
+	// which is not a direct connection but a visitor waiting about two round
+	// trips for one to be built.
+	overflowMu sync.RWMutex
+	overflow   transport.StreamSource
 
 	// reqPending accumulates work-connection requests between writes, and
 	// reqKick wakes the requester goroutine that flushes them. One control
@@ -199,7 +213,21 @@ func (s *Session) GetWorkConn(ctx context.Context, proxyName, sourceAddr string)
 	}
 
 	// Nothing warm left, either because the pool was empty or because all of
-	// it was dead. Ask the client for one and wait for it.
+	// it was dead.
+	//
+	// Before making this visitor wait for a connection to be built, try the
+	// overflow carrier: a stream on it costs no handshake, no round trip and
+	// no entry in whatever NAT or proxy sits in front of the client — which
+	// is the resource that actually runs out first when a burst arrives.
+	if conn, ok := s.overflowConn(ctx, proxyName, sourceAddr); ok {
+		if stale > 0 {
+			s.logger.Info("discarded work connections that had gone stale",
+				"discarded", stale, "proxy", proxyName)
+		}
+		return conn, nil
+	}
+
+	// No carrier either. Ask the client to dial one and wait for it.
 	conn, err := s.waitWorkConn(ctx)
 	if err != nil {
 		if stale > 0 {
@@ -232,6 +260,87 @@ func (s *Session) startWorkConn(conn net.Conn, proxyName, sourceAddr string) err
 		ProxyName:  proxyName,
 		SourceAddr: sourceAddr,
 	})
+}
+
+// SetOverflow installs the multiplexed carrier for this session, replacing
+// and closing any previous one.
+func (s *Session) SetOverflow(source transport.StreamSource) {
+	s.overflowMu.Lock()
+	previous := s.overflow
+	s.overflow = source
+	s.overflowMu.Unlock()
+
+	if previous != nil {
+		previous.Close()
+	}
+	s.logger.Info("client offered a multiplexed overflow carrier")
+}
+
+// overflowConn opens a stream on the carrier and tells it which proxy it
+// serves, matching what a work connection is handed.
+//
+// A failure here is not reported as an error: the caller's next move is to
+// ask for a real connection, which is what it would have done anyway. The
+// carrier is dropped so a dead one is not tried again by every visitor.
+func (s *Session) overflowConn(ctx context.Context, proxyName, sourceAddr string) (net.Conn, bool) {
+	s.overflowMu.RLock()
+	source := s.overflow
+	s.overflowMu.RUnlock()
+
+	if source == nil {
+		return nil, false
+	}
+
+	stream, err := source.Open(ctx)
+	if err != nil {
+		s.logger.Warn("overflow carrier failed, falling back to a fresh connection",
+			"proxy", proxyName, "error", err)
+		s.dropOverflow(source)
+		return nil, false
+	}
+
+	if err := s.startWorkConn(stream, proxyName, sourceAddr); err != nil {
+		stream.Close()
+		s.logger.Warn("overflow stream failed before it carried anything",
+			"proxy", proxyName, "error", err)
+		s.dropOverflow(source)
+		return nil, false
+	}
+	return stream, true
+}
+
+// dropOverflow discards the carrier, but only if it is still the one that
+// failed — a replacement may have arrived while this visitor was trying.
+func (s *Session) dropOverflow(failed transport.StreamSource) {
+	s.overflowMu.Lock()
+	if s.overflow == failed {
+		s.overflow = nil
+	}
+	s.overflowMu.Unlock()
+	failed.Close()
+}
+
+// HasOverflow reports whether a carrier is installed, for tests and status.
+func (s *Session) HasOverflow() bool {
+	s.overflowMu.RLock()
+	defer s.overflowMu.RUnlock()
+	return s.overflow != nil
+}
+
+// DrainPool closes every warm connection and reports how many there were.
+//
+// For tests that need the state a burst produces — a visitor arriving with
+// nothing warm to serve them — without having to generate the burst.
+func (s *Session) DrainPool() int {
+	var drained int
+	for {
+		conn, ok := s.takePooled()
+		if !ok {
+			return drained
+		}
+		conn.Close()
+		drained++
+	}
 }
 
 // takePooled pops a warm connection if there is one, without waiting.
@@ -441,6 +550,13 @@ func (s *Session) Close() error {
 		// deleted every challenge within milliseconds of it being stored, and
 		// every HTTP-01 validation got the unclaimed-host 404. Cleanup is the
 		// solver's explicit withdrawal, and the store's TTL behind it.
+
+		s.overflowMu.Lock()
+		if s.overflow != nil {
+			s.overflow.Close()
+			s.overflow = nil
+		}
+		s.overflowMu.Unlock()
 
 		s.proxiesMu.Lock()
 		for _, running := range s.proxies {

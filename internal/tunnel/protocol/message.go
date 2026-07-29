@@ -32,6 +32,7 @@ const (
 	TypeCertPushResp
 	TypeHTTPChallenge
 	TypeHTTPChallengeResp
+	TypeNewMuxConn
 )
 
 var typeNames = map[Type]string{
@@ -49,6 +50,7 @@ var typeNames = map[Type]string{
 	TypeCertPushResp:      "CertPushResp",
 	TypeHTTPChallenge:     "HTTPChallenge",
 	TypeHTTPChallengeResp: "HTTPChallengeResp",
+	TypeNewMuxConn:        "NewMuxConn",
 }
 
 // String implements fmt.Stringer.
@@ -164,6 +166,27 @@ type NewWorkConn struct {
 
 func (*NewWorkConn) Type() Type { return TypeNewWorkConn }
 
+// NewMuxConn offers one connection as a multiplexed overflow carrier.
+//
+// It is the same handshake as NewWorkConn and means something different: the
+// connection does not become one visitor's payload, it stays open and the
+// server opens a stream on it whenever the warm pool is empty. That turns the
+// worst case — a visitor arriving with nothing warm to serve them — from a
+// wait of roughly two round trips into a stream on a connection that already
+// exists.
+//
+// The direction is the reason this needs its own message. On a work
+// connection the client is the one that dialled and the server replies; here
+// the server must be able to initiate, so it takes the multiplexer's client
+// role on a connection the client dialled, and the client accepts.
+type NewMuxConn struct {
+	RunID     string `json:"run_id"`
+	Timestamp int64  `json:"timestamp"`
+	AuthKey   string `json:"auth_key,omitempty"`
+}
+
+func (*NewMuxConn) Type() Type { return TypeNewMuxConn }
+
 // StartWorkConn tells the client which proxy a work connection has been
 // assigned to. After this message the connection carries raw payload only.
 type StartWorkConn struct {
@@ -263,4 +286,5 @@ var factories = map[Type]func() Message{
 	TypeCertPushResp:      func() Message { return new(CertPushResp) },
 	TypeHTTPChallenge:     func() Message { return new(HTTPChallenge) },
 	TypeHTTPChallengeResp: func() Message { return new(HTTPChallengeResp) },
+	TypeNewMuxConn:        func() Message { return new(NewMuxConn) },
 }

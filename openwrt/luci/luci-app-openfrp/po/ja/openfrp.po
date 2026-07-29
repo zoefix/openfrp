@@ -40,14 +40,14 @@ msgstr "Cloudflare トンネルは HTTP のみ。%s には自前のサーバー�
 msgid "A domain needs at least two labels, for example aaa.com"
 msgstr "ドメインには最低 2 つのラベルが必要です (例: aaa.com)"
 
+msgid "A high-performance NAT traversal service, written in Go on Linux zero-copy, with wildcard domain routing and automatic certificates."
+msgstr "Go と Linux ゼロコピーで実装した高性能 NAT トラバーサル。ワイルドカードドメインと証明書自動化に対応。"
+
 msgid "A name is required"
 msgstr "名前は必須です"
 
 msgid "A name you will recognise, for example aliyun-main"
 msgstr "自分でわかる名前（例: aliyun-main）"
-
-msgid "A single static binary with no libc dependency, for x86_64, ARM, RISC-V, LoongArch and MIPS."
-msgstr "libc に依存しない単一静的バイナリ。x86_64・ARM・RISC-V・LoongArch・MIPS に対応。"
 
 msgid "A wildcard can only be proved through DNS."
 msgstr "ワイルドカードは DNS でしか証明できません。"
@@ -118,9 +118,6 @@ msgstr "自動"
 msgid "Both fields are required."
 msgstr "両方の入力が必要です。"
 
-msgid "Bursts"
-msgstr "バースト対応"
-
 msgid "Bypass the local proxy"
 msgstr "ローカルプロキシを迂回"
 
@@ -162,9 +159,6 @@ msgstr "Cloudflare Tunnel"
 
 msgid "Cloudflare carries the traffic. Authorise this router by opening a link."
 msgstr "通信は Cloudflare が中継します。リンクを開いて本ルーターを認可します。"
-
-msgid "Concurrency"
-msgstr "並行処理"
 
 msgid "Connection details are filled in from what the deployment installs."
 msgstr "接続情報はデプロイ結果から自動入力されます。"
@@ -216,9 +210,6 @@ msgstr "DNS のみ"
 
 msgid "DNS only — answer with this address"
 msgstr "DNS のみ — このアドレスをそのまま返す"
-
-msgid "Data plane"
-msgstr "データプレーン"
 
 msgid "Delete"
 msgstr "削除"
@@ -352,9 +343,6 @@ msgstr "履歴"
 msgid "Host key fingerprint"
 msgstr "ホスト鍵フィンガープリント"
 
-msgid "How it works"
-msgstr "仕組み"
-
 msgid "How ownership is proved. HTTP needs the name already pointing here; wildcards need DNS."
 msgstr "所有権の証明方法。HTTP は名前が既にここを指している必要があり、ワイルドカードは DNS が必須です。"
 
@@ -375,9 +363,6 @@ msgstr "発行"
 
 msgid "Issued and bound, but applying it failed: %s"
 msgstr "発行と紐付けは完了しましたが、適用に失敗しました: %s"
-
-msgid "Issued and renewed here, then pushed to the server and loaded without dropping a connection."
-msgstr "本機で発行・自動更新し、サーバーへ配布後は接続を切らずに反映されます。"
 
 msgid "Issued, bound, and deployed to the server."
 msgstr "発行・紐付け・サーバーへの配布が完了しました。"
@@ -502,15 +487,6 @@ msgstr "未発行"
 msgid "Nothing has happened to this certificate yet."
 msgstr "この証明書にはまだ履歴がありません。"
 
-msgid "One TCP connection per tunnel by default, each with its own congestion window, so a lost packet stalls only the tunnel that lost it."
-msgstr "既定ではトンネルごとに独立した TCP 接続を持ち、輻輳ウィンドウも個別です。パケット損失の影響はそのトンネルに限定されます。"
-
-msgid "One accept loop per CPU over SO_REUSEPORT, and socket options set once at bind rather than on every connection."
-msgstr "SO_REUSEPORT により CPU ごとに accept ループを持ち、ソケットオプションは接続ごとではなく bind 時に一度だけ設定します。"
-
-msgid "One client serves several at once; one going down does not disturb the rest."
-msgstr "1 つのクライアントで複数のサーバーに同時接続でき、1 台の障害は他に影響しません。"
-
 msgid "One label only: letters, digits and dashes."
 msgstr "ラベル一つだけ：英数字とハイフン。"
 
@@ -519,9 +495,6 @@ msgstr "1 行に 1 つ。\"*\" は 1 階層のみ：*.aiqno.com は a.b.aiqno.co
 
 msgid "Only certificates covering every domain are listed. Pushed without dropping connections."
 msgstr "全ドメインを含む証明書のみ表示。接続を切らずに配布されます。"
-
-msgid "OpenFrp publishes a service on this network to the internet, through a server of your own. It is written in Go, and built so that the bytes it carries stay out of its way."
-msgstr "OpenFrp は自前のサーバーを通じて、このネットワーク上のサービスをインターネットへ公開します。Go 製で、転送するデータが自身を経由しないことを設計の軸にしています。"
 
 msgid "Overview"
 msgstr "概要"
@@ -537,9 +510,6 @@ msgstr "パスワード"
 
 msgid "Path to a key on this router."
 msgstr "このルーター上の鍵ファイルのパスです。"
-
-msgid "Portability"
-msgstr "移植性"
 
 msgid "Private key"
 msgstr "秘密鍵"
@@ -621,9 +591,6 @@ msgstr "再起動中…"
 
 msgid "Routed to this tunnel. \"*\" matches one level: *.aaa.com matches www.aaa.com, not x.bb.aaa.com."
 msgstr "このトンネルへ振り分けます。\"*\" は 1 階層のみ一致：*.aaa.com は www.aaa.com に一致し、x.bb.aaa.com には一致しません。"
-
-msgid "Routing"
-msgstr "ドメインルーティング"
 
 msgid "Running"
 msgstr "実行中"
@@ -808,9 +775,6 @@ msgstr "このトンネルに接続するには、利用者がこれを提示す
 msgid "Warm connections"
 msgstr "ウォーム接続数"
 
-msgid "When the warm pool empties, visitors are served over a multiplexed carrier that is already open, instead of waiting for a new connection."
-msgstr "ウォームプールが尽きた際は、既存の多重化キャリア経由で処理し、新規接続の確立を待たせません。"
-
 msgid "Where to find it"
 msgstr "取得方法"
 
@@ -819,9 +783,6 @@ msgstr "このトンネルをどのサーバーが公開するか。未設定な
 
 msgid "Whichever end handles HTTPS needs the certificate. The server's is issued here and pushed to it."
 msgstr "HTTPS を処理する側が証明書を必要とします。サーバー用はここで発行して配布します。"
-
-msgid "Wildcards at any depth, matched by prefix tree, with exact names taking precedence."
-msgstr "任意の階層のワイルドカードに対応。プレフィックスツリーで照合し、完全一致を優先します。"
 
 msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
 msgstr "無効の場合、ローカルサービスは全訪問者を本ルーターとして記録します。先にサービス側を設定しないと全リクエストが失敗します。\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
@@ -867,9 +828,6 @@ msgstr "ポート %s"
 
 msgid "server-allocated"
 msgstr "サーバー割り当て"
-
-msgid "splice(2) on Linux: payload moves kernel to kernel and never enters this process."
-msgstr "Linux では splice(2) を使用。ペイロードはカーネル間で直接転送され、このプロセスに入りません。"
 
 msgid "the request failed"
 msgstr "リクエストが失敗しました"

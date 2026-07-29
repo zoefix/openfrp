@@ -66,18 +66,18 @@ msgstr ""
 msgid "A domain needs at least two labels, for example aaa.com"
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:78
+msgid ""
+"A high-performance NAT traversal service, written in Go on Linux "
+"zero-copy, with wildcard domain routing and automatic certificates."
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:516
 msgid "A name is required"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:73
 msgid "A name you will recognise, for example aliyun-main"
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:51
-msgid ""
-"A single static binary with no libc dependency, for x86_64, ARM, "
-"RISC-V, LoongArch and MIPS."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:231
@@ -89,7 +89,7 @@ msgstr ""
 msgid "A wildcard can only be proved through DNS. Select an account."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:99
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:77
 msgid "About"
 msgstr ""
 
@@ -185,10 +185,6 @@ msgstr ""
 msgid "Both fields are required."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:42
-msgid "Bursts"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:814
 msgid "Bypass the local proxy"
 msgstr ""
@@ -219,7 +215,6 @@ msgstr ""
 msgid "Certificate management is unavailable."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:46
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:546
 msgid "Certificates"
 msgstr ""
@@ -234,7 +229,7 @@ msgstr ""
 msgid "Clear"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:114
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:84
 msgid "Client"
 msgstr ""
 
@@ -262,15 +257,10 @@ msgstr ""
 msgid "Cloudflare carries the traffic. Authorise this router by opening a link."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:40
-msgid "Concurrency"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:491
 msgid "Connection details are filled in from what the deployment installs."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:38
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:310
 msgid "Connections"
 msgstr ""
@@ -338,10 +328,6 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:377
 msgid "DNS only — answer with this address"
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:36
-msgid "Data plane"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:129
@@ -543,10 +529,6 @@ msgstr ""
 msgid "Host key fingerprint"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:105
-msgid "How it works"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:315
 msgid ""
 "How ownership is proved. HTTP needs the name already pointing here; "
@@ -577,12 +559,6 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:215
 msgid "Issued and bound, but applying it failed: %s"
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:47
-msgid ""
-"Issued and renewed here, then pushed to the server and loaded without "
-"dropping a connection."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:208
@@ -776,24 +752,6 @@ msgstr ""
 msgid "Nothing has happened to this certificate yet."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:39
-msgid ""
-"One TCP connection per tunnel by default, each with its own congestion "
-"window, so a lost packet stalls only the tunnel that lost it."
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:41
-msgid ""
-"One accept loop per CPU over SO_REUSEPORT, and socket options set once "
-"at bind rather than on every connection."
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:49
-msgid ""
-"One client serves several at once; one going down does not disturb the "
-"rest."
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:633
 msgid "One label only: letters, digits and dashes."
 msgstr ""
@@ -806,13 +764,6 @@ msgstr ""
 msgid ""
 "Only certificates covering every domain are listed. Pushed without "
 "dropping connections."
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:100
-msgid ""
-"OpenFrp publishes a service on this network to the internet, through a "
-"server of your own. It is written in Go, and built so that the bytes it "
-"carries stay out of its way."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:293
@@ -835,16 +786,12 @@ msgstr ""
 msgid "Path to a key on this router."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:50
-msgid "Portability"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:311
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:335
 msgid "Private key"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:118
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:88
 msgid "Project"
 msgstr ""
 
@@ -955,10 +902,6 @@ msgid ""
 "www.aaa.com, not x.bb.aaa.com."
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:44
-msgid "Routing"
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:263
 msgid "Running"
 msgstr ""
@@ -1026,7 +969,6 @@ msgstr ""
 msgid "Server binary"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:48
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:607
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:626
 msgid "Servers"
@@ -1217,7 +1159,7 @@ msgstr ""
 msgid "Value"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:113
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:83
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:701
 msgid "Version"
 msgstr ""
@@ -1228,12 +1170,6 @@ msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:799
 msgid "Warm connections"
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:43
-msgid ""
-"When the warm pool empties, visitors are served over a multiplexed "
-"carrier that is already open, instead of waiting for a new connection."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:230
@@ -1249,12 +1185,6 @@ msgstr ""
 msgid ""
 "Whichever end handles HTTPS needs the certificate. The server's is "
 "issued here and pushed to it."
-msgstr ""
-
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:45
-msgid ""
-"Wildcards at any depth, matched by prefix tree, with exact names taking "
-"precedence."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:796
@@ -1324,19 +1254,13 @@ msgstr ""
 msgid "server-allocated"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:37
-msgid ""
-"splice(2) on Linux: payload moves kernel to kernel and never enters "
-"this process."
-msgstr ""
-
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:44
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/dns.js:35
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:54
 msgid "the request failed"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:95
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/about.js:73
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:289
 msgid "unknown"
 msgstr ""

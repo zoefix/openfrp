@@ -29,28 +29,6 @@ var LINKS = [
 	{ label: _('Xiaohongshu'), text: 'zoefix' }
 ];
 
-// What the thing is, stated once, in the one place where detail is the
-// point. Form hints go the other way — short, because their reader is making
-// a choice — but nobody arrives here except to find out what they are running.
-var DESIGN = [
-	[_('Data plane'),
-	 _('splice(2) on Linux: payload moves kernel to kernel and never enters this process.')],
-	[_('Connections'),
-	 _('One TCP connection per tunnel by default, each with its own congestion window, so a lost packet stalls only the tunnel that lost it.')],
-	[_('Concurrency'),
-	 _('One accept loop per CPU over SO_REUSEPORT, and socket options set once at bind rather than on every connection.')],
-	[_('Bursts'),
-	 _('When the warm pool empties, visitors are served over a multiplexed carrier that is already open, instead of waiting for a new connection.')],
-	[_('Routing'),
-	 _('Wildcards at any depth, matched by prefix tree, with exact names taking precedence.')],
-	[_('Certificates'),
-	 _('Issued and renewed here, then pushed to the server and loaded without dropping a connection.')],
-	[_('Servers'),
-	 _('One client serves several at once; one going down does not disturb the rest.')],
-	[_('Portability'),
-	 _('A single static binary with no libc dependency, for x86_64, ARM, RISC-V, LoongArch and MIPS.')]
-];
-
 function row(label, value) {
 	return E('tr', { 'class': 'tr' }, [
 		E('td', { 'class': 'td left', 'style': 'width:30%;white-space:nowrap' }, label),
@@ -97,17 +75,9 @@ return view.extend({
 		return E('div', {}, [
 			stylesheet(),
 			E('h2', {}, _('About')),
-			E('p', {}, _('OpenFrp publishes a service on this network to the ' +
-				'internet, through a server of your own. It is written in Go, ' +
-				'and built so that the bytes it carries stay out of its way.')),
-
-			E('div', { 'class': 'cbi-section' }, [
-				E('h3', {}, _('How it works')),
-				E('table', { 'class': 'table' },
-					DESIGN.map(function (entry) {
-						return row(entry[0], entry[1]);
-					}))
-			]),
+			E('p', {}, _('A high-performance NAT traversal service, written in Go ' +
+				'on Linux zero-copy, with wildcard domain routing and automatic ' +
+				'certificates.')),
 
 			E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Version')),

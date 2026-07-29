@@ -57,7 +57,7 @@ function formatRate(bytesPerSecond) {
 
 function rates(status) {
 	var now = status.traffic && status.traffic.updated_at;
-	var out = { tunnels: {}, total: { in: 0, out: 0 } };
+	var out = { tunnels: {} };
 
 	if (!now || !previous || !previous.at || now <= previous.at) {
 		return out;
@@ -79,13 +79,6 @@ function rates(status) {
 		};
 	});
 
-	var totalBefore = previous.total || {};
-	var total = (status.traffic && status.traffic.total) || {};
-	out.total = {
-		in: rate(total.bytes_in, totalBefore.bytes_in),
-		out: rate(total.bytes_out, totalBefore.bytes_out)
-	};
-
 	return out;
 }
 
@@ -95,8 +88,6 @@ function remember(status) {
 	(status.tunnels || []).forEach(function (tunnel) {
 		snapshot.tunnels[tunnel.name] = tunnel.traffic || {};
 	});
-	snapshot.total = (status.traffic && status.traffic.total) || {};
-
 	previous = snapshot;
 }
 
@@ -307,14 +298,6 @@ function overviewChildren(status, speed) {
 	else
 		serviceState = badge(status.running, _('Running'), _('Enabled but not running'));
 
-	var total = (status.traffic && status.traffic.total) || {};
-
-	var traffic = E('span', {}, [
-		'↓ ' + formatBytes(total.bytes_in) + ' (' + formatRate(speed.total.in) + ')',
-		E('span', { 'style': 'margin-left:1.5em' },
-			'↑ ' + formatBytes(total.bytes_out) + ' (' + formatRate(speed.total.out) + ')')
-	]);
-
 	var rows = [
 		infoRow(_('Service'), E('span', {}, [
 			serviceState,
@@ -326,8 +309,7 @@ function overviewChildren(status, speed) {
 				? E('code', {}, status.client_version)
 				: E('em', {}, _('unknown')),
 			updateBadge()
-		].filter(Boolean))),
-		infoRow(_('Total traffic'), traffic)
+		].filter(Boolean)))
 	];
 
 	return [E('h3', {}, _('Overview')), E('table', { 'class': 'table' }, rows)];

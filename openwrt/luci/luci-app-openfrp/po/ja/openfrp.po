@@ -739,9 +739,6 @@ msgstr "このゾーンにレコードはありません。"
 msgid "Token"
 msgstr "トークン"
 
-msgid "Total traffic"
-msgstr "合計トラフィック"
-
 msgid "Traffic cap"
 msgstr "通信量上限"
 

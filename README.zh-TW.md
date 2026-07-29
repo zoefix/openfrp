@@ -8,7 +8,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
-![Version](https://img.shields.io/badge/VERSION-v1.0.2-8A2BE2?style=for-the-badge&labelColor=444)
+![Version](https://img.shields.io/badge/VERSION-v1.0.3-8A2BE2?style=for-the-badge&labelColor=444)
 ![OpenWrt](https://img.shields.io/badge/OPENWRT-21.02%2B-00B5E2?style=for-the-badge&labelColor=444)
 ![Arch](https://img.shields.io/badge/ARCH-x86__64%20%7C%20ARM64-000000?style=for-the-badge&labelColor=444)
 ![Licence](https://img.shields.io/badge/LICENCE-MIT-F5A623?style=for-the-badge&labelColor=444)

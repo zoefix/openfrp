@@ -271,17 +271,15 @@ off cleanly.
 
 ## For developers
 
-Build, test and contribution notes live in
-[docs/development.md](docs/development.md). The short version:
-
 ```bash
 make build       # both binaries, static, no CGO
 make check       # vet, gofmt, race-enabled tests
 make test-linux  # the suite on Linux, where splice(2) actually engages
+make bundle      # the release bundles the installer and updater use
 ```
 
-Why it is quick, and the measurements behind that claim — including the cases
-where it ties or loses — are in [docs/benchmark.md](docs/benchmark.md).
+`./bench/run.sh` compares OpenFrp against frp under identical `tc netem`
+conditions and writes the numbers to `bench/results.md`.
 
 ## Licence
 

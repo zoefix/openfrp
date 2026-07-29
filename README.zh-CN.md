@@ -209,15 +209,14 @@ VPS 那边，部署页面有个**移除**操作，可以干净地卸掉服务端
 
 ## 给开发者
 
-编译、测试和贡献说明在 [docs/development.md](docs/development.md)。简短版：
-
 ```bash
 make build       # 两个二进制，静态编译，不依赖 CGO
 make check       # vet、gofmt、带竞态检测的测试
 make test-linux  # 在 Linux 上跑测试，splice(2) 只有那里才真正生效
+make bundle      # 安装脚本和更新功能用的发布包
 ```
 
-为什么它快，以及支撑这个说法的实测数据——包括打平和落后的场景——在 [docs/benchmark.md](docs/benchmark.md)。
+`./bench/run.sh` 在相同的 `tc netem` 条件下对比 OpenFrp 和 frp，结果写到 `bench/results.md`。
 
 ## 许可证
 

@@ -23,7 +23,7 @@ BIN     := bin
 DIST    := dist
 
 # Server targets. The client list is narrower because the project targets x86
-# soft routers first; see docs/test-environments.md.
+# soft routers first.
 SERVER_PLATFORMS := \
 	linux/amd64 linux/arm64 linux/arm linux/386 \
 	linux/riscv64 linux/loong64 linux/mips linux/mipsle

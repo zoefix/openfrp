@@ -10,7 +10,7 @@ Markdown comparison.
 ```
 
 Results land in `bench/results/` as raw JSON plus `summary.md`. Published
-numbers live in [`docs/benchmark.md`](../docs/benchmark.md).
+numbers live in [`results.md`](results.md).
 
 ## What it measures
 

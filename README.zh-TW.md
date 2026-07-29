@@ -209,15 +209,14 @@ VPS 那邊，部署頁面有個**移除**動作，可以乾淨地卸掉伺服端
 
 ## 給開發者
 
-編譯、測試與貢獻說明在 [docs/development.md](docs/development.md)。簡短版：
-
 ```bash
 make build       # 兩個二進位檔，靜態編譯，不依賴 CGO
 make check       # vet、gofmt、帶競態偵測的測試
 make test-linux  # 在 Linux 上跑測試，splice(2) 只有那裡才真正生效
+make bundle      # 安裝腳本與更新功能使用的發佈包
 ```
 
-為什麼它快，以及支撐這個說法的實測數據——包含打平與落後的情境——在 [docs/benchmark.md](docs/benchmark.md)。
+`./bench/run.sh` 在相同的 `tc netem` 條件下比較 OpenFrp 與 frp，結果寫到 `bench/results.md`。
 
 ## 授權
 

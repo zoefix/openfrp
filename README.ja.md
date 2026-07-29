@@ -209,15 +209,14 @@ VPS 側は、デプロイ画面の **削除** でサーバーをきれいに取�
 
 ## 開発者向け
 
-ビルド・テスト・コントリビューションについては [docs/development.md](docs/development.md) を参照してください。手短には:
-
 ```bash
 make build       # 両方のバイナリ。静的リンク、CGO なし
 make check       # vet、gofmt、レース検出付きテスト
 make test-linux  # Linux 上でのテスト。splice(2) が実際に効くのはそこだけ
+make bundle      # インストーラーと更新機能が使うリリースバンドル
 ```
 
-なぜ速いのか、そしてその根拠となる実測——引き分けや負けた場面も含めて——は [docs/benchmark.md](docs/benchmark.md) にあります。
+`./bench/run.sh` は同じ `tc netem` 条件で OpenFrp と frp を比較し、結果を `bench/results.md` に書き出します。
 
 ## ライセンス
 

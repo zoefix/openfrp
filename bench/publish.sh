@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 RESULTS="bench/results/summary.md"
-DOC="docs/benchmark.md"
+DOC="bench/results.md"
 START="<!-- BENCH_RESULTS_START -->"
 END="<!-- BENCH_RESULTS_END -->"
 

@@ -103,7 +103,7 @@ func (s *session) serveCarrier(ctx context.Context) error {
 	// other connection here, and it is the whole reason a multiplexer is
 	// involved: the server cannot dial a client behind NAT, but it can open a
 	// stream on a connection the client dialled.
-	acceptor, err := transport.NewMuxAcceptor(conn, transport.DefaultMuxConfig())
+	acceptor, err := transport.NewMuxAcceptor(conn, transport.CarrierMuxConfig())
 	if err != nil {
 		return err
 	}

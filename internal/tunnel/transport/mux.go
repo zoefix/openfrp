@@ -38,6 +38,32 @@ func DefaultMuxConfig() MuxConfig {
 	}
 }
 
+// CarrierMuxConfig tunes a session that carries overflow streams.
+//
+// The window is a fraction of the default and that is the whole point. Eight
+// megabytes per stream is right when a session holds a handful of long-lived
+// transfers; a carrier holds one short stream per visitor who arrived while
+// the warm pool was empty, and there can be hundreds at once. At the default,
+// 256 concurrent streams reserve two gigabytes — more than the memory of the
+// server this was measured on, so a burst would not have been slow, it would
+// have been an out-of-memory kill.
+//
+// 512 KiB still allows about 10 MB/s on a stream over a 50 ms path, far above
+// what the requests this path exists for will ever ask for, and bounds the
+// same 256 streams at 128 MiB.
+//
+// The keepalive is shorter than the default because the carrier is the thing
+// standing between a burst and a stall: noticing it has died in ten seconds
+// rather than thirty is three times less of a window in which the fallback
+// silently is not there.
+func CarrierMuxConfig() MuxConfig {
+	return MuxConfig{
+		StreamWindow:      512 << 10,
+		KeepAliveInterval: 10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+	}
+}
+
 func (c MuxConfig) toYamux() *yamux.Config {
 	cfg := yamux.DefaultConfig()
 

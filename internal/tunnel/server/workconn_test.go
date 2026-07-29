@@ -193,3 +193,59 @@ func TestReplenishDoesNotReRequestConnectionsAlreadyComing(t *testing.T) {
 		t.Errorf("in flight with a full pool = %d, want 0", got)
 	}
 }
+
+// stubCarrier stands in for a client's overflow carrier.
+type stubCarrier struct{ opened int }
+
+func (s *stubCarrier) Open(context.Context) (net.Conn, error) {
+	s.opened++
+	client, server := net.Pipe()
+	go io.Copy(io.Discard, server)
+	return client, nil
+}
+func (s *stubCarrier) Close() error      { return nil }
+func (s *stubCarrier) Multiplexed() bool { return true }
+
+// TestCarrierTakesThePoolOffTheVisitorPath is the second half of the
+// architecture, and the half that is easy to forget.
+//
+// The carrier stops visitors failing. It does not, on its own, stop the
+// client dialling: topping the pool up on the visitor path means the dial
+// rate still rises with the visitor rate, bounded only by the outstanding
+// count. Measured on a real path, a burst the carrier served without a single
+// error still exhausted the connection table in front of the client, and the
+// tunnel dropped afterwards because the client could no longer dial at all.
+//
+// With a carrier, visitors are already being served, so the pool refills on a
+// timer instead — at a rate that does not rise with load.
+func TestCarrierTakesThePoolOffTheVisitorPath(t *testing.T) {
+	session := testSession(t, 8, 32)
+
+	// Without a carrier the visitor path must still top up: there is no
+	// alternative to dialling, and waiting for a tick would be latency added
+	// to somebody's request.
+	session.replenishPool()
+	if got := session.poolInFlight.Load(); got != 8 {
+		t.Fatalf("with no carrier, in flight after a visitor = %d, want 8", got)
+	}
+
+	// Drain the accounting and install a carrier.
+	session.poolInFlight.Store(0)
+	session.SetOverflow(&stubCarrier{})
+
+	for range 100 {
+		session.replenishPool()
+	}
+	if got := session.poolInFlight.Load(); got != 0 {
+		t.Errorf("with a carrier, 100 visitors asked for %d connections; want "+
+			"none — the carrier is serving them and the dial rate must not "+
+			"follow the visitor rate", got)
+	}
+
+	// The timer path still refills it, so ordinary traffic returns to direct
+	// spliceable connections once the burst passes.
+	session.topUpPool()
+	if got := session.poolInFlight.Load(); got != 8 {
+		t.Errorf("the timed refill asked for %d, want 8", got)
+	}
+}

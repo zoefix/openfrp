@@ -150,7 +150,7 @@ func newSession(opts SessionOptions) *Session {
 
 	// Both stopped by Close via the done channel.
 	go s.workConnRequester()
-	go s.sweepUnansweredRequests()
+	go s.tendPool()
 
 	return s
 }
@@ -410,7 +410,32 @@ func (s *Session) waitWorkConn(ctx context.Context) (net.Conn, error) {
 
 // replenishPool tops the warm pool back up toward its target, counting what
 // is already on its way.
+//
+// When a carrier is available this does nothing, and that is the point.
+//
+// Topping up on the visitor path couples the client's dial rate to the
+// visitor arrival rate: eight outstanding dials at a time, each landing in a
+// round trip, is a hundred and sixty new connections a second sustained
+// through whatever NAT or proxy the client sits behind. Bounding the
+// outstanding count stopped that being unbounded; it did not stop it being
+// proportional to load. Measured, a burst the carrier served without one
+// error still exhausted the router's connection table, and the tunnel dropped
+// afterwards because the client could no longer dial at all.
+//
+// With a carrier there is no need to chase demand. Visitors are already being
+// served; the pool only has to come back for the steady state, where direct
+// connections earn their keep by being spliceable. So it refills on a timer
+// instead — a fixed, gentle rate that does not rise with load, which is the
+// only shape that a connection table in front of the client can survive.
 func (s *Session) replenishPool() {
+	if s.HasOverflow() {
+		return
+	}
+	s.topUpPool()
+}
+
+// topUpPool asks for whatever the pool is short of, minus what is coming.
+func (s *Session) topUpPool() {
 	inFlight := s.poolInFlight.Load()
 
 	deficit := int64(s.poolTarget) - int64(len(s.workConns)) - inFlight
@@ -436,10 +461,24 @@ func (s *Session) replenishPool() {
 // deadlock that looks exactly like a pool that will not fill.
 const poolSweepInterval = 5 * time.Second
 
-// sweepUnansweredRequests writes off requests that produced no connection.
-func (s *Session) sweepUnansweredRequests() {
-	ticker := time.NewTicker(poolSweepInterval)
-	defer ticker.Stop()
+// poolRefillInterval is how often the pool is topped up while a carrier is
+// carrying the load.
+//
+// It sets the client's dial rate under sustained pressure, and that is the
+// number that matters: at most one pool's worth of dials per interval, no
+// matter how many visitors arrive. Half a second refills a pool of eight
+// within a round trip of going quiet, so ordinary traffic is back on direct
+// spliced connections almost immediately, while a burst cannot drive the rate
+// any higher than this.
+const poolRefillInterval = 500 * time.Millisecond
+
+// tendPool writes off unanswered requests, and tops the pool up on a timer
+// while a carrier means the visitor path no longer does.
+func (s *Session) tendPool() {
+	sweep := time.NewTicker(poolSweepInterval)
+	defer sweep.Stop()
+	refill := time.NewTicker(poolRefillInterval)
+	defer refill.Stop()
 
 	lastArrivals := s.poolArrivals.Load()
 
@@ -447,14 +486,23 @@ func (s *Session) sweepUnansweredRequests() {
 		select {
 		case <-s.done:
 			return
-		case <-ticker.C:
-		}
 
-		arrivals := s.poolArrivals.Load()
-		if arrivals == lastArrivals && s.poolInFlight.Load() > 0 {
-			s.poolInFlight.Store(0)
+		case <-refill.C:
+			// Only when a carrier is present. Without one the visitor path
+			// still tops up directly, because then there is no alternative to
+			// dialling and waiting half a second to start would be half a
+			// second added to somebody's request.
+			if s.HasOverflow() {
+				s.topUpPool()
+			}
+
+		case <-sweep.C:
+			arrivals := s.poolArrivals.Load()
+			if arrivals == lastArrivals && s.poolInFlight.Load() > 0 {
+				s.poolInFlight.Store(0)
+			}
+			lastArrivals = arrivals
 		}
-		lastArrivals = arrivals
 	}
 }
 

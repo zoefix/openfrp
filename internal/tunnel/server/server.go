@@ -403,7 +403,7 @@ func (s *Server) attachMuxConn(conn net.Conn, msg *protocol.NewMuxConn) {
 		return
 	}
 
-	source, err := transport.NewMuxSource(conn, transport.DefaultMuxConfig())
+	source, err := transport.NewMuxSource(conn, transport.CarrierMuxConfig())
 	if err != nil {
 		s.logger.Warn("could not start the overflow carrier", "error", err)
 		conn.Close()

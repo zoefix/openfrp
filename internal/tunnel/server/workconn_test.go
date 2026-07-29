@@ -249,3 +249,62 @@ func TestCarrierTakesThePoolOffTheVisitorPath(t *testing.T) {
 		t.Errorf("the timed refill asked for %d, want 8", got)
 	}
 }
+
+// TestRefillTargetClimbsOnSuccessAndBacksOffOnStall covers the controller
+// that decides what share of visitors get a spliceable connection.
+//
+// The arithmetic it is chasing is direct: the refill rate divided by the
+// arrival rate is the share served by direct connections. Measured on a real
+// path, a fixed depth of eight against 91 requests a second produced 18%
+// spliced, exactly 16/91 — everything else went over a carrier and through
+// userspace.
+//
+// The failure mode to avoid is the one a previous attempt walked into: it
+// grew on misses alone, and misses are guaranteed under load, so it saturated
+// instantly and hammered the client's egress until the tunnel died. Growth
+// here is conditional on the client answering, and there is a backoff.
+func TestRefillTargetClimbsOnSuccessAndBacksOffOnStall(t *testing.T) {
+	session := testSession(t, 8, 32)
+
+	if got := session.refillTarget.Load(); got != 8 {
+		t.Fatalf("initial refill target = %d, want the configured 8", got)
+	}
+
+	// Demand with the client keeping up: climb, one at a time.
+	for range 5 {
+		session.poolMisses.Store(1)
+		session.adjustRefillTarget(false)
+	}
+	if got := session.refillTarget.Load(); got != 13 {
+		t.Errorf("after five busy intervals the refill target = %d, want 13", got)
+	}
+
+	// Demand alone is not enough — a quiet tunnel must not accumulate depth
+	// it has no use for.
+	session.poolMisses.Store(0)
+	session.adjustRefillTarget(false)
+	if got := session.refillTarget.Load(); got != 13 {
+		t.Errorf("a quiet interval moved the target to %d, want it held at 13", got)
+	}
+
+	// A request that went unanswered means the client's egress has run out.
+	// Halve, and keep halving, but never below what was configured.
+	session.adjustRefillTarget(true)
+	if got := session.refillTarget.Load(); got != 8 {
+		t.Errorf("after a stall the refill target = %d, want it halved to 8", got)
+	}
+	session.adjustRefillTarget(true)
+	if got := session.refillTarget.Load(); got != 8 {
+		t.Errorf("the refill target fell to %d, want it floored at the "+
+			"configured 8", got)
+	}
+
+	// And the ceiling is the server's per-client maximum.
+	for range 200 {
+		session.poolMisses.Store(1)
+		session.adjustRefillTarget(false)
+	}
+	if got := session.refillTarget.Load(); got != 32 {
+		t.Errorf("refill target = %d, want it capped at the 32 maximum", got)
+	}
+}

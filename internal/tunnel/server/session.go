@@ -52,6 +52,33 @@ type Session struct {
 	poolInFlight atomic.Int64
 	poolArrivals atomic.Int64
 
+	// refillTarget is how deep the timed refill tries to keep the pool while
+	// a carrier is carrying the overflow, and it is the number that decides
+	// what fraction of visitors get a spliceable connection.
+	//
+	// The arithmetic is direct: the refill rate divided by the arrival rate
+	// is the share served directly. Measured on a real path, eight per half
+	// second against ninety-one requests a second came out at 18% spliced,
+	// which is exactly 16/91. Everything else went over a carrier and through
+	// userspace.
+	//
+	// So it climbs, with a signal to tell it when to stop. It grows only when
+	// the pool is actually running dry — evidence the depth is being used —
+	// and only while the client is answering; it halves the moment a request
+	// goes unanswered, which is what a client whose egress has run out looks
+	// like from here.
+	//
+	// The distinction from the version of this that was reverted matters. That
+	// one grew on misses alone, and misses are guaranteed under load, so it
+	// saturated instantly and hammered the very thing it should have been
+	// backing off from. Growth here is conditional on success, and there is a
+	// congestion signal underneath it.
+	refillTarget atomic.Int64
+	// poolMisses counts visitors the pool could not serve since the last
+	// tick, which is the demand half of the growth condition.
+	poolMisses atomic.Int64
+	poolMax    int
+
 	// overflow opens multiplexed streams to the client over connections that
 	// are already established. It is the relief valve for an empty pool, and
 	// empty when the client offered none.
@@ -159,6 +186,9 @@ func newSession(opts SessionOptions) *Session {
 		vhostHTTPSPort: opts.VhostHTTPSPort,
 	}
 
+	s.poolMax = capacity
+	s.refillTarget.Store(int64(opts.PoolTarget))
+
 	// Both stopped by Close via the done channel.
 	go s.workConnRequester()
 	go s.tendPool()
@@ -257,6 +287,10 @@ func (s *Session) GetWorkConn(ctx context.Context, proxyName, sourceAddr string)
 	// overflow carrier: a stream on it costs no handshake, no round trip and
 	// no entry in whatever NAT or proxy sits in front of the client — which
 	// is the resource that actually runs out first when a burst arrives.
+	// The pool was too shallow for this visitor. That is the demand half of
+	// the refill controller's growth condition.
+	s.poolMisses.Add(1)
+
 	if conn, ok := s.overflowConn(ctx, proxyName, sourceAddr); ok {
 		if stale > 0 {
 			s.logger.Info("discarded work connections that had gone stale",
@@ -475,7 +509,7 @@ func (s *Session) replenishPool() {
 func (s *Session) topUpPool() {
 	inFlight := s.poolInFlight.Load()
 
-	deficit := int64(s.poolTarget) - int64(len(s.workConns)) - inFlight
+	deficit := s.refillTarget.Load() - int64(len(s.workConns)) - inFlight
 	if deficit <= 0 {
 		return
 	}
@@ -497,6 +531,36 @@ func (s *Session) topUpPool() {
 // count forever would leave the pool unable to ask again — a flow-control
 // deadlock that looks exactly like a pool that will not fill.
 const poolSweepInterval = 5 * time.Second
+
+// adjustRefillTarget moves the refill depth toward what the client's egress
+// will actually bear.
+//
+// Additive increase, multiplicative decrease, on the only congestion signal
+// available here: whether requests are being answered. Growth also requires
+// the pool to have been running dry, so a quiet tunnel does not accumulate
+// depth it has no use for.
+func (s *Session) adjustRefillTarget(stalled bool) {
+	target := s.refillTarget.Load()
+	misses := s.poolMisses.Swap(0)
+
+	switch {
+	case stalled:
+		// Halve, never below what the client asked to keep warm.
+		lowered := max(target/2, int64(s.poolTarget))
+		if lowered != target {
+			s.refillTarget.Store(lowered)
+			s.logger.Info("client cannot sustain the dial rate, easing off",
+				"refill_target", lowered, "was", target)
+		}
+
+	case misses > 0 && target < int64(s.poolMax):
+		// Demand exceeded the pool and the client is keeping up, so it can
+		// take a little more. One at a time: the cost of overshooting is the
+		// backoff above, and that costs a visitor nothing because the carrier
+		// is serving them meanwhile.
+		s.refillTarget.Store(target + 1)
+	}
+}
 
 // poolRefillInterval is how often the pool is topped up while a carrier is
 // carrying the load.
@@ -535,10 +599,18 @@ func (s *Session) tendPool() {
 
 		case <-sweep.C:
 			arrivals := s.poolArrivals.Load()
-			if arrivals == lastArrivals && s.poolInFlight.Load() > 0 {
+			answered := arrivals != lastArrivals
+			stalled := !answered && s.poolInFlight.Load() > 0
+
+			if stalled {
+				// Requests went out and nothing came back. From here that is
+				// indistinguishable from — and in practice is — a client whose
+				// egress has run out of room, so give it back fast.
 				s.poolInFlight.Store(0)
 			}
 			lastArrivals = arrivals
+
+			s.adjustRefillTarget(stalled)
 		}
 	}
 }

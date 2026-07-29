@@ -593,15 +593,20 @@ func (s *Session) tendPool() {
 			// still tops up directly, because then there is no alternative to
 			// dialling and waiting half a second to start would be half a
 			// second added to somebody's request.
-			if s.HasOverflow() {
-				s.topUpPool()
+			if !s.HasOverflow() {
+				continue
 			}
 
-		case <-sweep.C:
+			// The controller runs on this tick, not the sweep, because this
+			// is the tick it controls. Driven from the five second sweep it
+			// converged an order of magnitude too slowly to matter: a
+			// twenty second burst got four steps, taking the depth from 8 to
+			// 12 and the spliced share from 18% to 21% when the point was to
+			// find the ceiling. A dial lands in well under half a second on
+			// any path this serves, so arrivals not advancing across one of
+			// these is already a stall.
 			arrivals := s.poolArrivals.Load()
-			answered := arrivals != lastArrivals
-			stalled := !answered && s.poolInFlight.Load() > 0
-
+			stalled := arrivals == lastArrivals && s.poolInFlight.Load() > 0
 			if stalled {
 				// Requests went out and nothing came back. From here that is
 				// indistinguishable from — and in practice is — a client whose
@@ -611,6 +616,21 @@ func (s *Session) tendPool() {
 			lastArrivals = arrivals
 
 			s.adjustRefillTarget(stalled)
+			s.topUpPool()
+
+		case <-sweep.C:
+			// The slower sweep still exists for the case the refill tick
+			// cannot see: no carrier, so the branch above never runs, and an
+			// unanswered request would otherwise strand the in-flight count
+			// and stop the pool ever asking again.
+			if s.HasOverflow() {
+				continue
+			}
+			arrivals := s.poolArrivals.Load()
+			if arrivals == lastArrivals && s.poolInFlight.Load() > 0 {
+				s.poolInFlight.Store(0)
+			}
+			lastArrivals = arrivals
 		}
 	}
 }

@@ -258,6 +258,7 @@ tar -tzf "$WORK/$BUNDLE" |
 
 if [ ! -f /etc/config/openfrp ]; then
 	step "writing the default configuration"
+	mkdir -p /etc/config
 	cat > /etc/config/openfrp <<'EOF'
 config global 'global'
 	option enabled '0'

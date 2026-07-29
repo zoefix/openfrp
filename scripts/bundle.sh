@@ -59,7 +59,9 @@ for platform in $PLATFORMS; do
 	cp "$RESOURCES"/view/openfrp/*.js "$root/www/luci-static/resources/view/openfrp/"
 
 	bundle="openfrp-$VERSION-$os-$arch.tar.gz"
-	COPYFILE_DISABLE=1 tar -czf "$DIST/$bundle" -C "$root" .
+	TAR_FLAGS=""
+	tar --no-xattrs --version >/dev/null 2>&1 && TAR_FLAGS="--no-xattrs"
+	COPYFILE_DISABLE=1 tar $TAR_FLAGS -czf "$DIST/$bundle" -C "$root" .
 	rm -rf "$root"
 	echo "$DIST/$bundle"
 done

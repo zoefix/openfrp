@@ -202,9 +202,6 @@ msgstr "仅 DNS"
 msgid "DNS only — answer with this address"
 msgstr "仅 DNS — 直接返回该地址"
 
-msgid "Decrypted by the remote server"
-msgstr "由远端服务器解密"
-
 msgid "Delete"
 msgstr "删除"
 
@@ -250,8 +247,8 @@ msgstr "没能重新启动 — 请看下方日志。"
 msgid "Disabled"
 msgstr "已禁用"
 
-msgid "Do not proxy a tunnel's name: the proxy terminates TLS and serves only its own ports."
-msgstr "隧道的域名不要开代理：代理会终结 TLS，且只服务自己的端口。"
+msgid "Do not proxy a tunnel's name: the proxy answers HTTPS itself, on its own ports."
+msgstr "隧道的域名不要开代理：代理会自己应答 HTTPS，且只用它自己的端口。"
 
 msgid "Domains"
 msgstr "域名"
@@ -321,6 +318,9 @@ msgstr "失败 — 请查看上面的输出。"
 
 msgid "Finished successfully."
 msgstr "已成功完成。"
+
+msgid "For tunnels whose HTTPS the server handles. Pushed without dropping connections."
+msgstr "供由服务端处理 HTTPS 的隧道使用。推送时不会中断连接。"
 
 msgid "Hide"
 msgstr "隐藏"
@@ -445,8 +445,8 @@ msgstr "还没有证书。"
 msgid "No log output yet."
 msgstr "暂无日志输出。"
 
-msgid "No server of your own — cloudflared connects out to Cloudflare, which routes your domains back.\n\nHTTP only: Cloudflare terminates TLS, so certificates, remote ports and the PROXY protocol do not apply."
-msgstr "无需自己的服务器——cloudflared 向外连接 Cloudflare，由它把你的域名路由回来。\n\n仅支持 HTTP：Cloudflare 在边缘终结 TLS，因此证书、远程端口和 PROXY 协议均不适用。"
+msgid "No server of your own — cloudflared connects out to Cloudflare, which routes your domains back.\n\nHTTP only: Cloudflare answers HTTPS itself, so certificates, remote ports and the PROXY protocol do not apply."
+msgstr "无需自己的服务器——cloudflared 向外连接 Cloudflare，由它把你的域名路由回来。\n\n仅支持 HTTP：Cloudflare 自己应答 HTTPS，因此证书、远程端口和 PROXY 协议均不适用。"
 
 msgid "No token — this server cannot be reached"
 msgstr "没有令牌 — 无法连接此服务器"
@@ -481,8 +481,8 @@ msgstr "只能是一段：字母、数字和短横线。"
 msgid "One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com."
 msgstr "每行一个。\"*\" 只覆盖一级：*.aiqno.com 不含 a.b.aiqno.com。"
 
-msgid "Only certificates covering every domain are listed. Pushed and hot-loaded without dropping connections."
-msgstr "仅列出覆盖全部域名的证书。推送后热加载，不断开连接。"
+msgid "Only certificates covering every domain are listed. Pushed without dropping connections."
+msgstr "仅列出覆盖全部域名的证书。推送时不会中断连接。"
 
 msgid "Overview"
 msgstr "概览"
@@ -492,12 +492,6 @@ msgstr "PROXY 协议 v1（文本）"
 
 msgid "PROXY protocol v2 (binary)"
 msgstr "PROXY 协议 v2（二进制）"
-
-msgid "Passthrough leaves the certificate with the local service. Terminating needs one issued here and pushed."
-msgstr "透传时证书归内网服务所有；边缘终结则需在此签发并推送。"
-
-msgid "Passthrough — the remote server does not decrypt"
-msgstr "透传 — 远端服务器不解密"
 
 msgid "Password"
 msgstr "密码"
@@ -519,9 +513,6 @@ msgstr "已代理"
 
 msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量经服务商中转"
-
-msgid "Pushed to the server and hot-loaded. Used by tunnels that terminate TLS there."
-msgstr "推送到服务端并热加载。供在服务端终结 TLS 的隧道使用。"
 
 msgid "Reach a service on this network from the internet."
 msgstr "从公网访问本地网络中的服务。"
@@ -703,8 +694,14 @@ msgstr "证书已签发。"
 msgid "The first server"
 msgstr "第一台服务器"
 
+msgid "The local service handles HTTPS"
+msgstr "由内网服务处理 HTTPS"
+
 msgid "The port the server will listen on for this router."
 msgstr "服务端为本路由器监听的端口。"
+
+msgid "The remote server handles HTTPS"
+msgstr "由远端服务器处理 HTTPS"
 
 msgid "The shared secret the server was configured with."
 msgstr "服务端配置的共享密钥。"
@@ -768,6 +765,9 @@ msgstr "在哪里获取"
 
 msgid "Which server publishes this tunnel. Leave unset for the first one."
 msgstr "由哪台服务器发布这条隧道。留空则用第一台。"
+
+msgid "Whichever end handles HTTPS needs the certificate. The server's is issued here and pushed to it."
+msgstr "哪一端处理 HTTPS，证书就归哪一端。服务端用的证书在此签发并推送过去。"
 
 msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
 msgstr "不启用时，内网服务会把每个访客都记成本路由器。请先配置好服务，否则所有请求都会失败。\n\nnginx：\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"

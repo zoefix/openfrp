@@ -710,13 +710,22 @@ return view.extend({
 		o = s.option(form.ListValue, 'tls_mode', _('TLS handling'));
 		o.depends({ type: 'http', https: '1' });
 		limitToOpenFrp(o, openfrp);
-		o.value('passthrough', _('Passthrough — the remote server does not decrypt'));
-		o.value('terminate', _('Decrypted by the remote server'));
+		o.value('passthrough', _('The local service handles HTTPS'));
+		o.value('terminate', _('The remote server handles HTTPS'));
 		o.default = 'passthrough';
-		o.description = _('Passthrough leaves the certificate with the local service. Terminating needs one issued here and pushed.');
+		o.description = _('Whichever end handles HTTPS needs the certificate. The server\'s is issued here and pushed to it.');
+
+		// Without this the grid column prints the stored value — a reader of
+		// the tunnel list was shown "terminate" and "passthrough", which are
+		// what the config calls them and not what anyone would call them.
+		o.textvalue = function (section_id) {
+			return uci.get('openfrp', section_id, 'tls_mode') === 'terminate'
+				? _('The remote server handles HTTPS')
+				: _('The local service handles HTTPS');
+		};
 
 		o = s.option(form.ListValue, 'cert_id', _('Certificate'),
-			_('Only certificates covering every domain are listed. Pushed and hot-loaded without dropping connections.'));
+			_('Only certificates covering every domain are listed. Pushed without dropping connections.'));
 		o.depends({ type: 'http', https: '1', tls_mode: 'terminate' });
 		o.modalonly = true;
 		limitToOpenFrp(o, openfrp);

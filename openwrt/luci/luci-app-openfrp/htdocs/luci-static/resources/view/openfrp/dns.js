@@ -398,7 +398,7 @@ function recordDialog(existing) {
 		// nobody reads: a proxied name cannot carry a tunnel.
 		dom.content(proxyHint, proxySelect.value === '1'
 			? E('span', { 'style': 'color:#d9534f' },
-				_('Do not proxy a tunnel\'s name: the proxy terminates TLS and serves only its own ports.'))
+				_('Do not proxy a tunnel\'s name: the proxy answers HTTPS itself, on its own ports.'))
 			: _('The address is answered directly, which is what a tunnel needs.'));
 	}
 

@@ -544,7 +544,7 @@ return view.extend({
 		return E('div', {}, [
 			stylesheet(),
 			E('h2', {}, _('Certificates')),
-			E('p', {}, _('Pushed to the server and hot-loaded. Used by tunnels that terminate TLS there.'))
+			E('p', {}, _('For tunnels whose HTTPS the server handles. Pushed without dropping connections.'))
 		].concat(warning ? [warning] : []).concat([
 			E('div', { 'class': 'cbi-section' }, [
 				ordersHolder,

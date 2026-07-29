@@ -239,7 +239,7 @@ function cloudflareFields() {
 			row(_('Name'), nameInput,
 				_('Local to this router — a tunnel points at it.')),
 			E('div', { 'class': 'cbi-value-description' },
-				_('No server of your own — cloudflared connects out to Cloudflare, which routes your domains back.\n\nHTTP only: Cloudflare terminates TLS, so certificates, remote ports and the PROXY protocol do not apply.'))
+				_('No server of your own — cloudflared connects out to Cloudflare, which routes your domains back.\n\nHTTP only: Cloudflare answers HTTPS itself, so certificates, remote ports and the PROXY protocol do not apply.'))
 		]),
 
 		focus: function () { nameInput.focus(); },

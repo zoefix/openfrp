@@ -598,13 +598,8 @@ return view.extend({
 		o.value('passthrough', _('The local service handles HTTPS'));
 		o.value('terminate', _('The remote server handles HTTPS'));
 		o.default = 'passthrough';
+		o.modalonly = true;
 		o.description = _('Whichever end handles HTTPS needs the certificate. The server\'s is issued here and pushed to it.');
-
-		o.textvalue = function (section_id) {
-			return uci.get('openfrp', section_id, 'tls_mode') === 'terminate'
-				? _('The remote server handles HTTPS')
-				: _('The local service handles HTTPS');
-		};
 
 		o = s.option(form.ListValue, 'cert_id', _('Certificate'),
 			_('Only certificates covering every domain are listed. Pushed without dropping connections.'));

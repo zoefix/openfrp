@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -307,5 +308,71 @@ func TestParseChecksumsReadsTheUsualFormat(t *testing.T) {
 	}
 	if sums["openfrp-0.4.0-linux-arm64.tar.gz"] != "def456" {
 		t.Error("the binary-mode * prefix sha256sum writes was not handled")
+	}
+}
+
+// TestApplyIgnoresTheCallersUmask is the regression this shipped without.
+//
+// The job worker that runs an update sets umask 077. Modes passed to open and
+// mkdir are masked by it, so every installed file came out 0600 and every
+// directory 0700. The update reported success and the web server answered 403
+// for the whole interface — a broken router from a run that looked clean.
+//
+// Testing Apply from a shell with the usual 022 could never have caught it,
+// which is exactly how it got out.
+func TestApplyIgnoresTheCallersUmask(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("umask is POSIX")
+	}
+
+	previous := syscall.Umask(0o077)
+	defer syscall.Umask(previous)
+
+	bundle := newBundle(t, workingClient())
+	client := startFakeGitHub(t, fakeRelease{
+		tag: "v0.4.0", bundle: bundle, sums: checksumsFor("v0.4.0", bundle),
+	})
+
+	root := t.TempDir()
+	var log bytes.Buffer
+	if err := Apply(context.Background(), Options{
+		Root: root, Client: client, StageDir: t.TempDir(),
+		ServiceCommand: restartScript(t, true), Log: &log,
+	}); err != nil {
+		t.Fatalf("apply: %v\n%s", err, log.String())
+	}
+
+	cases := []struct {
+		path string
+		want os.FileMode
+	}{
+		{"usr/bin/openfrpc", ExecMode},
+		{"usr/libexec/openfrp/render", ExecMode},
+		{"www/luci-static/resources/view/openfrp/status.js", FileMode},
+	}
+	for _, tc := range cases {
+		info, err := os.Stat(filepath.Join(root, tc.path))
+		if err != nil {
+			t.Errorf("%s: %v", tc.path, err)
+			continue
+		}
+		if got := info.Mode().Perm(); got != tc.want {
+			t.Errorf("%s installed as %04o, want %04o; under a restrictive umask "+
+				"the interface becomes unreadable and the web server answers 403",
+				tc.path, got, tc.want)
+		}
+	}
+
+	dirs := []string{"usr/bin", "www/luci-static/resources/view/openfrp"}
+	for _, dir := range dirs {
+		info, err := os.Stat(filepath.Join(root, dir))
+		if err != nil {
+			t.Errorf("%s: %v", dir, err)
+			continue
+		}
+		if got := info.Mode().Perm(); got != DirMode {
+			t.Errorf("directory %s created as %04o, want %04o; nothing inside a "+
+				"0700 directory can be served", dir, got, DirMode)
+		}
 	}
 }

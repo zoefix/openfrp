@@ -12,6 +12,25 @@ import (
 
 const maxBundleSize = 128 << 20
 
+// The modes an install must end up with, set explicitly rather than left to
+// whatever umask the caller happened to have.
+const (
+	FileMode = os.FileMode(0o644)
+	ExecMode = os.FileMode(0o755)
+	DirMode  = os.FileMode(0o755)
+)
+
+// MkdirAllMode creates a directory chain and fixes the mode of what it made.
+//
+// MkdirAll applies the umask, so under the job worker's 077 a fresh directory
+// comes out 0700 and nothing inside it can be served.
+func MkdirAllMode(dir string) error {
+	if err := os.MkdirAll(dir, DirMode); err != nil {
+		return err
+	}
+	return os.Chmod(dir, DirMode)
+}
+
 // allowedPrefixes bounds where a bundle may write.
 //
 // A release is fetched over the network and unpacked by root. Without a
@@ -97,13 +116,13 @@ func Extract(archive io.Reader, dir string) ([]string, error) {
 		}
 
 		target := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		if err := MkdirAllMode(filepath.Dir(target)); err != nil {
 			return nil, err
 		}
 
-		mode := os.FileMode(0o644)
+		mode := FileMode
 		if header.FileInfo().Mode()&0o111 != 0 {
-			mode = 0o755
+			mode = ExecMode
 		}
 
 		file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
@@ -115,6 +134,15 @@ func Extract(archive io.Reader, dir string) ([]string, error) {
 			return nil, fmt.Errorf("update: unpack %q: %w", name, err)
 		}
 		if err := file.Close(); err != nil {
+			return nil, err
+		}
+
+		// The mode passed to open is masked by the process umask, and the job
+		// worker that runs an update sets 077. That turned every installed
+		// file 0600 and every directory 0700, which a web server answers as
+		// 403 — the interface stopped loading while the update reported
+		// success. Chmod is not masked, so the mode asked for is the mode set.
+		if err := os.Chmod(target, mode); err != nil {
 			return nil, err
 		}
 

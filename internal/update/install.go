@@ -240,7 +240,7 @@ func install(opts Options, from, backup string, files []string) error {
 
 		if _, err := os.Stat(target); err == nil {
 			saved := filepath.Join(backup, name)
-			if err := os.MkdirAll(filepath.Dir(saved), 0o755); err != nil {
+			if err := MkdirAllMode(filepath.Dir(saved)); err != nil {
 				return err
 			}
 			if err := copyFile(target, saved); err != nil {
@@ -248,7 +248,7 @@ func install(opts Options, from, backup string, files []string) error {
 			}
 		}
 
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		if err := MkdirAllMode(filepath.Dir(target)); err != nil {
 			return err
 		}
 		if err := replace(filepath.Join(from, name), target); err != nil {
@@ -283,11 +283,19 @@ func replace(src, dst string) error {
 		return err
 	}
 
+	mode := FileMode
+	if info.Mode()&0o111 != 0 {
+		mode = ExecMode
+	}
+
 	tmp := dst + ".openfrp-new"
 	if err := copyFile(src, tmp); err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp, info.Mode().Perm()); err != nil {
+	// The staged file's own mode is not the authority: it was written under the
+	// same umask and may already be too narrow. What a file ends up as is
+	// decided here.
+	if err := os.Chmod(tmp, mode); err != nil {
 		os.Remove(tmp)
 		return err
 	}
@@ -305,10 +313,10 @@ func copyFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := MkdirAllMode(filepath.Dir(dst)); err != nil {
 		return err
 	}
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, FileMode)
 	if err != nil {
 		return err
 	}

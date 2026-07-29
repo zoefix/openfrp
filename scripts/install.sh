@@ -249,6 +249,19 @@ fi
 step "installing files"
 tar -xzf "$WORK/$BUNDLE" -C /
 
+# tar as root restores the archive's modes, but not every tar does when a
+# umask is set, and a 0600 interface file is served as 403 rather than as a
+# broken page. Cheap to state outright.
+chmod 0755 /usr/bin/openfrpc /usr/libexec/openfrp/* 2>/dev/null || true
+[ -f /usr/lib/openfrp/openfrps ] && chmod 0755 /usr/lib/openfrp/openfrps
+chmod 0755 /usr/lib/openfrp /usr/libexec/openfrp \
+	/www/luci-static/resources/openfrp \
+	/www/luci-static/resources/view/openfrp 2>/dev/null || true
+chmod 0644 /usr/share/rpcd/ucode/openfrp.uc 2>/dev/null || true
+chmod 0644 /usr/lib/lua/luci/i18n/openfrp.*.lmo 2>/dev/null || true
+chmod 0644 /www/luci-static/resources/openfrp/*.js 2>/dev/null || true
+chmod 0644 /www/luci-static/resources/view/openfrp/*.js 2>/dev/null || true
+
 # Record what was installed so --uninstall removes exactly this and nothing
 # else. A hardcoded list would miss whatever a later release adds.
 mkdir -p "$(dirname "$MANIFEST")"

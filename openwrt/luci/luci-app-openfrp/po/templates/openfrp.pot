@@ -915,9 +915,7 @@ msgid "Restarting…"
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:490
-msgid ""
-"Routed to this tunnel. \"*\" matches one level: *.aaa.com matches "
-"www.aaa.com, not x.bb.aaa.com."
+msgid "Routed to this tunnel. Wildcards are supported."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/status.js:203

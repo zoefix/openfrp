@@ -487,7 +487,7 @@ return view.extend({
 		limitToOpenFrp(o, openfrp);
 
 		o = s.option(form.DynamicList, 'domains', _('Domains'),
-			_('Routed to this tunnel. \"*\" matches one level: *.aaa.com matches www.aaa.com, not x.bb.aaa.com.'));
+			_('Routed to this tunnel. Wildcards are supported.'));
 		o.depends('type', 'http');
 		o.depends('type', 'https');
 		o.placeholder = '*.aaa.com';

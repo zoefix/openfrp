@@ -601,8 +601,8 @@ msgstr "再起動しました。"
 msgid "Restarting…"
 msgstr "再起動中…"
 
-msgid "Routed to this tunnel. \"*\" matches one level: *.aaa.com matches www.aaa.com, not x.bb.aaa.com."
-msgstr "このトンネルへ振り分けます。\"*\" は 1 階層のみ一致：*.aaa.com は www.aaa.com に一致し、x.bb.aaa.com には一致しません。"
+msgid "Routed to this tunnel. Wildcards are supported."
+msgstr "このトンネルにルーティングします。ワイルドカードに対応しています。"
 
 msgid "Running"
 msgstr "実行中"

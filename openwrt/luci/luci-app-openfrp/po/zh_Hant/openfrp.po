@@ -601,8 +601,8 @@ msgstr "已重啟。"
 msgid "Restarting…"
 msgstr "正在重啟…"
 
-msgid "Routed to this tunnel. \"*\" matches one level: *.aaa.com matches www.aaa.com, not x.bb.aaa.com."
-msgstr "路由到本隧道。\"*\" 只匹配一級：*.aaa.com 匹配 www.aaa.com，不匹配 x.bb.aaa.com。"
+msgid "Routed to this tunnel. Wildcards are supported."
+msgstr "路由到本隧道。支援泛解析。"
 
 msgid "Running"
 msgstr "執行中"

@@ -279,6 +279,7 @@ func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
 		runID:         resp.RunID,
 		serverVersion: resp.ServerVersion,
 		logger:        c.logger.With("run_id", resp.RunID),
+		dialSlots:     make(chan struct{}, maxConcurrentDials),
 	}, nil
 }
 

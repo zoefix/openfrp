@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 )
 
 // Frame layout on the wire:
@@ -85,17 +86,39 @@ type Codec struct {
 	r *bufio.Reader
 	w io.Writer
 
+	// deadliner is the underlying connection, when the stream has one, so a
+	// write can be bounded. See WriteTimeout.
+	deadliner interface{ SetWriteDeadline(time.Time) error }
+
 	writeMu sync.Mutex
 	hdr     [headerSize]byte
 }
 
+// WriteTimeout bounds a single control-message write.
+//
+// Without it a congested control connection is a session killer, and not
+// only for the message that blocked. Every writer shares the mutex above, so
+// one write stuck in a full socket buffer also holds up the heartbeat reply
+// behind it — and the peer, seeing no traffic within its heartbeat timeout,
+// concludes the connection is dead and tears the whole session down. Every
+// tunnel that session published goes with it, including tunnels on other
+// servers served by the same client process.
+//
+// Failing the write instead turns a silent, mysterious disconnect into a
+// reported error on the message that actually caused it.
+const WriteTimeout = 15 * time.Second
+
 // NewCodec wraps a stream. The caller retains ownership of rw and is
-// responsible for closing it and for setting any deadlines.
+// responsible for closing it and for setting any read deadlines.
 func NewCodec(rw io.ReadWriter) *Codec {
-	return &Codec{
+	c := &Codec{
 		r: bufio.NewReaderSize(rw, readBufferSize),
 		w: rw,
 	}
+	if d, ok := rw.(interface{ SetWriteDeadline(time.Time) error }); ok {
+		c.deadliner = d
+	}
+	return c
 }
 
 // encode renders a message as a complete frame.
@@ -157,6 +180,13 @@ func (c *Codec) Write(m Message) error {
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
+
+	// Bounded, so a blocked write cannot hold this mutex — and with it the
+	// heartbeat — until the peer gives up on the whole session.
+	if c.deadliner != nil {
+		c.deadliner.SetWriteDeadline(time.Now().Add(WriteTimeout))
+		defer c.deadliner.SetWriteDeadline(time.Time{})
+	}
 
 	// One Write for the whole frame: two writes would let a concurrent writer
 	// interleave between header and payload if the mutex were ever dropped,

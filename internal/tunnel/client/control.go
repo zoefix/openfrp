@@ -38,6 +38,11 @@ type session struct {
 	// claim to be released.
 	retries retryCounter
 
+	// dialSlots bounds concurrent work-connection dials. See
+	// maxConcurrentDials for why the limit protects the client rather than
+	// the server.
+	dialSlots chan struct{}
+
 	wg sync.WaitGroup
 }
 

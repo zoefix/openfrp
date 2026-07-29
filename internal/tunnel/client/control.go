@@ -93,7 +93,7 @@ func (s *session) serve(ctx context.Context) error {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		s.runOverflowCarrier(ctx)
+		s.runOverflowCarriers(ctx)
 	}()
 
 	go func() {

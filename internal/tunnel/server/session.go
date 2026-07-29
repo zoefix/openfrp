@@ -52,18 +52,29 @@ type Session struct {
 	poolInFlight atomic.Int64
 	poolArrivals atomic.Int64
 
-	// overflow opens multiplexed streams to the client over a connection that
-	// is already established. It is the relief valve for an empty pool, and
-	// nil when the client did not offer one.
+	// overflow opens multiplexed streams to the client over connections that
+	// are already established. It is the relief valve for an empty pool, and
+	// empty when the client offered none.
 	//
 	// Deliberately not the default path. A stream shares its carrier's
-	// congestion window with every other stream and cannot be spliced, so
-	// serving everything this way would give up both properties the direct
+	// congestion window with every other stream on it and cannot be spliced,
+	// so serving everything this way would give up both properties the direct
 	// pool exists for. It is strictly better than the alternative it replaces,
 	// which is not a direct connection but a visitor waiting about two round
 	// trips for one to be built.
-	overflowMu sync.RWMutex
-	overflow   transport.StreamSource
+	//
+	// Several rather than one, because one is a single TCP connection with
+	// everything the pool could not serve concentrated on it — the next
+	// bottleneck twice over, sharing both a congestion window and whatever
+	// per-connection limit the middlebox in front of the client applies.
+	// Measured through a transparent proxy, concentrating the overflow on a
+	// single carrier cost a third of the throughput the same burst reached
+	// over many short connections. A handful restores that without restoring
+	// the connection churn that caused the outage: the count is fixed, so it
+	// does not rise with traffic.
+	overflowMu   sync.RWMutex
+	overflow     []transport.StreamSource
+	overflowNext atomic.Uint64
 
 	// reqPending accumulates work-connection requests between writes, and
 	// reqKick wakes the requester goroutine that flushes them. One control
@@ -289,18 +300,25 @@ func (s *Session) startWorkConn(conn net.Conn, proxyName, sourceAddr string) err
 	})
 }
 
-// SetOverflow installs the multiplexed carrier for this session, replacing
-// and closing any previous one.
+// maxOverflowCarriers bounds how many a client may offer, so a buggy or
+// hostile one cannot pin server memory by offering them without end.
+const maxOverflowCarriers = 8
+
+// SetOverflow adds a multiplexed carrier for this session.
 func (s *Session) SetOverflow(source transport.StreamSource) {
 	s.overflowMu.Lock()
-	previous := s.overflow
-	s.overflow = source
+	if len(s.overflow) >= maxOverflowCarriers {
+		s.overflowMu.Unlock()
+		source.Close()
+		s.logger.Warn("client offered more overflow carriers than allowed",
+			"max", maxOverflowCarriers)
+		return
+	}
+	s.overflow = append(s.overflow, source)
+	count := len(s.overflow)
 	s.overflowMu.Unlock()
 
-	if previous != nil {
-		previous.Close()
-	}
-	s.logger.Info("client offered a multiplexed overflow carrier")
+	s.logger.Info("client offered a multiplexed overflow carrier", "carriers", count)
 }
 
 // overflowConn opens a stream on the carrier and tells it which proxy it
@@ -309,49 +327,68 @@ func (s *Session) SetOverflow(source transport.StreamSource) {
 // A failure here is not reported as an error: the caller's next move is to
 // ask for a real connection, which is what it would have done anyway. The
 // carrier is dropped so a dead one is not tried again by every visitor.
+// Carriers are tried round robin, and a failure moves on to the next rather
+// than giving up: they fail independently, and one that has just died should
+// not send this visitor back to waiting for a dial while three healthy ones
+// are sitting there.
 func (s *Session) overflowConn(ctx context.Context, proxyName, sourceAddr string) (net.Conn, bool) {
 	s.overflowMu.RLock()
-	source := s.overflow
+	carriers := s.overflow
 	s.overflowMu.RUnlock()
 
-	if source == nil {
+	if len(carriers) == 0 {
 		return nil, false
 	}
 
-	stream, err := source.Open(ctx)
-	if err != nil {
-		s.logger.Warn("overflow carrier failed, falling back to a fresh connection",
-			"proxy", proxyName, "error", err)
-		s.dropOverflow(source)
-		return nil, false
-	}
+	// Round robin rather than always the first. Spreading streams over the
+	// carriers is the whole reason there is more than one: each is a single
+	// TCP connection with its own congestion window, and its own share of
+	// whatever the middlebox in front of the client will allow it.
+	start := int(s.overflowNext.Add(1) - 1)
 
-	if err := s.startWorkConn(stream, proxyName, sourceAddr); err != nil {
-		stream.Close()
-		s.logger.Warn("overflow stream failed before it carried anything",
-			"proxy", proxyName, "error", err)
-		s.dropOverflow(source)
-		return nil, false
+	for attempt := range carriers {
+		source := carriers[(start+attempt)%len(carriers)]
+
+		stream, err := source.Open(ctx)
+		if err != nil {
+			s.logger.Warn("overflow carrier failed, trying the next",
+				"proxy", proxyName, "error", err)
+			s.dropOverflow(source)
+			continue
+		}
+
+		if err := s.startWorkConn(stream, proxyName, sourceAddr); err != nil {
+			stream.Close()
+			s.logger.Warn("overflow stream failed before it carried anything",
+				"proxy", proxyName, "error", err)
+			s.dropOverflow(source)
+			continue
+		}
+		return stream, true
 	}
-	return stream, true
+	return nil, false
 }
 
-// dropOverflow discards the carrier, but only if it is still the one that
-// failed — a replacement may have arrived while this visitor was trying.
+// dropOverflow discards one carrier, leaving the others in place.
 func (s *Session) dropOverflow(failed transport.StreamSource) {
 	s.overflowMu.Lock()
-	if s.overflow == failed {
-		s.overflow = nil
+	kept := s.overflow[:0]
+	for _, source := range s.overflow {
+		if source != failed {
+			kept = append(kept, source)
+		}
 	}
+	s.overflow = kept
 	s.overflowMu.Unlock()
+
 	failed.Close()
 }
 
-// HasOverflow reports whether a carrier is installed, for tests and status.
+// HasOverflow reports whether any carrier is installed.
 func (s *Session) HasOverflow() bool {
 	s.overflowMu.RLock()
 	defer s.overflowMu.RUnlock()
-	return s.overflow != nil
+	return len(s.overflow) > 0
 }
 
 // DrainPool closes every warm connection and reports how many there were.
@@ -673,11 +710,12 @@ func (s *Session) Close() error {
 		// solver's explicit withdrawal, and the store's TTL behind it.
 
 		s.overflowMu.Lock()
-		if s.overflow != nil {
-			s.overflow.Close()
-			s.overflow = nil
-		}
+		carriers := s.overflow
+		s.overflow = nil
 		s.overflowMu.Unlock()
+		for _, source := range carriers {
+			source.Close()
+		}
 
 		s.proxiesMu.Lock()
 		for _, running := range s.proxies {

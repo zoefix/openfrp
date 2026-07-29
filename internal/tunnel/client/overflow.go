@@ -48,6 +48,31 @@ const (
 // so this is the ordinary case rather than a corner one.
 var errUnsupportedCarrier = errors.New("client: server does not accept an overflow carrier")
 
+// overflowCarriers is how many are held open.
+//
+// One is a single TCP connection carrying everything the warm pool could not,
+// which makes it the next bottleneck twice over: every stream shares its
+// congestion window, and every stream shares whatever per-connection limit
+// the middlebox in front of this client applies. Measured through a
+// transparent proxy, concentrating the overflow on one carrier cost a third
+// of the throughput the same burst reached over many short connections.
+//
+// Four, because the point is to spread the load, not to go back to a
+// connection per visitor. Four is a constant: it does not rise with traffic,
+// which is the property that made the old design fail.
+const overflowCarriers = 4
+
+// runOverflowCarriers holds several carriers open until ctx is cancelled.
+func (s *session) runOverflowCarriers(ctx context.Context) {
+	for range overflowCarriers {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.runOverflowCarrier(ctx)
+		}()
+	}
+}
+
 // runOverflowCarrier keeps one carrier connection up until ctx is cancelled.
 func (s *session) runOverflowCarrier(ctx context.Context) {
 	delay := carrierRetryMin

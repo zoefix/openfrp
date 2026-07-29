@@ -94,6 +94,14 @@ func (*Login) Type() Type { return TypeLogin }
 
 // LoginResp answers a Login.
 type LoginResp struct {
+	// ObservedAddr is the address this login arrived from, as the server saw
+	// it. The client cannot learn this any other way, and it is the only
+	// honest answer to "is my traffic going through the proxy on my own
+	// router" — a redirected connection reaches the server from the proxy's
+	// exit rather than from the router's own WAN address, while from the
+	// client's own socket the two are indistinguishable.
+	ObservedAddr string `json:"observed_addr,omitempty"`
+
 	Version int    `json:"version"`
 	RunID   string `json:"run_id,omitempty"`
 	// ServerVersion is the human-readable build of the server.

@@ -39,6 +39,18 @@ type Upstream struct {
 	// assign one, which is fine until several routers share a server.
 	ClientName string `json:"client_name,omitempty"`
 
+	// SocketGID and SocketMark make this server's outbound connections
+	// identifiable so a transparent proxy on this router can be told to leave
+	// them alone. Zero means do not ask.
+	//
+	// Per server rather than global, because the answer differs per
+	// destination: a tunnel server wants the shortest path out, while the
+	// certificate authority and the DNS provider this daemon also talks to
+	// may be reachable only through the proxy. Turning it on for everything
+	// would fix the tunnel and break issuance.
+	SocketGID  int `json:"socket_gid,omitempty"`
+	SocketMark int `json:"socket_mark,omitempty"`
+
 	Transport Transport `json:"transport,omitempty"`
 }
 

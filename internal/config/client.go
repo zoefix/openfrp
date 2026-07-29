@@ -95,8 +95,13 @@ type Client struct {
 	Name string `json:"name,omitempty"`
 
 	Transport Transport `json:"transport,omitempty"`
-	Tunnels   []Tunnel  `json:"tunnels,omitempty"`
-	Log       Log       `json:"log,omitempty"`
+
+	// SocketGID and SocketMark are carried down from the server this client
+	// is scoped to; see config.Upstream for what they are for.
+	SocketGID  int      `json:"socket_gid,omitempty"`
+	SocketMark int      `json:"socket_mark,omitempty"`
+	Tunnels    []Tunnel `json:"tunnels,omitempty"`
+	Log        Log      `json:"log,omitempty"`
 }
 
 // LoadClient reads and validates a client config from path.

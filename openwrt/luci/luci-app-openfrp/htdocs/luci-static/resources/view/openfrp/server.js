@@ -826,6 +826,18 @@ return view.extend({
 		o.default = '0';
 		o.modalonly = true;
 
+		o = s.option(form.Flag, 'direct_egress', _('Bypass the local proxy'));
+		o.default = '0';
+		o.modalonly = true;
+		o.description = _('Send this server\'s connections straight out of the ' +
+			'WAN instead of through a transparent proxy on this router. Tunnel ' +
+			'traffic through a proxy is slower and, under load, the proxy\'s ' +
+			'connection table is what runs out first. Nothing in the proxy is ' +
+			'changed: the connections are marked so it lets them past, using the ' +
+			'exemption it already keeps for its own traffic. Not every proxy ' +
+			'honours it — after enabling this, the log records the address the ' +
+			'server saw the connection arrive from, which is how you tell.');
+
 		o = s.option(form.Value, 'host_fingerprint', _('Host key fingerprint'),
 			_('Recorded on first connection and checked afterwards.'));
 		o.readonly = true;

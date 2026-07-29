@@ -203,6 +203,8 @@ func (s *Supervisor) scopedConfig(server config.Upstream) (*config.Client, error
 		Token:      server.Token,
 		Name:       server.ClientName,
 		Transport:  server.Transport,
+		SocketGID:  server.SocketGID,
+		SocketMark: server.SocketMark,
 		Tunnels:    tunnels,
 		Log:        s.cfg.Log,
 	}

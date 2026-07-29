@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/zoefix/openfrp/internal/tunnel/protocol"
@@ -21,6 +22,20 @@ type Dialer struct {
 	Timeout time.Duration
 	// TCPOptions is applied to every connection before anything is written.
 	TCPOptions netutil.TCPOptions
+
+	// SocketGID and SocketMark ask the kernel to make this daemon's outbound
+	// connections identifiable, so a transparent proxy on the same host can
+	// be persuaded to leave them alone. Zero means do not ask.
+	//
+	// Neither is a guarantee and they open different locks. A redirect-based
+	// proxy exempts by the socket's owning group — OpenClash's output chain
+	// opens with `meta skgid 65534 return` so its own traffic is not
+	// redirected into itself — while proxies built on TPROXY and policy
+	// routing exempt by fwmark instead. A proxy that exempts neither
+	// intercepts this too, which is why the client asks the server what
+	// address it actually arrived from rather than assuming.
+	SocketGID  int
+	SocketMark int
 }
 
 // DialControl opens the control connection.
@@ -90,7 +105,25 @@ func (d *Dialer) dial(ctx context.Context) (net.Conn, error) {
 	}
 
 	dialer := &net.Dialer{Timeout: timeout}
-	conn, err := dialer.DialContext(ctx, "tcp", d.Addr)
+	if d.SocketMark > 0 {
+		dialer.Control = func(_, _ string, rc syscall.RawConn) error {
+			var markErr error
+			if err := rc.Control(func(fd uintptr) {
+				markErr = netutil.SetSocketMark(fd, d.SocketMark)
+			}); err != nil {
+				return err
+			}
+			return markErr
+		}
+	}
+
+	// The group has to be in place before the socket exists, so it wraps the
+	// dial rather than adjusting the result: the kernel copies the creating
+	// thread's filesystem GID into the socket and there is no way to change
+	// it afterwards.
+	conn, err := netutil.DialWithSocketGID(d.SocketGID, func() (net.Conn, error) {
+		return dialer.DialContext(ctx, "tcp", d.Addr)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("transport: dial %s: %w", d.Addr, err)
 	}

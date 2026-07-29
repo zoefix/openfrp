@@ -99,6 +99,8 @@ func New(cfg *config.Client, logger *slog.Logger, version string) (*Client, erro
 			TLSConfig:  tlsCfg,
 			Timeout:    cfg.Transport.DialTimeout.D(),
 			TCPOptions: netutil.DefaultTCPOptions(),
+			SocketGID:  cfg.SocketGID,
+			SocketMark: cfg.SocketMark,
 		},
 	}, nil
 }
@@ -188,7 +190,10 @@ func (c *Client) runOnce(ctx context.Context) error {
 	c.logger.Info("connected",
 		"server", c.dialer.Addr,
 		"run_id", session.runID,
-		"server_version", session.serverVersion)
+		"server_version", session.serverVersion,
+		"seen_by_server_as", session.observedAddr)
+
+	c.reportEgress(session.observedAddr)
 
 	return session.serve(ctx)
 }
@@ -278,6 +283,7 @@ func (c *Client) login(ctx context.Context, conn net.Conn) (*session, error) {
 		codec:         codec,
 		runID:         resp.RunID,
 		serverVersion: resp.ServerVersion,
+		observedAddr:  resp.ObservedAddr,
 		logger:        c.logger.With("run_id", resp.RunID),
 		dialSlots:     make(chan struct{}, maxConcurrentDials),
 	}, nil

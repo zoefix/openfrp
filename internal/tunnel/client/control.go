@@ -25,6 +25,9 @@ type session struct {
 
 	runID         string
 	serverVersion string
+	// observedAddr is the address the server saw this connection arrive
+	// from, which is how a bypass is confirmed rather than assumed.
+	observedAddr string
 
 	// tunnels maps a proxy name onto its local target, so a work connection
 	// assigned to a proxy knows where to forward. targets holds the same

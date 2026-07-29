@@ -141,6 +141,9 @@ msgstr "自動"
 msgid "Both fields are required."
 msgstr "両方の入力が必要です。"
 
+msgid "Bypass the local proxy"
+msgstr "ローカルプロキシを迂回"
+
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -657,6 +660,9 @@ msgstr "シークレット TCP"
 msgid "Secret key"
 msgstr "シークレットキー"
 
+msgid "Send this server's connections straight out of the WAN instead of through a transparent proxy on this router. Tunnel traffic through a proxy is slower and, under load, the proxy's connection table is what runs out first. Nothing in the proxy is changed: the connections are marked so it lets them past, using the exemption it already keeps for its own traffic. Not every proxy honours it — after enabling this, the log records the address the server saw the connection arrive from, which is how you tell."
+msgstr "このサーバーへの接続をルーター上の透過プロキシを経由せず、WAN から直接送出します。プロキシ経由はトンネル通信を遅くし、高負荷ではプロキシの接続テーブルが最初に枯渇します。プロキシの設定は一切変更しません。プロキシが自身の通信のために元から用意している除外規則を利用して通過させます。すべてのプロキシが対応するわけではありません。有効化後、サーバーが認識した接続元アドレスがログに記録されるため、それで判断できます。"
+
 msgid "Serve HTTPS"
 msgstr "HTTPS を提供"
 
@@ -854,4 +860,3 @@ msgstr "不明"
 
 msgid "unnamed"
 msgstr "名称未設定"
-

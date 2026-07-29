@@ -91,6 +91,9 @@ func (s *Server) handleLogin(ctx context.Context, conn net.Conn, login *protocol
 		Version:       protocol.Version,
 		RunID:         runID,
 		ServerVersion: s.version,
+		// What the client cannot see for itself: whether anything on its own
+		// side rewrote the connection on the way out.
+		ObservedAddr: conn.RemoteAddr().String(),
 	}); err != nil {
 		logger.Warn("send login response", "error", err)
 		return

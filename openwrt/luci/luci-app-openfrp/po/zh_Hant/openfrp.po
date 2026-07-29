@@ -141,6 +141,9 @@ msgstr "自動"
 msgid "Both fields are required."
 msgstr "兩項都必須填寫。"
 
+msgid "Bypass the local proxy"
+msgstr "繞過本機代理"
+
 msgid "Cancel"
 msgstr "取消"
 
@@ -657,6 +660,9 @@ msgstr "私密 TCP"
 msgid "Secret key"
 msgstr "存取金鑰"
 
+msgid "Send this server's connections straight out of the WAN instead of through a transparent proxy on this router. Tunnel traffic through a proxy is slower and, under load, the proxy's connection table is what runs out first. Nothing in the proxy is changed: the connections are marked so it lets them past, using the exemption it already keeps for its own traffic. Not every proxy honours it — after enabling this, the log records the address the server saw the connection arrive from, which is how you tell."
+msgstr "讓這台伺服器的連線直接從 WAN 出去，不經過本路由器上的透明代理。隧道流量走代理更慢，而且高負載時最先耗盡的就是代理的連線表。不會改動代理的任何設定：連線會被打上標記，借用代理本來就為自己流量保留的豁免通道放行。並非所有代理都認這套——啟用後日誌會記錄伺服器看到的來源位址，據此即可判斷。"
+
 msgid "Serve HTTPS"
 msgstr "啟用 HTTPS"
 
@@ -854,4 +860,3 @@ msgstr "未知"
 
 msgid "unnamed"
 msgstr "未命名"
-

@@ -195,6 +195,7 @@ FIRST_SERVER=""
 add_server() {
 	local section="$1"
 	local addr port token protocol mux pool_count tls_enable client_name
+	local direct_egress
 	local kind tunnel_id zone
 
 	config_get kind "$section" kind
@@ -229,6 +230,7 @@ add_server() {
 	config_get pool_count "$section" pool_count "8"
 	config_get_bool tls_enable "$section" tls_enable 0
 	config_get client_name "$section" client_name
+	config_get_bool direct_egress "$section" direct_egress 0
 
 	SERVER_COUNT=$((SERVER_COUNT + 1))
 	[ -n "$FIRST_SERVER" ] || FIRST_SERVER="$section"
@@ -241,6 +243,23 @@ add_server() {
 	json_add_int port "$port"
 	add_string token "$token"
 	add_string client_name "$client_name"
+
+	# Direct egress: make this server's connections identifiable so a
+	# transparent proxy on this router can be told to leave them alone.
+	#
+	# 65534 is nogroup, which is the group redirect-based proxies exempt so
+	# their own traffic is not redirected into themselves — OpenClash's output
+	# chain opens with "meta skgid 65534 return". The mark is the other half,
+	# for proxies that intercept with TPROXY and exempt by fwmark instead, and
+	# it is also what an operator's own ip rule can match on.
+	#
+	# Neither is a guarantee; a proxy that exempts neither still intercepts.
+	# The client reports the address the server saw it arrive from, so the
+	# result is checkable rather than assumed.
+	if [ "$direct_egress" = "1" ]; then
+		json_add_int socket_gid 65534
+		json_add_int socket_mark 8451
+	fi
 
 	json_add_object transport
 	json_add_string protocol "$protocol"

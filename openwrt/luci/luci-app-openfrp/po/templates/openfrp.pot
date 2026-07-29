@@ -205,6 +205,10 @@ msgstr ""
 msgid "Both fields are required."
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:829
+msgid "Bypass the local proxy"
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:325
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:361
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:486
@@ -424,7 +428,7 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:840
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:852
 msgid "Download URL"
 msgstr ""
 
@@ -529,7 +533,7 @@ msgstr ""
 msgid "History"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:829
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:841
 msgid "Host key fingerprint"
 msgstr ""
 
@@ -846,7 +850,7 @@ msgstr ""
 msgid "Recent log"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:830
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:842
 msgid "Recorded on first connection and checked afterwards."
 msgstr ""
 
@@ -974,6 +978,18 @@ msgstr ""
 msgid "Secret key"
 msgstr ""
 
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:832
+msgid ""
+"Send this server's connections straight out of the WAN instead of "
+"through a transparent proxy on this router. Tunnel traffic through a "
+"proxy is slower and, under load, the proxy's connection table is what "
+"runs out first. Nothing in the proxy is changed: the connections are "
+"marked so it lets them past, using the exemption it already keeps for "
+"its own traffic. Not every proxy honours it — after enabling this, "
+"the log records the address the server saw the connection arrive from, "
+"which is how you tell."
+msgstr ""
+
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:569
 msgid "Serve HTTPS"
 msgstr ""
@@ -987,7 +1003,7 @@ msgstr ""
 msgid "Server address"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:834
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:846
 msgid "Server binary"
 msgstr ""
 
@@ -1155,7 +1171,7 @@ msgstr ""
 msgid "Upload"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:835
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:847
 msgid ""
 "Uploaded to the server. Works without outbound internet there, and "
 "installs the exact bytes this router checksummed."
@@ -1165,7 +1181,7 @@ msgstr ""
 msgid "Use letters, digits, dot, dash or underscore only"
 msgstr ""
 
-#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:841
+#: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/server.js:853
 msgid ""
 "Used when the file above is missing. {arch} and {os} are substituted "
 "with what the server turns out to be."

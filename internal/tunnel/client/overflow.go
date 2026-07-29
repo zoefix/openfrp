@@ -104,7 +104,7 @@ func (s *session) serveCarrier(ctx context.Context) error {
 		}
 	}()
 
-	s.logger.Info("overflow carrier established")
+	s.logger.Debug("overflow carrier established")
 
 	for {
 		stream, err := acceptor.Accept()

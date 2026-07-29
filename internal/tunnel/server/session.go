@@ -235,7 +235,7 @@ func (s *Session) SetOverflow(source transport.StreamSource) {
 	count := len(s.overflow)
 	s.overflowMu.Unlock()
 
-	s.logger.Info("client offered a multiplexed overflow carrier", "carriers", count)
+	s.logger.Debug("client offered a multiplexed overflow carrier", "carriers", count)
 }
 
 func (s *Session) overflowConn(ctx context.Context, proxyName, sourceAddr string) (net.Conn, bool) {

@@ -19,6 +19,15 @@ import (
 // supply a work connection before we give up and close it.
 const workConnTimeout = 10 * time.Second
 
+// overflowOpenTimeout bounds opening a stream on an established carrier.
+//
+// Generous by three orders of magnitude: there is no handshake and no round
+// trip, so this ought to complete in microseconds. It is not sized to the
+// expected case but to the pathological one, where the multiplexer is
+// blocking on a full backlog and the only thing that can end the wait is a
+// clock.
+const overflowOpenTimeout = 3 * time.Second
+
 // Session is one connected client: its control connection, its warm pool of
 // work connections, and the proxies it has published.
 type Session struct {
@@ -374,6 +383,24 @@ func (s *Session) overflowConn(ctx context.Context, proxyName, sourceAddr string
 		return nil, false
 	}
 
+	// Bounded, and this is not a formality.
+	//
+	// Opening a stream on a carrier that is already established should take
+	// microseconds — there is no handshake and no round trip. But the
+	// multiplexer blocks rather than refuses when its backlog of unanswered
+	// stream openings fills, and the context this inherits belongs to the
+	// server rather than to the request, so there was nothing to end the
+	// wait. Under enough concurrency that is exactly what happened: visitors
+	// stopped being served and nothing anywhere said so. No timeout fired, no
+	// error was logged, the client stayed connected, and every request simply
+	// hung until the visitor gave up.
+	//
+	// Hanging is worse than failing. A failure falls through to a dial and
+	// costs the visitor a couple of round trips; a hang costs them
+	// everything, and costs the operator the evidence as well.
+	ctx, cancel := context.WithTimeout(ctx, overflowOpenTimeout)
+	defer cancel()
+
 	// Round robin rather than always the first. Spreading streams over the
 	// carriers is the whole reason there is more than one: each is a single
 	// TCP connection with its own congestion window, and its own share of
@@ -385,6 +412,15 @@ func (s *Session) overflowConn(ctx context.Context, proxyName, sourceAddr string
 
 		stream, err := source.Open(ctx)
 		if err != nil {
+			// A carrier that ran out of time is busy, not broken, and
+			// discarding it would throw away the relief valve at the one
+			// moment it is under load. Only a carrier that failed for some
+			// other reason is dropped.
+			if ctx.Err() != nil {
+				s.logger.Warn("overflow carrier is saturated; falling back to a dial",
+					"proxy", proxyName, "carriers", len(carriers))
+				return nil, false
+			}
 			s.logger.Warn("overflow carrier failed, trying the next",
 				"proxy", proxyName, "error", err)
 			s.dropOverflow(source)

@@ -308,3 +308,52 @@ func TestRefillTargetClimbsOnSuccessAndBacksOffOnStall(t *testing.T) {
 		t.Errorf("refill target = %d, want it capped at the 32 maximum", got)
 	}
 }
+
+// hangingCarrier never answers, the way a multiplexer does when its backlog
+// of unanswered stream openings is full.
+type hangingCarrier struct{}
+
+func (hangingCarrier) Open(ctx context.Context) (net.Conn, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+func (hangingCarrier) Close() error      { return nil }
+func (hangingCarrier) Multiplexed() bool { return true }
+
+// TestASaturatedCarrierDoesNotHangTheVisitor is the regression guard for the
+// worst failure this data plane has produced.
+//
+// Opening a stream on an established carrier needs no handshake and no round
+// trip, so it ought to be instant — but the multiplexer blocks rather than
+// refusing once its backlog fills, and the context it inherited belonged to
+// the server rather than to the request. Under load that meant visitors
+// stopped being served and nothing said so: no timeout fired, nothing was
+// logged, the client stayed connected, and every request hung until the
+// visitor gave up. An outage that reports itself is a bug; one that does not
+// is a much worse bug.
+func TestASaturatedCarrierDoesNotHangTheVisitor(t *testing.T) {
+	session := testSession(t, 8, 32)
+	session.SetOverflow(hangingCarrier{})
+
+	// No deadline of the caller's own — exactly what the vhost handler passes,
+	// and what used to make this wait forever.
+	start := time.Now()
+	conn, served := session.overflowConn(context.Background(), "web", "203.0.113.9:1234")
+	elapsed := time.Since(start)
+
+	if served {
+		conn.Close()
+		t.Fatal("a carrier that never answered reported success")
+	}
+	if elapsed > overflowOpenTimeout*2 {
+		t.Errorf("the visitor waited %s on a saturated carrier; it must give "+
+			"up near %s and fall back to a dial", elapsed, overflowOpenTimeout)
+	}
+
+	// Busy is not broken. Discarding the carrier here would throw away the
+	// relief valve at the one moment it is under load, and the next visitor
+	// would find nothing at all.
+	if !session.HasOverflow() {
+		t.Error("a saturated carrier was discarded; it is busy, not dead")
+	}
+}

@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const tencentDocsExampleKey = "AKID" + "z8krbsJ5yKBZQpn74WFkmLPx3EXAMPLE"
+
 func TestTencentSignatureMatchesPublishedExample(t *testing.T) {
 	body := []byte(`{"Limit": 1, "Filters": [{"Values": ["\u672a\u547d\u540d"], "Name": "instance-name"}]}`)
 
@@ -20,7 +22,7 @@ func TestTencentSignatureMatchesPublishedExample(t *testing.T) {
 			"X-Tc-Action":  {"DescribeInstances"},
 		},
 		Payload:   body,
-		AccessKey: "AKID" + "z8krbsJ5yKBZQpn74WFkmLPx3EXAMPLE",
+		AccessKey: tencentDocsExampleKey,
 		SecretKey: "Gu5t9xGARNpq86cd98joQYCN3EXAMPLE",
 		Service:   "cvm",
 		Now:       time.Unix(1551113065, 0).UTC(),
@@ -34,7 +36,8 @@ func TestTencentSignatureMatchesPublishedExample(t *testing.T) {
 	if !strings.HasPrefix(auth, "TC3-HMAC-SHA256 ") {
 		t.Fatalf("Authorization = %q, want the TC3 algorithm prefix", auth)
 	}
-	if !strings.Contains(auth, "Credential=AKID" + "z8krbsJ5yKBZQpn74WFkmLPx3EXAMPLE/20190225/cvm/tc3_request") {
+	want := "Credential=" + tencentDocsExampleKey + "/20190225/cvm/tc3_request"
+	if !strings.Contains(auth, want) {
 		t.Errorf("credential scope is wrong:\n%s", auth)
 	}
 	if got := req.Headers.Get("X-TC-Timestamp"); got != "1551113065" {

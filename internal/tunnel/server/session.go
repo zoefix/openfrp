@@ -36,6 +36,22 @@ type Session struct {
 	// poolTarget is how many connections the client said it would keep warm.
 	poolTarget int
 
+	// poolInFlight counts connections asked for and not yet arrived, and
+	// poolArrivals counts those received so a request that was never answered
+	// can be told from one still on its way.
+	//
+	// Without this the pool has no flow control. Every visitor tops it up, a
+	// dial takes a round trip to land, and in that window every other visitor
+	// computes the same deficit and asks for it again — so a burst does not
+	// request the shortfall once, it requests it per visitor. The client then
+	// dials at the rate visitors arrive, which is the one thing the overflow
+	// carrier exists to stop it doing: measured on a real path, a burst the
+	// carrier served without a single error still exhausted the connection
+	// table of the proxy in front of the client, and the tunnel went down
+	// afterwards because the client could no longer dial at all.
+	poolInFlight atomic.Int64
+	poolArrivals atomic.Int64
+
 	// overflow opens multiplexed streams to the client over a connection that
 	// is already established. It is the relief valve for an empty pool, and
 	// nil when the client did not offer one.
@@ -132,8 +148,9 @@ func newSession(opts SessionOptions) *Session {
 		vhostHTTPSPort: opts.VhostHTTPSPort,
 	}
 
-	// Stopped by Close via the done channel.
+	// Both stopped by Close via the done channel.
 	go s.workConnRequester()
+	go s.sweepUnansweredRequests()
 
 	return s
 }
@@ -149,6 +166,16 @@ func (s *Session) Name() string { return s.name }
 // If the pool is already full the connection is closed rather than queued: a
 // client that over-supplies should not be able to pin server memory.
 func (s *Session) AddWorkConn(conn net.Conn) {
+	// It arrived, so it is no longer something to wait for. Both outcomes
+	// below count: what matters to the accounting is that it is here.
+	if left := s.poolInFlight.Add(-1); left < 0 {
+		// More arrived than were asked for — the priming batch, or a client
+		// that supplies eagerly. Not an error, but the counter must not go
+		// negative or it would mask a real deficit later.
+		s.poolInFlight.Store(0)
+	}
+	s.poolArrivals.Add(1)
+
 	select {
 	case <-s.done:
 		conn.Close()
@@ -361,6 +388,9 @@ func (s *Session) waitWorkConn(ctx context.Context) (net.Conn, error) {
 	default:
 	}
 
+	// Counted like any other request: this one is on its way too, and a
+	// visitor who asks for it must not make the next visitor ask again.
+	s.poolInFlight.Add(1)
 	s.requestWorkConns(1)
 
 	timer := time.NewTimer(workConnTimeout)
@@ -378,10 +408,53 @@ func (s *Session) waitWorkConn(ctx context.Context) (net.Conn, error) {
 	}
 }
 
-// replenishPool tops the warm pool back up toward its target.
+// replenishPool tops the warm pool back up toward its target, counting what
+// is already on its way.
 func (s *Session) replenishPool() {
-	if deficit := s.poolTarget - len(s.workConns); deficit > 0 {
-		s.requestWorkConns(deficit)
+	inFlight := s.poolInFlight.Load()
+
+	deficit := int64(s.poolTarget) - int64(len(s.workConns)) - inFlight
+	if deficit <= 0 {
+		return
+	}
+
+	// Never ask for more than the pool could hold, however far behind it is.
+	if room := int64(cap(s.workConns)) - int64(len(s.workConns)) - inFlight; deficit > room {
+		deficit = room
+	}
+	if deficit <= 0 {
+		return
+	}
+
+	s.poolInFlight.Add(deficit)
+	s.requestWorkConns(int(deficit))
+}
+
+// poolSweepInterval is how often unanswered requests are written off. A
+// client whose dials are failing answers nothing, and holding those in the
+// count forever would leave the pool unable to ask again — a flow-control
+// deadlock that looks exactly like a pool that will not fill.
+const poolSweepInterval = 5 * time.Second
+
+// sweepUnansweredRequests writes off requests that produced no connection.
+func (s *Session) sweepUnansweredRequests() {
+	ticker := time.NewTicker(poolSweepInterval)
+	defer ticker.Stop()
+
+	lastArrivals := s.poolArrivals.Load()
+
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-ticker.C:
+		}
+
+		arrivals := s.poolArrivals.Load()
+		if arrivals == lastArrivals && s.poolInFlight.Load() > 0 {
+			s.poolInFlight.Store(0)
+		}
+		lastArrivals = arrivals
 	}
 }
 

@@ -152,3 +152,44 @@ func TestAPoolThatCannotBeRefilledStillFails(t *testing.T) {
 		t.Errorf("the failure does not mention the stale connections it discarded: %v", err)
 	}
 }
+
+// TestReplenishDoesNotReRequestConnectionsAlreadyComing guards the flow
+// control that keeps the client's dial rate off the visitor arrival rate.
+//
+// Every visitor tops the pool up, and a dial takes a round trip to land.
+// Without an account of what was already asked for, every visitor arriving
+// inside that window computes the same deficit and asks for it again, so a
+// burst is requested per visitor rather than once. On a real path that
+// exhausted the connection table of the proxy in front of the client — and
+// the tunnel then went down not because a visitor failed, but because the
+// client could no longer dial at all.
+func TestReplenishDoesNotReRequestConnectionsAlreadyComing(t *testing.T) {
+	session := testSession(t, 8, 32)
+
+	session.replenishPool()
+	if got := session.poolInFlight.Load(); got != 8 {
+		t.Fatalf("in flight after the first replenish = %d, want 8", got)
+	}
+
+	// Every visitor behind it, inside the round trip, asks for nothing more.
+	for range 50 {
+		session.replenishPool()
+	}
+	if got := session.poolInFlight.Load(); got != 8 {
+		t.Errorf("in flight after 50 more visitors = %d, want it still 8 — "+
+			"the shortfall is already on its way", got)
+	}
+
+	// As they arrive the count comes down and the pool stops asking.
+	for range 8 {
+		conn, _ := liveWorkConn(t)
+		session.AddWorkConn(conn)
+	}
+	if got := session.poolInFlight.Load(); got != 0 {
+		t.Errorf("in flight after all 8 arrived = %d, want 0", got)
+	}
+	session.replenishPool()
+	if got := session.poolInFlight.Load(); got != 0 {
+		t.Errorf("in flight with a full pool = %d, want 0", got)
+	}
+}

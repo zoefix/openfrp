@@ -7,23 +7,6 @@ msgstr ""
 "Language: zh_Hans\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-msgid ""
-"The local service otherwise records every visitor as this "
-"router.\n\nConfigure the service first: until both ends agree, every "
-"request fails.\n\nnginx, on the port this tunnel points at:\n    listen "
-"PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    "
-"real_ip_header proxy_protocol;"
-msgstr "不开启的话，内网服务会把每个访客都记成本路由器。\n\n先配好服务再开这个：两边没对上之前，所有请求都会失败。\n\nnginx，在本隧道指向的端口上：\n    listen 端口 proxy_protocol;\n    set_real_ip_from 本路由器的内网地址;\n    real_ip_header proxy_protocol;"
-
-msgid ""
-"No server of your own is needed. cloudflared runs here and connects out "
-"to Cloudflare, which routes your domains back down that connection.\n\nA "
-"tunnel published this way serves HTTP only, Cloudflare terminates TLS "
-"at its edge, and the visitor address arrives in a header — so "
-"certificates, TLS handling, remote ports and the PROXY protocol do not "
-"apply to it."
-msgstr "不需要你自己的服务器。cloudflared 跑在本路由器上，向外连到 Cloudflare，由它把你的域名路由回这条连接。\n\n这种方式发布的隧道只支持 HTTP，TLS 由 Cloudflare 在边缘终止，访客地址通过头部传入 —— 所以证书、TLS 处理方式、远程端口和 PROXY 协议对它都不适用。"
-
 msgid "%d days left"
 msgstr "剩余 %d 天"
 
@@ -42,11 +25,8 @@ msgstr "%s 不能为空"
 msgid "%s is too broad; a wildcard needs a domain beneath it"
 msgstr "%s 范围过大；泛域名下面必须还有一级域名"
 
-msgid "%s issues only to accounts it already knows, so it needs a key pair created in your %s account. This is stored once and reused for every certificate from that authority."
-msgstr "%s 只向它已知的账号签发，因此需要一对在你的 %s 账号里创建的密钥。它只需保存一次，之后该机构的所有证书都会复用。"
-
-msgid "%s issues only to accounts it already knows. Create a pair in your %s account and paste it here."
-msgstr "%s 只向它已知的账号签发。请在你的 %s 账号里创建一对密钥并粘贴到这里。"
+msgid "%s needs a key pair from your %s account."
+msgstr "%s 需要一对来自你 %s 账户的密钥。"
 
 msgid "%s needs an account binding"
 msgstr "%s 需要账号绑定"
@@ -54,14 +34,8 @@ msgstr "%s 需要账号绑定"
 msgid "%s needs external account binding credentials."
 msgstr "%s 需要外部账号绑定（EAB）凭据。"
 
-msgid "A Cloudflare tunnel publishes hostnames over HTTP. Point this tunnel at a server of your own for %s."
-msgstr "Cloudflare Tunnel 只能以 HTTP 发布域名。要用 %s，请把本隧道指向你自己的服务器。"
-
-msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
-msgstr "\"*\" 标签只匹配一层，可以出现在任意深度：*.aaa.com 匹配 www.aaa.com，但不匹配 x.bb.aaa.com。精确域名优先于泛域名，层级更深的泛域名优先于更浅的。"
-
-msgid "A blank host will do. The connection details are filled in from whatever the deployment installs."
-msgstr "一台空白主机就行。连接信息会由部署结果自动填入。"
+msgid "A Cloudflare tunnel publishes over HTTP. Use a server of your own for %s."
+msgstr "Cloudflare 隧道只走 HTTP。需要 %s 请改用自己的服务器。"
 
 msgid "A domain needs at least two labels, for example aaa.com"
 msgstr "域名至少要有两级，例如 aaa.com"
@@ -72,9 +46,6 @@ msgstr "名称不能为空"
 msgid "A name you will recognise, for example aliyun-main"
 msgstr "一个你能认出来的名称，例如 aliyun-main"
 
-msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
-msgstr "隧道无法通过代理工作：代理只承载它自己那几个端口上的 HTTP 和 HTTPS，而且会终止 TLS。指向穿透服务端的域名请用\"仅 DNS\"。"
-
 msgid "A wildcard can only be proved through DNS."
 msgstr "泛域名只能通过 DNS 验证。"
 
@@ -83,9 +54,6 @@ msgstr "泛域名只能通过 DNS 验证，请选择一个账号。"
 
 msgid "Accounts"
 msgstr "账号"
-
-msgid "Accounts here are used to manage records and to prove domain ownership when issuing certificates. A wildcard certificate can only be issued through DNS, so it needs an account."
-msgstr "这里的账号用于管理解析记录，以及在签发证书时证明域名归属。泛域名证书只能通过 DNS 验证签发，因此必须配置账号。"
 
 msgid "Add"
 msgstr "添加"
@@ -110,6 +78,9 @@ msgstr "地址"
 
 msgid "Adds HTTPS on port 443. The name stays reachable over plain HTTP as well."
 msgstr "在 443 端口提供 HTTPS。该域名同时仍可通过普通 HTTP 访问。"
+
+msgid "All tunnels share one congestion window; no kernel zero-copy. Rarely wanted."
+msgstr "所有隧道共用一个拥塞窗口，且无法走内核零拷贝。通常不需要开启。"
 
 msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
 msgstr "已为 %s 保存并会自动复用。只有要替换时才需要填写。"
@@ -159,11 +130,8 @@ msgstr "证书管理不可用。"
 msgid "Certificates"
 msgstr "证书"
 
-msgid "Certificates are issued here and pushed to the server, which loads them without dropping a single connection. They are used by tunnels whose TLS handling is set to terminate at the server."
-msgstr "证书在这里签发并推送到服务端，服务端会热加载，不会断开任何一条连接。TLS 处理方式设为\"在服务端终止\"的隧道会使用它们。"
-
-msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
-msgstr "通过该账号签发的证书会保留，但在你把它们指向其他账号之前无法续期。"
+msgid "Certificates issued through it are kept, but cannot renew until moved elsewhere."
+msgstr "已签发的证书会保留，但换到其他账户前无法续期。"
 
 msgid "Clear"
 msgstr "清空"
@@ -180,8 +148,11 @@ msgstr "关闭"
 msgid "Cloudflare Tunnel"
 msgstr "Cloudflare Tunnel"
 
-msgid "Connection pool — independent congestion windows, kernel zero-copy"
-msgstr "连接池 — 各自独立的拥塞窗口，内核零拷贝"
+msgid "Cloudflare carries the traffic. Authorise this router by opening a link."
+msgstr "流量由 Cloudflare 承载。打开链接即可授权本路由器。"
+
+msgid "Connection details are filled in from what the deployment installs."
+msgstr "连接信息由部署结果自动填入。"
 
 msgid "Connections"
 msgstr "连接数"
@@ -270,14 +241,17 @@ msgstr "正在部署服务端"
 msgid "Deployment did not finish — no token yet"
 msgstr "部署未完成 — 还没有令牌"
 
-msgid "Detects the distribution and init system, removes any previous installation, installs the server, opens the firewall and verifies the result."
-msgstr "自动识别发行版与 init 系统，清理已有安装，安装服务端，放行防火墙并验证结果。"
+msgid "Detects the system, installs the server, opens the firewall and verifies it."
+msgstr "识别系统、安装服务端、放行防火墙并验证结果。"
 
 msgid "Did not come back up — see the log below."
 msgstr "没能重新启动 — 请看下方日志。"
 
 msgid "Disabled"
 msgstr "已禁用"
+
+msgid "Do not proxy a tunnel's name: the proxy terminates TLS and serves only its own ports."
+msgstr "隧道的域名不要开代理：代理会终结 TLS，且只服务自己的端口。"
 
 msgid "Domains"
 msgstr "域名"
@@ -293,6 +267,9 @@ msgstr "EAB HMAC 密钥"
 
 msgid "EAB key ID"
 msgstr "EAB Key ID"
+
+msgid "Each has its own control connection; a tunnel names the one that publishes it."
+msgstr "每台各有独立控制连接；隧道指定由哪台发布。"
 
 msgid "Each is published with .%s after it. Use @ for %s itself."
 msgstr "每个都会加上 .%s 发布。用 @ 表示 %s 本身。"
@@ -333,9 +310,6 @@ msgstr "请输入 SSH 密码。"
 msgid "Enter the server address."
 msgstr "请填写服务器地址。"
 
-msgid "Every server this router connects to. Each has its own control connection, and a tunnel names the one that publishes it."
-msgstr "本路由器连接的所有服务器。每台各有一条独立的控制连接，隧道指定由哪台发布。"
-
 msgid "Expired"
 msgstr "已过期"
 
@@ -360,8 +334,8 @@ msgstr "历史"
 msgid "Host key fingerprint"
 msgstr "主机密钥指纹"
 
-msgid "How ownership is proved. Without an account the authority fetches a file over HTTP, which the tunnel server answers for you — the name must already point at it. A wildcard can only be proved through DNS."
-msgstr "如何证明域名归属。不选账号时，证书颁发机构会通过 HTTP 抓取一个文件，由穿透服务端代为应答 —— 前提是该域名已经解析到它。泛域名只能通过 DNS 验证。"
+msgid "How ownership is proved. HTTP needs the name already pointing here; wildcards need DNS."
+msgstr "所有权的验证方式。HTTP 需要域名已指向此处；泛域名必须用 DNS。"
 
 msgid "If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd restart"
 msgstr "如果 ACL 文件是刚安装的，需要重启 rpcd：/etc/init.d/rpcd restart"
@@ -377,9 +351,6 @@ msgstr "签发失败 — 请查看上面的输出。"
 
 msgid "Issue"
 msgstr "签发"
-
-msgid "Issued and bound to this tunnel. Save and apply to use it."
-msgstr "已签发并绑定到本隧道。保存并应用后生效。"
 
 msgid "Issued and bound, but applying it failed: %s"
 msgstr "已签发并绑定,但应用失败:%s"
@@ -444,26 +415,23 @@ msgstr "日志级别"
 msgid "Lost track of the job: %s"
 msgstr "无法获取任务状态：%s"
 
+msgid "Manages records and proves ownership when issuing certificates. Wildcards need one."
+msgstr "用于管理解析记录、以及签发证书时验证所有权。泛域名必须配置。"
+
 msgid "Manual"
 msgstr "手动"
 
 msgid "Multiplex connections"
 msgstr "多路复用连接"
 
-msgid "Multiplexed — shared congestion window, no kernel zero-copy"
-msgstr "多路复用 — 共享拥塞窗口，无法使用内核零拷贝"
-
 msgid "Name"
 msgstr "名称"
-
-msgid "Name under the domain"
-msgstr "域名下的名称"
 
 msgid "Names under the domain"
 msgstr "域名下的名称"
 
-msgid "No DNS accounts are configured. Add one on the DNS page first — a wildcard certificate cannot be issued without it."
-msgstr "尚未配置 DNS 账号。请先在 DNS 页面添加一个 —— 没有它无法签发泛域名证书。"
+msgid "No DNS account configured. Wildcards need one — add it on the DNS page."
+msgstr "未配置 DNS 账户。泛域名需要它——请先在 DNS 页面添加。"
 
 msgid "No DNS accounts yet. Add one to manage records and to issue wildcard certificates."
 msgstr "还没有 DNS 账号。添加一个即可管理解析记录并签发泛域名证书。"
@@ -480,8 +448,8 @@ msgstr "还没有证书。"
 msgid "No log output yet."
 msgstr "暂无日志输出。"
 
-msgid "No server at all. Cloudflare carries the traffic, and you authorise this router by opening a link."
-msgstr "根本不需要服务器。流量由 Cloudflare 承担，你只需要点开一个链接给本路由器授权。"
+msgid "No server of your own — cloudflared connects out to Cloudflare, which routes your domains back.\n\nHTTP only: Cloudflare terminates TLS, so certificates, remote ports and the PROXY protocol do not apply."
+msgstr "无需自己的服务器——cloudflared 向外连接 Cloudflare，由它把你的域名路由回来。\n\n仅支持 HTTP：Cloudflare 在边缘终结 TLS，因此证书、远程端口和 PROXY 协议均不适用。"
 
 msgid "No token — this server cannot be reached"
 msgstr "没有令牌 — 无法连接此服务器"
@@ -501,9 +469,6 @@ msgstr "无 — 使用 HTTP 文件验证"
 msgid "Not announced"
 msgstr "不告知"
 
-msgid "Not authorised yet"
-msgstr "尚未授权"
-
 msgid "Not deployed from here"
 msgstr "非本机部署"
 
@@ -513,17 +478,14 @@ msgstr "尚未签发"
 msgid "Nothing has happened to this certificate yet."
 msgstr "该证书还没有任何记录。"
 
-msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
-msgstr "与 frp 不同，此项默认关闭。多路复用会让所有隧道共用一个拥塞窗口，一个丢包就会拖住全部隧道，而且无法走内核零拷贝。只有当套接字数量比吞吐更重要时才启用。"
-
 msgid "One label only: letters, digits and dashes."
 msgstr "只能是一段：字母、数字和短横线。"
 
-msgid "One per line. A \"*\" covers exactly one level, so *.aiqno.com covers acgshop.aiqno.com but not a.b.aiqno.com."
-msgstr "每行一个。\"*\" 只覆盖一层，所以 *.aiqno.com 覆盖 acgshop.aiqno.com，但不覆盖 a.b.aiqno.com。"
+msgid "One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com."
+msgstr "每行一个。\"*\" 只覆盖一级：*.aiqno.com 不含 a.b.aiqno.com。"
 
-msgid "Only certificates covering every domain of this tunnel are listed. Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
-msgstr "只列出能覆盖本隧道全部域名的证书。推送到服务端热加载，不会断开任何连接。只有绑定了证书的隧道才会推送。"
+msgid "Only certificates covering every domain are listed. Pushed and hot-loaded without dropping connections."
+msgstr "仅列出覆盖全部域名的证书。推送后热加载，不断开连接。"
 
 msgid "Overview"
 msgstr "概览"
@@ -534,8 +496,8 @@ msgstr "PROXY 协议 v1（文本）"
 msgid "PROXY protocol v2 (binary)"
 msgstr "PROXY 协议 v2（二进制）"
 
-msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
-msgstr "透传会原样转发加密流量，证书由内网服务自己持有。由远端服务器解密则需要在本机签发证书并推送过去。"
+msgid "Passthrough leaves the certificate with the local service. Terminating needs one issued here and pushed."
+msgstr "透传时证书归内网服务所有；边缘终结则需在此签发并推送。"
 
 msgid "Passthrough — the remote server does not decrypt"
 msgstr "透传 — 远端服务器不解密"
@@ -564,8 +526,8 @@ msgstr "已代理"
 msgid "Proxied — route through the provider"
 msgstr "已代理 — 流量经服务商中转"
 
-msgid "Published as this, followed by .%s. Leave empty for %s itself."
-msgstr "发布为此名称加上 .%s。留空则使用 %s 本身。"
+msgid "Pushed to the server and hot-loaded. Used by tunnels that terminate TLS there."
+msgstr "推送到服务端并热加载。供在服务端终结 TLS 的隧道使用。"
 
 msgid "Recent log"
 msgstr "最近日志"
@@ -648,8 +610,8 @@ msgstr "保存"
 msgid "Save and issue"
 msgstr "保存并签发"
 
-msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
-msgstr "保存在本路由器上，这样更新时无需再询问即可部署。以明文存储，root 可读。"
+msgid "Saved here in plain text, so an update can deploy without asking."
+msgstr "以明文保存在本机，更新时无需再次询问即可部署。"
 
 msgid "Saved — leave blank to keep"
 msgstr "已保存 — 留空则沿用"
@@ -659,9 +621,6 @@ msgstr "私密 TCP"
 
 msgid "Secret key"
 msgstr "访问密钥"
-
-msgid "Send this server's connections straight out of the WAN instead of through a transparent proxy on this router. Tunnel traffic through a proxy is slower and, under load, the proxy's connection table is what runs out first. Nothing in the proxy is changed: the connections are marked so it lets them past, using the exemption it already keeps for its own traffic. Not every proxy honours it — after enabling this, the log records the address the server saw the connection arrive from, which is how you tell."
-msgstr "让这台服务器的连接直接从 WAN 出去，不经过本路由器上的透明代理。隧道流量走代理更慢，而且高负载时最先耗尽的就是代理的连接表。不会改动代理的任何配置：连接会被打上标记，借用代理本来就为自己流量保留的豁免通道放行。并非所有代理都认这套——启用后日志会记录服务端看到的来源地址，据此即可判断。"
 
 msgid "Serve HTTPS"
 msgstr "启用 HTTPS"
@@ -693,6 +652,9 @@ msgstr "共享密钥。以明文保存在本路由器上。"
 msgid "Show"
 msgstr "显示"
 
+msgid "Skips any transparent proxy on this router. The log shows the source address the server saw."
+msgstr "绕过本路由器上的透明代理。日志会记录服务端看到的来源地址。"
+
 msgid "Starting…"
 msgstr "正在启动…"
 
@@ -701,6 +663,9 @@ msgstr "状态"
 
 msgid "Stored credentials are never displayed. Leave blank to keep the current value."
 msgstr "已保存的凭据不会显示。留空则保持原值。"
+
+msgid "Stored once and reused for every certificate from this authority."
+msgstr "保存一次，该颁发机构的所有证书复用。"
 
 msgid "TLS handling"
 msgstr "TLS 处理方式"
@@ -711,8 +676,8 @@ msgstr "控制连接启用 TLS"
 msgid "TTL"
 msgstr "TTL"
 
-msgid "Terminate at the server (needs a pushed certificate)"
-msgstr "在服务端终止（需要推送证书）"
+msgid "Takes a few minutes while the DNS record propagates."
+msgstr "需要几分钟，等待 DNS 记录生效。"
 
 msgid "Test"
 msgstr "测试"
@@ -735,9 +700,6 @@ msgstr "证书颁发机构要求填写，并用于到期提醒。"
 msgid "The certificate was issued."
 msgstr "证书已签发。"
 
-msgid "The daemon writes to syslog through procd."
-msgstr "守护进程通过 procd 写入 syslog。"
-
 msgid "The first server"
 msgstr "第一台服务器"
 
@@ -752,9 +714,6 @@ msgstr "该账号下没有域名。"
 
 msgid "This server has no domain yet — set it up again."
 msgstr "这台服务器还没有域名 — 请重新设置。"
-
-msgid "This takes a few minutes: the authority has to see the DNS record propagate before it will issue."
-msgstr "这需要几分钟：证书颁发机构必须先看到 DNS 记录生效才会签发。"
 
 msgid "This zone has no records."
 msgstr "该域名下没有解析记录。"
@@ -783,14 +742,14 @@ msgstr "类型"
 msgid "Upload"
 msgstr "上行"
 
-msgid "Uploaded to the server. Works without outbound internet there, and installs the exact bytes this router checksummed."
-msgstr "上传到服务器。服务器无需能访问外网，且安装的就是本路由器校验过的那份文件。"
+msgid "Uploaded to the server, so it needs no outbound internet there."
+msgstr "上传到服务器，因此服务器无需访问外网。"
 
 msgid "Use letters, digits, dot, dash or underscore only"
 msgstr "只能使用字母、数字、点、短横线或下划线"
 
-msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
-msgstr "当上面的文件不存在时使用。{arch} 与 {os} 会替换为实际探测到的服务器架构与系统。"
+msgid "Used when the file above is missing. {arch} and {os} are substituted."
+msgstr "上面的文件不存在时使用。{arch} 与 {os} 会被替换。"
 
 msgid "Value"
 msgstr "记录值"
@@ -810,6 +769,9 @@ msgstr "在哪里获取"
 msgid "Which server publishes this tunnel. Leave unset for the first one."
 msgstr "由哪台服务器发布这条隧道。留空则用第一台。"
 
+msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
+msgstr "不启用时，内网服务会把每个访客都记成本路由器。请先配置好服务，否则所有请求都会失败。\n\nnginx：\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
+
 msgid "You already have one running. Enter its address and token."
 msgstr "你已经有一台在运行，填写它的地址和令牌即可。"
 
@@ -821,6 +783,9 @@ msgstr "域名列表"
 
 msgid "\"*\" is only allowed as the leftmost label"
 msgstr "\"*\" 只能作为最左边的标签"
+
+msgid "\"*\" matches one level, at any depth: *.aaa.com matches www.aaa.com, not x.bb.aaa.com. Exact beats wildcard."
+msgstr "\"*\" 只匹配一级，可出现在任意层级：*.aaa.com 匹配 www.aaa.com，不匹配 x.bb.aaa.com。精确优先于通配。"
 
 msgid "\"*\" must be a whole label, not part of one"
 msgstr "\"*\" 必须独占一个标签，不能只占标签的一部分"
@@ -839,9 +804,6 @@ msgstr "无响应"
 
 msgid "none stored"
 msgstr "未存储"
-
-msgid "not configured"
-msgstr "未配置"
 
 msgid "not connected"
 msgstr "未连接"

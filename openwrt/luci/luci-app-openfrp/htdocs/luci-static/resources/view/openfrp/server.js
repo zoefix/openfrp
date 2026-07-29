@@ -239,13 +239,7 @@ function cloudflareFields() {
 			row(_('Name'), nameInput,
 				_('Local to this router — a tunnel points at it.')),
 			E('div', { 'class': 'cbi-value-description' },
-				_('No server of your own is needed. cloudflared runs here and ' +
-				  'connects out to Cloudflare, which routes your domains back ' +
-				  'down that connection.\n\n' +
-				  'A tunnel published this way serves HTTP only, Cloudflare ' +
-				  'terminates TLS at its edge, and the visitor address arrives ' +
-				  'in a header — so certificates, TLS handling, remote ports and ' +
-				  'the PROXY protocol do not apply to it.'))
+				_('No server of your own — cloudflared connects out to Cloudflare, which routes your domains back.\n\nHTTP only: Cloudflare terminates TLS, so certificates, remote ports and the PROXY protocol do not apply.'))
 		]),
 
 		focus: function () { nameInput.focus(); },
@@ -337,8 +331,7 @@ function deployFields(section) {
 		[passwordInput, revealButton]);
 
 	var passwordRow = row(_('SSH password'), passwordField,
-		_('Saved on this router, so an update can deploy without being asked ' +
-			'for it. It is stored in plain text, readable by root.'));
+		_('Saved here in plain text, so an update can deploy without asking.'));
 	var keyRow = row(_('Private key'), keyInput,
 		_('Path to a key on this router.'));
 
@@ -364,9 +357,7 @@ function deployFields(section) {
 		keyRow,
 		row(_('Control port'), controlPort,
 			_('The port the server will listen on for this router.')),
-		E('p', {}, _('Detects the distribution and init system, removes any ' +
-			'previous installation, installs the server, opens the firewall and ' +
-			'verifies the result.'))
+		E('p', {}, _('Detects the system, installs the server, opens the firewall and verifies it.'))
 	]);
 
 	return {
@@ -497,8 +488,7 @@ function addDialog(view) {
 	var choices = [
 		radio('openfrp-add-mode', 'deploy', true,
 			_('Install over SSH'),
-			_('A blank host will do. The connection details are filled in from ' +
-			  'whatever the deployment installs.'),
+			_('Connection details are filled in from what the deployment installs.'),
 			function () { mode = 'deploy'; refresh(); }),
 
 		radio('openfrp-add-mode', 'existing', false,
@@ -508,8 +498,7 @@ function addDialog(view) {
 
 		radio('openfrp-add-mode', 'cloudflare', false,
 			_('Cloudflare Tunnel'),
-			_('No server at all. Cloudflare carries the traffic, and you ' +
-			  'authorise this router by opening a link.'),
+			_('Cloudflare carries the traffic. Authorise this router by opening a link.'),
 			function () { mode = 'cloudflare'; refresh(); })
 	];
 
@@ -616,8 +605,7 @@ return view.extend({
 		var m, s, o;
 
 		m = new form.Map('openfrp', _('Servers'),
-			_('Every server this router connects to. Each has its own control ' +
-			  'connection, and a tunnel names the one that publishes it.'));
+			_('Each has its own control connection; a tunnel names the one that publishes it.'));
 
 		/* ---------------------------------------------------------------- */
 
@@ -817,10 +805,7 @@ return view.extend({
 		o = s.option(form.Flag, 'mux', _('Multiplex connections'));
 		o.default = '0';
 		o.modalonly = true;
-		o.description = _('Off by default, unlike frp. Multiplexing puts every tunnel ' +
-			'behind one congestion window, so a single lost packet stalls them all, ' +
-			'and it rules out the kernel zero-copy path. Enable only when the number ' +
-			'of open sockets matters more than throughput.');
+		o.description = _('All tunnels share one congestion window; no kernel zero-copy. Rarely wanted.');
 
 		o = s.option(form.Flag, 'tls_enable', _('TLS on the control connection'));
 		o.default = '0';
@@ -829,14 +814,7 @@ return view.extend({
 		o = s.option(form.Flag, 'direct_egress', _('Bypass the local proxy'));
 		o.default = '0';
 		o.modalonly = true;
-		o.description = _('Send this server\'s connections straight out of the ' +
-			'WAN instead of through a transparent proxy on this router. Tunnel ' +
-			'traffic through a proxy is slower and, under load, the proxy\'s ' +
-			'connection table is what runs out first. Nothing in the proxy is ' +
-			'changed: the connections are marked so it lets them past, using the ' +
-			'exemption it already keeps for its own traffic. Not every proxy ' +
-			'honours it — after enabling this, the log records the address the ' +
-			'server saw the connection arrive from, which is how you tell.');
+		o.description = _('Skips any transparent proxy on this router. The log shows the source address the server saw.');
 
 		o = s.option(form.Value, 'host_fingerprint', _('Host key fingerprint'),
 			_('Recorded on first connection and checked afterwards.'));
@@ -844,14 +822,12 @@ return view.extend({
 		o.modalonly = true;
 
 		o = s.option(form.Value, 'binary_path', _('Server binary'),
-			_('Uploaded to the server. Works without outbound internet there, ' +
-			  'and installs the exact bytes this router checksummed.'));
+			_('Uploaded to the server, so it needs no outbound internet there.'));
 		o.placeholder = '/usr/lib/openfrp/openfrps';
 		o.modalonly = true;
 
 		o = s.option(form.Value, 'release_url', _('Download URL'),
-			_('Used when the file above is missing. {arch} and {os} are ' +
-			  'substituted with what the server turns out to be.'));
+			_('Used when the file above is missing. {arch} and {os} are substituted.'));
 		o.placeholder = 'https://example.com/openfrps_{os}_{arch}';
 		o.modalonly = true;
 

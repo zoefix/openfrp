@@ -223,7 +223,7 @@ function orderDialog() {
 					? [E('em', {}, _('Already saved for %s and reused automatically. ' +
 						'Fill these in only to replace them.').format(ca.label))]
 					: [
-						_('%s issues only to accounts it already knows. Create a pair in your %s account and paste it here.')
+						_('%s needs a key pair from your %s account.')
 							.format(ca.label, ca.label), ' ',
 						E('a', {
 							'href': help, 'target': '_blank', 'rel': 'noreferrer'
@@ -306,17 +306,13 @@ function orderDialog() {
 
 	ui.showModal(_('Request a certificate'), [
 		field(_('Domains'), domainsInput,
-			_('One per line. A "*" covers exactly one level, so *.aiqno.com ' +
-			  'covers acgshop.aiqno.com but not a.b.aiqno.com.')),
+			_('One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com.')),
 		field(_('Contact email'), emailInput,
 			_('The authority requires one, and uses it for expiry warnings.')),
 		field(_('Authority'), caSelect),
 		field(_('Key type'), keySelect),
 		field(_('DNS account'), accountSelect,
-			_('How ownership is proved. Without an account the authority ' +
-			  'fetches a file over HTTP, which the tunnel server answers for ' +
-			  'you — the name must already point at it. A wildcard can only be ' +
-			  'proved through DNS.')),
+			_('How ownership is proved. HTTP needs the name already pointing here; wildcards need DNS.')),
 		eabRows[0],
 		eabRows[1],
 		field(_('Renew automatically'), autoRenew,
@@ -348,9 +344,7 @@ function eabDialog(order, status, then) {
 	}
 
 	ui.showModal(_('%s needs an account binding').format(status.ca_label), [
-		E('p', {}, _('%s issues only to accounts it already knows, so it needs a ' +
-			'key pair created in your %s account. This is stored once and reused ' +
-			'for every certificate from that authority.')
+		E('p', {}, _('Stored once and reused for every certificate from this authority.')
 			.format(status.ca_label, status.ca_label)),
 		status.how_to_get ? E('p', {}, E('a', {
 			'href': status.how_to_get, 'target': '_blank', 'rel': 'noreferrer'
@@ -400,8 +394,7 @@ function startIssue(order) {
 		'style': 'max-height:24em;overflow:auto;white-space:pre-wrap;font-size:90%;' +
 			'background:#1e1e1e;color:#ddd;padding:0.6em;border-radius:3px'
 	}, _('Starting…'));
-	var statusLine = E('p', {}, _('This takes a few minutes: the authority has ' +
-		'to see the DNS record propagate before it will issue.'));
+	var statusLine = E('p', {}, _('Takes a few minutes while the DNS record propagates.'));
 
 	var closeButton = button(_('Close'), '', function () {
 		poll.remove(tick);
@@ -546,15 +539,12 @@ return view.extend({
 		var warning = null;
 		if (!state.accounts.length)
 			warning = E('div', { 'class': 'alert-message warning' },
-				E('p', {}, _('No DNS accounts are configured. Add one on the DNS ' +
-					'page first — a wildcard certificate cannot be issued without it.')));
+				E('p', {}, _('No DNS account configured. Wildcards need one — add it on the DNS page.')));
 
 		return E('div', {}, [
 			stylesheet(),
 			E('h2', {}, _('Certificates')),
-			E('p', {}, _('Certificates are issued here and pushed to the server, ' +
-				'which loads them without dropping a single connection. They are ' +
-				'used by tunnels whose TLS handling is set to terminate at the server.'))
+			E('p', {}, _('Pushed to the server and hot-loaded. Used by tunnels that terminate TLS there.'))
 		].concat(warning ? [warning] : []).concat([
 			E('div', { 'class': 'cbi-section' }, [
 				ordersHolder,

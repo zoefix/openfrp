@@ -169,8 +169,7 @@ function deleteAccount(account) {
 		E('p', {}, _('Delete %s?').format(account.name)),
 		// Worth stating plainly: the certificates are kept on purpose, and a
 		// user who expects a cascade should know they will need to repoint them.
-		E('p', {}, _('Certificates issued through this account are kept, but ' +
-			'they cannot renew until you point them at another account.')),
+		E('p', {}, _('Certificates issued through it are kept, but cannot renew until moved elsewhere.')),
 		E('div', { 'class': 'right' }, [
 			button(_('Cancel'), '', ui.hideModal), ' ',
 			button(_('Delete'), 'cbi-button-negative', function () {
@@ -399,9 +398,7 @@ function recordDialog(existing) {
 		// nobody reads: a proxied name cannot carry a tunnel.
 		dom.content(proxyHint, proxySelect.value === '1'
 			? E('span', { 'style': 'color:#d9534f' },
-				_('A tunnel will not work through the proxy: it carries only ' +
-				  'HTTP and HTTPS on its own ports, and terminates TLS. Use ' +
-				  'DNS only for names that point at your tunnel server.'))
+				_('Do not proxy a tunnel\'s name: the proxy terminates TLS and serves only its own ports.'))
 			: _('The address is answered directly, which is what a tunnel needs.'));
 	}
 
@@ -512,9 +509,7 @@ return view.extend({
 		return E('div', {}, [
 			stylesheet(),
 			E('h2', {}, _('DNS')),
-			E('p', {}, _('Accounts here are used to manage records and to prove ' +
-				'domain ownership when issuing certificates. A wildcard certificate ' +
-				'can only be issued through DNS, so it needs an account.')),
+			E('p', {}, _('Manages records and proves ownership when issuing certificates. Wildcards need one.')),
 
 			E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, _('Accounts')),

@@ -493,9 +493,7 @@ return view.extend({
 
 		m = new form.Map('openfrp', _('Tunnels'),
 			_('Each tunnel exposes one local service through the server.') + ' ' +
-			_('A "*" label matches exactly one level and may appear at any depth: ' +
-			  '*.aaa.com matches www.aaa.com but not x.bb.aaa.com. ' +
-			  'Exact names win over wildcards, and deeper wildcards win over shallower ones.'));
+			_('\"*\" matches one level, at any depth: *.aaa.com matches www.aaa.com, not x.bb.aaa.com. Exact beats wildcard.'));
 
 		s = m.section(form.GridSection, 'tunnel', null);
 		s.addremove = true;
@@ -556,8 +554,7 @@ return view.extend({
 		o.validate = function (section_id, value) {
 			if (value !== 'http' && value !== 'https' &&
 			    publishedByCloudflare(section_id))
-				return _('A Cloudflare tunnel publishes hostnames over HTTP. ' +
-					'Point this tunnel at a server of your own for %s.').format(value);
+				return _('A Cloudflare tunnel publishes over HTTP. Use a server of your own for %s.').format(value);
 			return true;
 		};
 		o.cfgvalue = function (section_id) {
@@ -717,14 +714,10 @@ return view.extend({
 		o.value('passthrough', _('Passthrough — the remote server does not decrypt'));
 		o.value('terminate', _('Decrypted by the remote server'));
 		o.default = 'passthrough';
-		o.description = _('Passthrough forwards the encrypted stream untouched, so ' +
-			'the local service owns the certificate. Letting the remote server ' +
-			'decrypt needs a certificate issued here and pushed to it.');
+		o.description = _('Passthrough leaves the certificate with the local service. Terminating needs one issued here and pushed.');
 
 		o = s.option(form.ListValue, 'cert_id', _('Certificate'),
-			_('Only certificates covering every domain of this tunnel are ' +
-			  'listed. Pushed to the server and hot-loaded, without dropping a ' +
-			  'connection. Only a bound tunnel has its certificate pushed.'));
+			_('Only certificates covering every domain are listed. Pushed and hot-loaded without dropping connections.'));
 		o.depends({ type: 'http', https: '1', tls_mode: 'terminate' });
 		o.modalonly = true;
 		limitToOpenFrp(o, openfrp);
@@ -792,14 +785,7 @@ return view.extend({
 		// No angle brackets in the placeholders: a description is inserted as
 		// markup, so <port> would be parsed as a tag and vanish, leaving a
 		// directive that looks complete and is not.
-		o.description = _('The local service otherwise records every visitor as ' +
-			'this router.\n\n' +
-			'Configure the service first: until both ends agree, every request ' +
-			'fails.\n\n' +
-			'nginx, on the port this tunnel points at:\n' +
-			'    listen PORT proxy_protocol;\n' +
-			'    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n' +
-			'    real_ip_header proxy_protocol;');
+		o.description = _('Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;');
 
 		o = s.option(form.Value, 'secret_key', _('Secret key'),
 			_('Visitors must present this to reach the tunnel.'));

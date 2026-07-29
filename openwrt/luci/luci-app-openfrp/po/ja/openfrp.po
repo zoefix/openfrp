@@ -7,23 +7,6 @@ msgstr ""
 "Language: ja\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-msgid ""
-"The local service otherwise records every visitor as this "
-"router.\n\nConfigure the service first: until both ends agree, every "
-"request fails.\n\nnginx, on the port this tunnel points at:\n    listen "
-"PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    "
-"real_ip_header proxy_protocol;"
-msgstr "有効にしないと、ローカルサービスは全ての訪問者をこのルーターとして記録します。\n\n先にサービスを設定してください。両端が一致するまで、すべてのリクエストが失敗します。\n\nnginx では、このトンネルが指すポートに対して:\n    listen ポート proxy_protocol;\n    set_real_ip_from このルーターの LAN アドレス;\n    real_ip_header proxy_protocol;"
-
-msgid ""
-"No server of your own is needed. cloudflared runs here and connects out "
-"to Cloudflare, which routes your domains back down that connection.\n\nA "
-"tunnel published this way serves HTTP only, Cloudflare terminates TLS "
-"at its edge, and the visitor address arrives in a header — so "
-"certificates, TLS handling, remote ports and the PROXY protocol do not "
-"apply to it."
-msgstr "自分のサーバーは不要です。cloudflared がこのルーターで動作し、Cloudflare へ外向きに接続し、ドメインへの通信がその接続を通って戻ってきます。\n\nこの方式で公開されるトンネルは HTTP のみで、TLS は Cloudflare のエッジで終了し、訪問者のアドレスはヘッダーで届きます。したがって証明書、TLS の扱い、リモートポート、PROXY プロトコルはこのトンネルには適用されません。"
-
 msgid "%d days left"
 msgstr "残り %d 日"
 
@@ -42,11 +25,8 @@ msgstr "%s は必須です"
 msgid "%s is too broad; a wildcard needs a domain beneath it"
 msgstr "%s は範囲が広すぎます。ワイルドカードの下にはドメインが必要です"
 
-msgid "%s issues only to accounts it already knows, so it needs a key pair created in your %s account. This is stored once and reused for every certificate from that authority."
-msgstr "%s は既知のアカウントにしか発行しないため、%s のアカウントで作成した鍵ペアが必要です。一度保存すれば、その認証局の証明書すべてで再利用されます。"
-
-msgid "%s issues only to accounts it already knows. Create a pair in your %s account and paste it here."
-msgstr "%s は既知のアカウントにしか発行しません。%s のアカウントで鍵ペアを作成し、ここに貼り付けてください。"
+msgid "%s needs a key pair from your %s account."
+msgstr "%s には %s アカウントの鍵ペアが必要です。"
 
 msgid "%s needs an account binding"
 msgstr "%s にはアカウントバインドが必要です"
@@ -54,14 +34,8 @@ msgstr "%s にはアカウントバインドが必要です"
 msgid "%s needs external account binding credentials."
 msgstr "%s には外部アカウントバインド (EAB) の認証情報が必要です。"
 
-msgid "A Cloudflare tunnel publishes hostnames over HTTP. Point this tunnel at a server of your own for %s."
-msgstr "Cloudflare Tunnel は HTTP でしかホスト名を公開できません。%s を使うには、このトンネルを自分のサーバーに向けてください。"
-
-msgid "A \"*\" label matches exactly one level and may appear at any depth: *.aaa.com matches www.aaa.com but not x.bb.aaa.com. Exact names win over wildcards, and deeper wildcards win over shallower ones."
-msgstr "\"*\" ラベルはちょうど 1 階層だけに一致し、どの深さにも置けます。*.aaa.com は www.aaa.com に一致しますが、x.bb.aaa.com には一致しません。完全一致がワイルドカードより優先され、深いワイルドカードが浅いものより優先されます。"
-
-msgid "A blank host will do. The connection details are filled in from whatever the deployment installs."
-msgstr "まっさらなホストで構いません。接続情報はデプロイ結果から自動で入ります。"
+msgid "A Cloudflare tunnel publishes over HTTP. Use a server of your own for %s."
+msgstr "Cloudflare トンネルは HTTP のみ。%s には自前のサーバーを使用してください。"
 
 msgid "A domain needs at least two labels, for example aaa.com"
 msgstr "ドメインには最低 2 つのラベルが必要です (例: aaa.com)"
@@ -72,9 +46,6 @@ msgstr "名前は必須です"
 msgid "A name you will recognise, for example aliyun-main"
 msgstr "自分でわかる名前（例: aliyun-main）"
 
-msgid "A tunnel will not work through the proxy: it carries only HTTP and HTTPS on its own ports, and terminates TLS. Use DNS only for names that point at your tunnel server."
-msgstr "トンネルはプロキシ経由では動作しません。プロキシは自前のポートで HTTP と HTTPS だけを扱い、TLS を終端します。トンネルサーバーを指す名前には「DNS のみ」を使ってください。"
-
 msgid "A wildcard can only be proved through DNS."
 msgstr "ワイルドカードは DNS でしか証明できません。"
 
@@ -83,9 +54,6 @@ msgstr "ワイルドカードは DNS でしか証明できません。アカウ�
 
 msgid "Accounts"
 msgstr "アカウント"
-
-msgid "Accounts here are used to manage records and to prove domain ownership when issuing certificates. A wildcard certificate can only be issued through DNS, so it needs an account."
-msgstr "ここのアカウントはレコード管理と、証明書発行時のドメイン所有証明に使います。ワイルドカード証明書は DNS でしか証明できないため、アカウントが必要です。"
 
 msgid "Add"
 msgstr "追加"
@@ -110,6 +78,9 @@ msgstr "アドレス"
 
 msgid "Adds HTTPS on port 443. The name stays reachable over plain HTTP as well."
 msgstr "443 番ポートで HTTPS を提供します。その名前は通常の HTTP でも引き続き利用できます。"
+
+msgid "All tunnels share one congestion window; no kernel zero-copy. Rarely wanted."
+msgstr "全トンネルが輻輳ウィンドウを共有し、カーネルゼロコピーは使えません。通常は不要です。"
 
 msgid "Already saved for %s and reused automatically. Fill these in only to replace them."
 msgstr "%s 用に保存済みで、自動的に再利用されます。差し替えるときだけ入力してください。"
@@ -159,11 +130,8 @@ msgstr "証明書管理は利用できません。"
 msgid "Certificates"
 msgstr "証明書"
 
-msgid "Certificates are issued here and pushed to the server, which loads them without dropping a single connection. They are used by tunnels whose TLS handling is set to terminate at the server."
-msgstr "証明書はここで発行してサーバーへ配布します。サーバーは接続を 1 本も切らずに読み込みます。TLS の扱いを「サーバーで終端」にしたトンネルが使用します。"
-
-msgid "Certificates issued through this account are kept, but they cannot renew until you point them at another account."
-msgstr "このアカウントで発行した証明書は残りますが、別のアカウントに紐付け直すまで更新できません。"
+msgid "Certificates issued through it are kept, but cannot renew until moved elsewhere."
+msgstr "発行済み証明書は保持されますが、別のアカウントに移すまで更新できません。"
 
 msgid "Clear"
 msgstr "クリア"
@@ -180,8 +148,11 @@ msgstr "閉じる"
 msgid "Cloudflare Tunnel"
 msgstr "Cloudflare Tunnel"
 
-msgid "Connection pool — independent congestion windows, kernel zero-copy"
-msgstr "コネクションプール — 独立した輻輳ウィンドウ、カーネルゼロコピー"
+msgid "Cloudflare carries the traffic. Authorise this router by opening a link."
+msgstr "通信は Cloudflare が中継します。リンクを開いて本ルーターを認可します。"
+
+msgid "Connection details are filled in from what the deployment installs."
+msgstr "接続情報はデプロイ結果から自動入力されます。"
 
 msgid "Connections"
 msgstr "接続数"
@@ -270,14 +241,17 @@ msgstr "サーバーをデプロイしています"
 msgid "Deployment did not finish — no token yet"
 msgstr "デプロイが完了していません — トークンがまだありません"
 
-msgid "Detects the distribution and init system, removes any previous installation, installs the server, opens the firewall and verifies the result."
-msgstr "ディストリビューションと init システムを判別し、既存のインストールを削除してからサーバーを導入し、ファイアウォールを開けて結果を検証します。"
+msgid "Detects the system, installs the server, opens the firewall and verifies it."
+msgstr "システムを判別し、サーバーを導入、ファイアウォールを開放して検証します。"
 
 msgid "Did not come back up — see the log below."
 msgstr "起動しませんでした — 下のログを確認してください。"
 
 msgid "Disabled"
 msgstr "無効"
+
+msgid "Do not proxy a tunnel's name: the proxy terminates TLS and serves only its own ports."
+msgstr "トンネルのドメインはプロキシ不可。プロキシは TLS を終端し、自身のポートしか扱いません。"
 
 msgid "Domains"
 msgstr "ドメイン"
@@ -293,6 +267,9 @@ msgstr "EAB HMAC キー"
 
 msgid "EAB key ID"
 msgstr "EAB キー ID"
+
+msgid "Each has its own control connection; a tunnel names the one that publishes it."
+msgstr "各サーバーが独自の制御接続を持ち、トンネルは公開元を指定します。"
 
 msgid "Each is published with .%s after it. Use @ for %s itself."
 msgstr "それぞれ .%s を付けて公開されます。%s 自体には @ を使います。"
@@ -333,9 +310,6 @@ msgstr "SSH パスワードを入力してください。"
 msgid "Enter the server address."
 msgstr "サーバーアドレスを入力してください。"
 
-msgid "Every server this router connects to. Each has its own control connection, and a tunnel names the one that publishes it."
-msgstr "このルーターが接続するすべてのサーバーです。それぞれ独立した制御接続を持ち、トンネルはどれが公開するかを指定します。"
-
 msgid "Expired"
 msgstr "期限切れ"
 
@@ -360,8 +334,8 @@ msgstr "履歴"
 msgid "Host key fingerprint"
 msgstr "ホスト鍵フィンガープリント"
 
-msgid "How ownership is proved. Without an account the authority fetches a file over HTTP, which the tunnel server answers for you — the name must already point at it. A wildcard can only be proved through DNS."
-msgstr "所有をどう証明するか。アカウントを選ばない場合、認証局が HTTP でファイルを取得し、トンネルサーバーが代わりに応答します（その名前が既にサーバーを指している必要があります）。ワイルドカードは DNS でしか証明できません。"
+msgid "How ownership is proved. HTTP needs the name already pointing here; wildcards need DNS."
+msgstr "所有権の証明方法。HTTP は名前が既にここを指している必要があり、ワイルドカードは DNS が必須です。"
 
 msgid "If the ACL file was just installed, rpcd needs a restart: /etc/init.d/rpcd restart"
 msgstr "ACL ファイルを入れたばかりの場合は rpcd の再起動が必要です: /etc/init.d/rpcd restart"
@@ -377,9 +351,6 @@ msgstr "発行に失敗しました — 上の出力を確認してください�
 
 msgid "Issue"
 msgstr "発行"
-
-msgid "Issued and bound to this tunnel. Save and apply to use it."
-msgstr "発行してこのトンネルに紐付けました。保存して適用すると有効になります。"
 
 msgid "Issued and bound, but applying it failed: %s"
 msgstr "発行と紐付けは完了しましたが、適用に失敗しました: %s"
@@ -444,26 +415,23 @@ msgstr "ログレベル"
 msgid "Lost track of the job: %s"
 msgstr "ジョブの状態を取得できません: %s"
 
+msgid "Manages records and proves ownership when issuing certificates. Wildcards need one."
+msgstr "レコード管理と証明書発行時の所有権証明に使用。ワイルドカードには必須です。"
+
 msgid "Manual"
 msgstr "手動"
 
 msgid "Multiplex connections"
 msgstr "接続の多重化"
 
-msgid "Multiplexed — shared congestion window, no kernel zero-copy"
-msgstr "多重化 — 輻輳ウィンドウを共有し、カーネルゼロコピーは使えません"
-
 msgid "Name"
 msgstr "名前"
-
-msgid "Name under the domain"
-msgstr "ドメイン下の名前"
 
 msgid "Names under the domain"
 msgstr "ドメイン下の名前"
 
-msgid "No DNS accounts are configured. Add one on the DNS page first — a wildcard certificate cannot be issued without it."
-msgstr "DNS アカウントが未設定です。先に DNS ページで追加してください — これがないとワイルドカード証明書は発行できません。"
+msgid "No DNS account configured. Wildcards need one — add it on the DNS page."
+msgstr "DNS アカウント未設定。ワイルドカードには必要です。DNS ページで追加してください。"
 
 msgid "No DNS accounts yet. Add one to manage records and to issue wildcard certificates."
 msgstr "DNS アカウントがまだありません。追加するとレコード管理とワイルドカード証明書の発行ができます。"
@@ -480,8 +448,8 @@ msgstr "証明書はまだありません。"
 msgid "No log output yet."
 msgstr "まだログ出力はありません。"
 
-msgid "No server at all. Cloudflare carries the traffic, and you authorise this router by opening a link."
-msgstr "サーバーは一切不要です。通信は Cloudflare が運び、リンクを開いてこのルーターを認可するだけです。"
+msgid "No server of your own — cloudflared connects out to Cloudflare, which routes your domains back.\n\nHTTP only: Cloudflare terminates TLS, so certificates, remote ports and the PROXY protocol do not apply."
+msgstr "自前のサーバーは不要。cloudflared が Cloudflare へ接続し、ドメインを折り返します。\n\nHTTP のみ。Cloudflare が TLS を終端するため、証明書・リモートポート・PROXY プロトコルは適用されません。"
 
 msgid "No token — this server cannot be reached"
 msgstr "トークンがありません — このサーバーには接続できません"
@@ -501,9 +469,6 @@ msgstr "なし — HTTP で検証"
 msgid "Not announced"
 msgstr "通知しない"
 
-msgid "Not authorised yet"
-msgstr "未認可"
-
 msgid "Not deployed from here"
 msgstr "ここからのデプロイではない"
 
@@ -513,17 +478,14 @@ msgstr "未発行"
 msgid "Nothing has happened to this certificate yet."
 msgstr "この証明書にはまだ履歴がありません。"
 
-msgid "Off by default, unlike frp. Multiplexing puts every tunnel behind one congestion window, so a single lost packet stalls them all, and it rules out the kernel zero-copy path. Enable only when the number of open sockets matters more than throughput."
-msgstr "frp とは異なり既定では無効です。多重化するとすべてのトンネルが 1 つの輻輳ウィンドウを共有するため、1 つのパケット損失で全体が停滞し、カーネルゼロコピーも使えなくなります。スループットよりソケット数が重要な場合にのみ有効にしてください。"
-
 msgid "One label only: letters, digits and dashes."
 msgstr "ラベル一つだけ：英数字とハイフン。"
 
-msgid "One per line. A \"*\" covers exactly one level, so *.aiqno.com covers acgshop.aiqno.com but not a.b.aiqno.com."
-msgstr "1 行に 1 つ。\"*\" はちょうど 1 階層だけを対象とするため、*.aiqno.com は acgshop.aiqno.com を含みますが a.b.aiqno.com は含みません。"
+msgid "One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com."
+msgstr "1 行に 1 つ。\"*\" は 1 階層のみ：*.aiqno.com は a.b.aiqno.com を含みません。"
 
-msgid "Only certificates covering every domain of this tunnel are listed. Pushed to the server and hot-loaded, without dropping a connection. Only a bound tunnel has its certificate pushed."
-msgstr "このトンネルの全ドメインをカバーする証明書だけを表示します。サーバーへ送ってホットロードされ、接続は一つも切れません。紐付けられたトンネルの証明書だけが送られます。"
+msgid "Only certificates covering every domain are listed. Pushed and hot-loaded without dropping connections."
+msgstr "全ドメインを含む証明書のみ表示。接続を切らずにホットロードされます。"
 
 msgid "Overview"
 msgstr "概要"
@@ -534,8 +496,8 @@ msgstr "PROXY プロトコル v1 (テキスト)"
 msgid "PROXY protocol v2 (binary)"
 msgstr "PROXY プロトコル v2 (バイナリ)"
 
-msgid "Passthrough forwards the encrypted stream untouched, so the local service owns the certificate. Letting the remote server decrypt needs a certificate issued here and pushed to it."
-msgstr "パススルーは暗号化されたストリームをそのまま転送するため、証明書はローカルサービスが持ちます。リモートサーバーで復号化する場合は、ここで発行した証明書をそちらへ送る必要があります。"
+msgid "Passthrough leaves the certificate with the local service. Terminating needs one issued here and pushed."
+msgstr "パススルーは証明書をローカル側が保持。終端する場合はここで発行して配布します。"
 
 msgid "Passthrough — the remote server does not decrypt"
 msgstr "パススルー — リモートサーバーは復号化しない"
@@ -564,8 +526,8 @@ msgstr "プロキシ経由"
 msgid "Proxied — route through the provider"
 msgstr "プロキシ経由 — プロバイダを通す"
 
-msgid "Published as this, followed by .%s. Leave empty for %s itself."
-msgstr "この名前に .%s を付けて公開されます。空にすると %s 自体になります。"
+msgid "Pushed to the server and hot-loaded. Used by tunnels that terminate TLS there."
+msgstr "サーバーへ配布しホットロードされます。サーバー側で TLS を終端するトンネルが使用します。"
 
 msgid "Recent log"
 msgstr "最近のログ"
@@ -648,8 +610,8 @@ msgstr "保存"
 msgid "Save and issue"
 msgstr "保存して発行"
 
-msgid "Saved on this router, so an update can deploy without being asked for it. It is stored in plain text, readable by root."
-msgstr "このルーターに保存され、更新時に尋ねられることなくデプロイできます。平文で保存され、root が読み取れます。"
+msgid "Saved here in plain text, so an update can deploy without asking."
+msgstr "平文で保存され、更新時に再入力なしでデプロイできます。"
 
 msgid "Saved — leave blank to keep"
 msgstr "保存済み — 空欄なら維持"
@@ -659,9 +621,6 @@ msgstr "シークレット TCP"
 
 msgid "Secret key"
 msgstr "シークレットキー"
-
-msgid "Send this server's connections straight out of the WAN instead of through a transparent proxy on this router. Tunnel traffic through a proxy is slower and, under load, the proxy's connection table is what runs out first. Nothing in the proxy is changed: the connections are marked so it lets them past, using the exemption it already keeps for its own traffic. Not every proxy honours it — after enabling this, the log records the address the server saw the connection arrive from, which is how you tell."
-msgstr "このサーバーへの接続をルーター上の透過プロキシを経由せず、WAN から直接送出します。プロキシ経由はトンネル通信を遅くし、高負荷ではプロキシの接続テーブルが最初に枯渇します。プロキシの設定は一切変更しません。プロキシが自身の通信のために元から用意している除外規則を利用して通過させます。すべてのプロキシが対応するわけではありません。有効化後、サーバーが認識した接続元アドレスがログに記録されるため、それで判断できます。"
 
 msgid "Serve HTTPS"
 msgstr "HTTPS を提供"
@@ -693,6 +652,9 @@ msgstr "共有シークレットです。このルーターに平文で保存さ
 msgid "Show"
 msgstr "表示"
 
+msgid "Skips any transparent proxy on this router. The log shows the source address the server saw."
+msgstr "本ルーターの透過プロキシを迂回します。サーバーが認識した送信元アドレスがログに記録されます。"
+
 msgid "Starting…"
 msgstr "開始しています…"
 
@@ -701,6 +663,9 @@ msgstr "状態"
 
 msgid "Stored credentials are never displayed. Leave blank to keep the current value."
 msgstr "保存済みの認証情報は表示されません。空欄のままにすると現在の値を維持します。"
+
+msgid "Stored once and reused for every certificate from this authority."
+msgstr "一度保存すれば、この認証局の全証明書で再利用されます。"
 
 msgid "TLS handling"
 msgstr "TLS の扱い"
@@ -711,8 +676,8 @@ msgstr "制御接続で TLS を使用"
 msgid "TTL"
 msgstr "TTL"
 
-msgid "Terminate at the server (needs a pushed certificate)"
-msgstr "サーバーで終端する (証明書の配布が必要)"
+msgid "Takes a few minutes while the DNS record propagates."
+msgstr "DNS レコードの反映に数分かかります。"
 
 msgid "Test"
 msgstr "テスト"
@@ -735,9 +700,6 @@ msgstr "認証局が要求し、有効期限の通知にも使われます。"
 msgid "The certificate was issued."
 msgstr "証明書を発行しました。"
 
-msgid "The daemon writes to syslog through procd."
-msgstr "デーモンは procd 経由で syslog に出力します。"
-
 msgid "The first server"
 msgstr "最初のサーバー"
 
@@ -752,9 +714,6 @@ msgstr "このアカウントが管理するゾーンはありません。"
 
 msgid "This server has no domain yet — set it up again."
 msgstr "このサーバーにはまだドメインがありません — 再度セットアップしてください。"
-
-msgid "This takes a few minutes: the authority has to see the DNS record propagate before it will issue."
-msgstr "数分かかります。認証局が DNS レコードの伝播を確認してから発行します。"
 
 msgid "This zone has no records."
 msgstr "このゾーンにレコードはありません。"
@@ -783,14 +742,14 @@ msgstr "種類"
 msgid "Upload"
 msgstr "上り"
 
-msgid "Uploaded to the server. Works without outbound internet there, and installs the exact bytes this router checksummed."
-msgstr "サーバーへアップロードします。サーバー側に外向きの接続がなくても動作し、このルーターが検証したバイト列がそのまま入ります。"
+msgid "Uploaded to the server, so it needs no outbound internet there."
+msgstr "サーバーへアップロードするため、サーバー側に外部接続は不要です。"
 
 msgid "Use letters, digits, dot, dash or underscore only"
 msgstr "英数字、ドット、ハイフン、アンダースコアのみ使用できます"
 
-msgid "Used when the file above is missing. {arch} and {os} are substituted with what the server turns out to be."
-msgstr "上のファイルが無い場合に使用します。{arch} と {os} は判別したサーバーの値に置き換えられます。"
+msgid "Used when the file above is missing. {arch} and {os} are substituted."
+msgstr "上のファイルが無い場合に使用。{arch} と {os} が置換されます。"
 
 msgid "Value"
 msgstr "値"
@@ -810,6 +769,9 @@ msgstr "取得方法"
 msgid "Which server publishes this tunnel. Leave unset for the first one."
 msgstr "このトンネルをどのサーバーが公開するか。未設定なら最初のサーバーです。"
 
+msgid "Without it the local service records every visitor as this router. Configure the service first, or every request fails.\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
+msgstr "無効の場合、ローカルサービスは全訪問者を本ルーターとして記録します。先にサービス側を設定しないと全リクエストが失敗します。\n\nnginx:\n    listen PORT proxy_protocol;\n    set_real_ip_from THIS-ROUTER-LAN-ADDRESS;\n    real_ip_header proxy_protocol;"
+
 msgid "You already have one running. Enter its address and token."
 msgstr "すでに稼働中のものがあります。アドレスとトークンを入力してください。"
 
@@ -821,6 +783,9 @@ msgstr "ゾーン"
 
 msgid "\"*\" is only allowed as the leftmost label"
 msgstr "\"*\" は最も左のラベルにのみ指定できます"
+
+msgid "\"*\" matches one level, at any depth: *.aaa.com matches www.aaa.com, not x.bb.aaa.com. Exact beats wildcard."
+msgstr "\"*\" は任意の階層で 1 レベルのみ一致：*.aaa.com は www.aaa.com に一致し、x.bb.aaa.com には一致しません。完全一致が優先されます。"
 
 msgid "\"*\" must be a whole label, not part of one"
 msgstr "\"*\" はラベル全体である必要があり、一部にはできません"
@@ -839,9 +804,6 @@ msgstr "応答なし"
 
 msgid "none stored"
 msgstr "未保存"
-
-msgid "not configured"
-msgstr "未設定"
 
 msgid "not connected"
 msgstr "未接続"

@@ -127,8 +127,19 @@ jobs:
           fi
           if [ ! -s notes.md ]; then
             echo "::error::${GITHUB_REF_NAME:-this build} has no annotated tag message."
-            echo "::error::Tag with: git tag -a vX.Y.Z -m '…'"
+            echo "::error::Tag with: git tag -a --cleanup=verbatim vX.Y.Z -F notes"
             exit 1
+          fi
+          # git strips lines beginning with # from a tag message unless told
+          # not to, which silently eats every markdown heading. Worth saying
+          # so, since the notes still look fine until you read them on the
+          # release page.
+          if grep -q '^\s*-\|^###' notes.md; then
+            :
+          else
+            echo "::warning::notes have no headings or bullets — if you wrote" \
+                 "markdown headings, tag with --cleanup=verbatim; git treats" \
+                 "# lines as comments and removes them"
           fi
           cat notes.md
 

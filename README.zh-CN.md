@@ -9,9 +9,9 @@
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
 ![Version](https://img.shields.io/badge/VERSION-v0.3.0-8A2BE2?style=for-the-badge&labelColor=444)
-![OpenWrt](https://img.shields.io/badge/OPENWRT-SUPPORTED-00B5E2?style=for-the-badge&labelColor=444)
-![apk](https://img.shields.io/badge/APK-SUPPORTED-000000?style=for-the-badge&labelColor=444)
-![opkg](https://img.shields.io/badge/OPKG-SUPPORTED-F5A623?style=for-the-badge&labelColor=444)
+![OpenWrt](https://img.shields.io/badge/OPENWRT-21.02%2B-00B5E2?style=for-the-badge&labelColor=444)
+![Arch](https://img.shields.io/badge/ARCH-x86__64%20%7C%20ARM64-000000?style=for-the-badge&labelColor=444)
+![Licence](https://img.shields.io/badge/LICENCE-MIT-F5A623?style=for-the-badge&labelColor=444)
 
 </div>
 
@@ -34,31 +34,22 @@ OpenFrp 用一台便宜的 VPS 当大门。访客的流量先到 VPS，再通过
 
 ## 安装
 
-### 如果你的 OpenWrt 软件源里有
-
-```bash
-apk update && apk add luci-app-openfrp
-```
-
-OpenWrt 24.10 及更早版本用 opkg：
-
-```bash
-opkg update && opkg install luci-app-openfrp
-```
-
-### 否则用安装脚本
+在路由器上跑一条命令：
 
 ```bash
 wget -O - https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh | sh
 ```
 
-脚本会判断路由器的架构、挑对应的版本、用发布时公布的校验和验证一遍，然后用 `apk` 或 `opkg`（看你系统用哪个）装上。升级就是把同样的命令再跑一遍。
+脚本会判断路由器的架构、挑对应的版本、用发布时公布的校验和验证下载、先跑一次确认这台机器能执行，然后才安装。缺的依赖会用 `apk` 或 `opkg`（看你系统用哪个）补上。
 
-装中文界面：
+升级就是把同样的命令再跑一遍。卸载：
 
 ```bash
-apk add luci-i18n-openfrp-zh-cn      # 或 opkg install …
+wget -O /tmp/openfrp-install.sh https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh
+sh /tmp/openfrp-install.sh --uninstall
 ```
+
+其他参数：`--version v0.4.0` 装指定版本，`--lang zh-cn` 顺带装语言包，`OPENFRP_API=…` 在连不上 github.com 时指向镜像。
 
 然后打开 **LuCI → 服务 → OpenFrp**。菜单没出来就退出重新登录一次。
 
@@ -164,7 +155,7 @@ nas.example.com.   A   <你的 VPS IP>
 
 更新会把所有东西一起换掉——客户端、服务端二进制、网页界面、语言包——然后重启服务。如果新版本起不来，会自动装回旧版本，所以一个有问题的版本不会让路由器的隧道全断。
 
-也可以直接重跑安装脚本；如果是从软件源装的，用 `apk upgrade` 或 `opkg upgrade` 就行（界面上的更新按钮也会自动认出这种情况，改走包管理器）。
+想从命令行升级的话，重跑一遍安装脚本是一样的效果。
 
 ## 出问题了怎么办
 
@@ -209,20 +200,16 @@ real_ip_header proxy_protocol;
 ## 卸载
 
 ```bash
-apk del luci-app-openfrp openfrp
+sh /tmp/openfrp-install.sh --uninstall
 ```
 
-或者用安装脚本：
-
-```bash
-sh install.sh --uninstall
-```
+它只删自己装过的文件——安装时记了一份清单——停掉并禁用服务，`/etc/config/openfrp` 会保留，重装后隧道配置还在。想彻底清掉就自己删这个文件。
 
 VPS 那边，部署页面有个**移除**操作，可以干净地卸掉服务端。
 
 ## 给开发者
 
-编译、测试和贡献说明在 [docs/development.md](docs/development.md)，把插件提交到 OpenWrt 官方源的流程在 [docs/openwrt-feed.md](docs/openwrt-feed.md)。简短版：
+编译、测试和贡献说明在 [docs/development.md](docs/development.md)。简短版：
 
 ```bash
 make build       # 两个二进制，静态编译，不依赖 CGO

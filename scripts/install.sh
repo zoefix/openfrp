@@ -4,7 +4,7 @@ set -eu
 
 REPO="${OPENFRP_REPO:-zoefix/openfrp}"
 API="${OPENFRP_API:-https://api.github.com}"
-PACKAGES="openfrp luci-app-openfrp"
+MANIFEST="/usr/lib/openfrp/installed.list"
 
 say() { printf '%s\n' "$*"; }
 step() { printf '==> %s\n' "$*"; }
@@ -103,15 +103,63 @@ uninstall() {
 	pm="$(detect_pm)"
 	step "removing OpenFrp with $pm"
 
+	for script in /etc/init.d/openfrp-cloudflared /etc/init.d/openfrp; do
+		if [ -x "$script" ]; then
+			"$script" stop >/dev/null 2>&1 || true
+			"$script" disable >/dev/null 2>&1 || true
+		fi
+	done
+
+	# Where a package manager owns these, removing the package is the only way
+	# its database stays honest. Where this script put them there, it did not
+	# register anything, so nothing would be removed by asking.
+	removed=0
 	for pkg in luci-i18n-openfrp-zh-cn luci-i18n-openfrp-zh-tw luci-i18n-openfrp-ja \
 		luci-app-openfrp openfrp; do
 		case "$pm" in
-			apk) apk del "$pkg" >/dev/null 2>&1 || true ;;
-			opkg) opkg remove "$pkg" >/dev/null 2>&1 || true ;;
+			apk)
+				apk info -e "$pkg" >/dev/null 2>&1 || continue
+				apk del "$pkg" >/dev/null 2>&1 && removed=$((removed + 1))
+				;;
+			opkg)
+				opkg status "$pkg" 2>/dev/null | grep -q . || continue
+				opkg remove "$pkg" >/dev/null 2>&1 && removed=$((removed + 1))
+				;;
 		esac
 	done
 
-	say "Removed. /etc/config/openfrp was kept; delete it by hand if you want it gone."
+	if [ "$removed" -gt 0 ]; then
+		say "Removed $removed package(s) with $pm."
+	fi
+
+	# What this script installed, it recorded. Guessing at the file list
+	# instead would either miss files a later version added or delete ones it
+	# never owned.
+	if [ -f "$MANIFEST" ]; then
+		count=0
+		while IFS= read -r file; do
+			[ -n "$file" ] || continue
+			case "$file" in
+				/usr/bin/openfrpc|/usr/lib/openfrp/*|/usr/libexec/openfrp/*| \
+				/usr/share/rpcd/ucode/openfrp.uc|/usr/lib/lua/luci/i18n/openfrp.*| \
+				/www/luci-static/resources/openfrp/*|/www/luci-static/resources/view/openfrp/*)
+					rm -f "$file" && count=$((count + 1))
+					;;
+			esac
+		done < "$MANIFEST"
+		rm -f "$MANIFEST"
+		rmdir /usr/lib/openfrp /usr/libexec/openfrp \
+			/www/luci-static/resources/openfrp \
+			/www/luci-static/resources/view/openfrp 2>/dev/null || true
+		say "Removed $count installed file(s)."
+	elif [ "$removed" = 0 ]; then
+		say "Nothing to remove: no package owns OpenFrp and no install manifest was found."
+	fi
+
+	rm -f /tmp/luci-indexcache 2>/dev/null || true
+	[ -x /etc/init.d/rpcd ] && /etc/init.d/rpcd restart >/dev/null 2>&1 || true
+
+	say "/etc/config/openfrp was kept; delete it by hand if you want it gone."
 }
 
 if [ "$UNINSTALL" = 1 ]; then
@@ -200,6 +248,13 @@ fi
 
 step "installing files"
 tar -xzf "$WORK/$BUNDLE" -C /
+
+# Record what was installed so --uninstall removes exactly this and nothing
+# else. A hardcoded list would miss whatever a later release adds.
+mkdir -p "$(dirname "$MANIFEST")"
+tar -tzf "$WORK/$BUNDLE" |
+	sed -e 's|^\./|/|' -e 's|^\([^/]\)|/\1|' |
+	grep -v '/$' > "$MANIFEST"
 
 if [ ! -f /etc/config/openfrp ]; then
 	step "writing the default configuration"

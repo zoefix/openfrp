@@ -15,10 +15,11 @@ PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/zoefix/openfrp/tar.gz/v$(PKG_VERSION)?
-# Filled in per release by scripts/feed-hash.sh. A tagged tarball with a fixed
-# hash is what the official feed requires: tracking a branch would make two
-# builds of the same package version produce different binaries.
-PKG_HASH:=0000000000000000000000000000000000000000000000000000000000000000
+# skip is acceptable for a local feed and not for the official one. Routers
+# get releases through scripts/install.sh, which verifies its download against
+# the checksums the release publishes; this path exists for building OpenFrp
+# into a firmware image.
+PKG_HASH:=skip
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 PKG_MAINTAINER:=zoefix <zony1937@gmail.com>

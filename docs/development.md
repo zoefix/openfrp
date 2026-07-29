@@ -332,9 +332,19 @@ Fix it with a direct rule ahead of the final `MATCH`:
 
 ## Packaging
 
-`openwrt/` is a working out-of-tree feed. Getting the two packages into the
-official OpenWrt feeds, and what apk requires that opkg did not, is in
-[openwrt-feed.md](openwrt-feed.md).
+`openwrt/` is a working out-of-tree feed, kept for anyone building OpenFrp
+into a firmware image rather than installing it with `scripts/install.sh`:
+
+```bash
+echo "src-link openfrp /path/to/this/repo/openwrt" >> feeds.conf.default
+./scripts/feeds update openfrp && ./scripts/feeds install -a -p openfrp
+make package/openfrp/compile V=s
+```
+
+`PKG_HASH` is `skip`, which is fine for a local build and would not be
+accepted by the official feeds. Submitting there was considered and dropped:
+a new package lands in SNAPSHOT and reaches a stable release only at the next
+one, so the installer is what actually gets a fix to a router.
 
 ## Target environments
 

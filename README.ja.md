@@ -9,9 +9,9 @@
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
 ![Version](https://img.shields.io/badge/VERSION-v0.3.0-8A2BE2?style=for-the-badge&labelColor=444)
-![OpenWrt](https://img.shields.io/badge/OPENWRT-SUPPORTED-00B5E2?style=for-the-badge&labelColor=444)
-![apk](https://img.shields.io/badge/APK-SUPPORTED-000000?style=for-the-badge&labelColor=444)
-![opkg](https://img.shields.io/badge/OPKG-SUPPORTED-F5A623?style=for-the-badge&labelColor=444)
+![OpenWrt](https://img.shields.io/badge/OPENWRT-21.02%2B-00B5E2?style=for-the-badge&labelColor=444)
+![Arch](https://img.shields.io/badge/ARCH-x86__64%20%7C%20ARM64-000000?style=for-the-badge&labelColor=444)
+![Licence](https://img.shields.io/badge/LICENCE-MIT-F5A623?style=for-the-badge&labelColor=444)
 
 </div>
 
@@ -34,31 +34,22 @@ OpenFrp は安い VPS を玄関にしてこれを解決します。訪問者の�
 
 ## インストール
 
-### OpenWrt のパッケージフィードにある場合
-
-```bash
-apk update && apk add luci-app-openfrp
-```
-
-OpenWrt 24.10 以前は opkg を使います。
-
-```bash
-opkg update && opkg install luci-app-openfrp
-```
-
-### ない場合はインストーラーで
+ルーターでコマンドを一つ実行します。
 
 ```bash
 wget -O - https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh | sh
 ```
 
-ルーターのアーキテクチャを判別し、対応するリリースを選び、公開されているチェックサムと照合してから、`apk` か `opkg`（システムが使っている方）でインストールします。同じコマンドをもう一度実行すればアップグレードになります。
+アーキテクチャを判別し、対応するリリースを選び、公開されているチェックサムと照合し、この機械で実際に動くことを一度確かめてからインストールします。足りない依存パッケージは `apk` か `opkg`（システムが使っている方）で導入されます。
 
-日本語表示にするには:
+同じコマンドをもう一度実行すればアップグレードです。削除するには:
 
 ```bash
-apk add luci-i18n-openfrp-ja      # または opkg install …
+wget -O /tmp/openfrp-install.sh https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh
+sh /tmp/openfrp-install.sh --uninstall
 ```
+
+その他のオプション: `--version v0.4.0` で特定のリリース、`--lang ja` で翻訳も同時に、`OPENFRP_API=…` で github.com に届かない環境向けのミラー指定。
 
 そのあと **LuCI → サービス → OpenFrp** を開きます。メニューが出ていなければ一度ログアウトして入り直してください。
 
@@ -164,7 +155,7 @@ nas.example.com.   A   <VPS の IP>
 
 更新はすべてを入れ替えます——クライアント、サーバーのバイナリ、Web 画面、翻訳——そしてサービスを再起動します。新しいバージョンが起動しなかった場合は自動的に元のバージョンへ戻すので、問題のあるリリースでルーターのトンネルが全部止まることはありません。
 
-インストーラーをもう一度実行しても構いません。フィードから入れた場合は `apk upgrade` または `opkg upgrade` を使ってください（画面の更新ボタンもその状況を検出し、パッケージマネージャー経由に切り替えます）。
+コマンドラインから更新したい場合は、インストーラーをもう一度実行すれば同じことになります。
 
 ## うまくいかないとき
 
@@ -209,20 +200,16 @@ real_ip_header proxy_protocol;
 ## アンインストール
 
 ```bash
-apk del luci-app-openfrp openfrp
+sh /tmp/openfrp-install.sh --uninstall
 ```
 
-またはインストーラーで:
-
-```bash
-sh install.sh --uninstall
-```
+インストール時に記録した一覧をもとに、自分が入れたファイルだけを削除し、サービスを停止・無効化します。`/etc/config/openfrp` は残るので、入れ直してもトンネルの設定はそのままです。完全に消したい場合は手で削除してください。
 
 VPS 側は、デプロイ画面の **削除** でサーバーをきれいに取り除けます。
 
 ## 開発者向け
 
-ビルド・テスト・コントリビューションについては [docs/development.md](docs/development.md) を、OpenWrt 公式フィードへの登録手順は [docs/openwrt-feed.md](docs/openwrt-feed.md) を参照してください。手短には:
+ビルド・テスト・コントリビューションについては [docs/development.md](docs/development.md) を参照してください。手短には:
 
 ```bash
 make build       # 両方のバイナリ。静的リンク、CGO なし

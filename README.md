@@ -10,9 +10,9 @@ a web interface for tunnels, domains and HTTPS certificates.
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
 ![Version](https://img.shields.io/badge/VERSION-v0.3.0-8A2BE2?style=for-the-badge&labelColor=444)
-![OpenWrt](https://img.shields.io/badge/OPENWRT-SUPPORTED-00B5E2?style=for-the-badge&labelColor=444)
-![apk](https://img.shields.io/badge/APK-SUPPORTED-000000?style=for-the-badge&labelColor=444)
-![opkg](https://img.shields.io/badge/OPKG-SUPPORTED-F5A623?style=for-the-badge&labelColor=444)
+![OpenWrt](https://img.shields.io/badge/OPENWRT-21.02%2B-00B5E2?style=for-the-badge&labelColor=444)
+![Arch](https://img.shields.io/badge/ARCH-x86__64%20%7C%20ARM64-000000?style=for-the-badge&labelColor=444)
+![Licence](https://img.shields.io/badge/LICENCE-MIT-F5A623?style=for-the-badge&labelColor=444)
 
 </div>
 
@@ -41,33 +41,27 @@ one you get `nas.example.com` and real HTTPS.
 
 ## Install
 
-### If your OpenWrt feed has the package
-
-```bash
-apk update && apk add luci-app-openfrp
-```
-
-On OpenWrt 24.10 and older, which use opkg:
-
-```bash
-opkg update && opkg install luci-app-openfrp
-```
-
-### Otherwise, use the installer
+One command, on the router:
 
 ```bash
 wget -O - https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh | sh
 ```
 
-It works out your router's architecture, picks the matching release, checks it
-against the published checksums, and installs it with `apk` or `opkg` —
-whichever your system uses. Run the same command again to upgrade.
+It works out your router's architecture, picks the matching release, checks
+the download against the checksums the release publishes, runs the client once
+to be sure it executes on this machine, and then installs it. Missing
+dependencies are pulled in with `apk` or `opkg`, whichever your system uses.
 
-For a Chinese-language interface:
+Run the same command again to upgrade. To remove it:
 
 ```bash
-apk add luci-i18n-openfrp-zh-cn      # or opkg install …
+wget -O /tmp/openfrp-install.sh https://raw.githubusercontent.com/zoefix/openfrp/main/scripts/install.sh
+sh /tmp/openfrp-install.sh --uninstall
 ```
+
+Other options: `--version v0.4.0` for a specific release, `--lang zh-cn` for a
+translated interface, and `OPENFRP_API=…` to use a GitHub mirror where
+github.com is unreachable.
 
 Then open **LuCI → Services → OpenFrp**. Log out and back in if the menu is
 not there yet.
@@ -208,8 +202,7 @@ translations — and restarts the service. If the new version fails to start,
 the old one is put back automatically, so a bad release cannot leave the
 router without tunnels.
 
-You can also just re-run the installer, or `apk upgrade` / `opkg upgrade` if
-you installed from a feed.
+Re-running the installer does the same thing from a shell.
 
 ## If something is not working
 
@@ -266,14 +259,12 @@ management on the router.
 ## Removing it
 
 ```bash
-apk del luci-app-openfrp openfrp
+sh /tmp/openfrp-install.sh --uninstall
 ```
 
-or with the installer:
-
-```bash
-sh install.sh --uninstall
-```
+It removes exactly the files it installed — the list is recorded at install
+time — stops and disables the services, and leaves `/etc/config/openfrp` alone
+so your tunnels survive a reinstall. Delete that by hand if you want it gone.
 
 On the VPS, the deploy page has a **Remove** action that takes the server side
 off cleanly.
@@ -281,8 +272,7 @@ off cleanly.
 ## For developers
 
 Build, test and contribution notes live in
-[docs/development.md](docs/development.md), and getting the package into the
-OpenWrt feeds is [docs/openwrt-feed.md](docs/openwrt-feed.md). The short version:
+[docs/development.md](docs/development.md). The short version:
 
 ```bash
 make build       # both binaries, static, no CGO

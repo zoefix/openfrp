@@ -253,18 +253,33 @@ function publishedByCloudflare(section_id) {
 	return owner ? uci.get('openfrp', owner, 'kind') === 'cloudflare' : false;
 }
 
-function limitToOpenFrp(option, allowed) {
+// showForServers restricts an option to a set of servers.
+//
+// An option with no dependencies is shown unconditionally, so an empty set has
+// to become a condition nothing satisfies rather than no condition at all.
+// Left as an empty list, a field meant for one kind of server appears for
+// every kind — which is how the Cloudflare prefix showed up on an SSH server.
+function showForServers(option, servers) {
 	var existing = (option.deps && option.deps.length) ? option.deps : [{}];
 	option.deps = [];
 
+	if (!servers.length) {
+		option.deps.push({ type: '\u0000none' });
+		return option;
+	}
+
 	existing.forEach(function (dep) {
-		allowed.forEach(function (server) {
+		servers.forEach(function (server) {
 			var combined = Object.assign({}, dep);
 			combined.server = server;
 			option.deps.push(combined);
 		});
 	});
 	return option;
+}
+
+function limitToOpenFrp(option, allowed) {
+	return showForServers(option, allowed);
 }
 
 function openfrpServers() {
@@ -506,9 +521,8 @@ return view.extend({
 		o = s.option(form.DynamicList, 'cf_prefix', _('Prefix'));
 		o.modalonly = true;
 		o.placeholder = 'nas';
-		cloudflare.forEach(function (server) {
-			o.depends({ type: 'http', server: server });
-		});
+		o.depends('type', 'http');
+		showForServers(o, cloudflare);
 		o.validate = function (section_id, value) {
 			if (value && !/^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/.test(value))
 				return _('One label only: letters, digits and dashes.');

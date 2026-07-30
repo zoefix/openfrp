@@ -318,6 +318,12 @@ function deployFields(section) {
 				return;
 			}
 
+			if (authSelect.value === 'key' && !keyInput.value) {
+				ui.addNotification(null, E('p', {},
+					_('Enter the path to the SSH key.')), 'warning');
+				return;
+			}
+
 			var name = section;
 			if (adding) {
 				name = uniqueSectionName(sectionName(nameInput.value || hostInput.value));
@@ -345,8 +351,7 @@ function deployFields(section) {
 					bind_port: parseInt(controlPort.value, 10) || 7000
 				};
 
-				if (authSelect.value === 'password' &&
-					passwordInput.value && passwordInput.value !== storedPassword)
+				if (authSelect.value === 'password' && passwordInput.value)
 					args.password = passwordInput.value;
 				else if (authSelect.value === 'key' && keyInput.value)
 					args.key_path = keyInput.value;

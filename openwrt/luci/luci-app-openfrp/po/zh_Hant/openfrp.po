@@ -879,3 +879,6 @@ msgstr "連不上 GitHub。"
 
 msgid "Last check failed: %s"
 msgstr "上次檢查失敗：%s"
+
+msgid "Enter the path to the SSH key."
+msgstr "請填寫 SSH 私鑰的路徑。"

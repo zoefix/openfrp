@@ -121,7 +121,10 @@ func authMethods(creds Credentials) ([]ssh.AuthMethod, error) {
 	}
 
 	if len(methods) == 0 {
-		return nil, errors.New("deploy: no password and no key supplied")
+		return nil, errors.New("deploy: no SSH password and no key were supplied. " +
+			"If this server has just been added, save the page before deploying " +
+			"so its credentials are stored, or enter the password in the deploy " +
+			"dialog")
 	}
 	return methods, nil
 }

@@ -879,3 +879,6 @@ msgstr "GitHub に接続できませんでした。"
 
 msgid "Last check failed: %s"
 msgstr "前回の確認に失敗しました: %s"
+
+msgid "Enter the path to the SSH key."
+msgstr "SSH 秘密鍵のパスを入力してください。"

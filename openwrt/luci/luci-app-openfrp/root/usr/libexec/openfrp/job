@@ -54,7 +54,30 @@ record_result() {
 	fingerprint="$(printf '%s' "$line" | jsonfilter -e '@.result.host_fingerprint' 2>/dev/null)"
 	bind_port="$(printf '%s' "$line" | jsonfilter -e '@.result.bind_port' 2>/dev/null)"
 
-	[ -n "$token" ] && uci -q set "openfrp.$section.token=$token"
+	# Setting an option on a section that does not exist fails, and with -q it
+	# fails silently. A server added in the browser but never saved has no
+	# section, so the token came back from a successful deployment and was
+	# dropped on the floor while the log said it had been saved.
+	if ! uci -q get "openfrp.$section" >/dev/null 2>&1; then
+		if uci -q set "openfrp.$section=server"; then
+			log "==> created the server entry $section, which was not saved yet"
+		else
+			log "==> could not create the server entry $section;" \
+				"the token below is the one the server was given —" \
+				"save the server in LuCI and paste it into its Token field"
+			log "==> token: $token"
+			return 1
+		fi
+	fi
+
+	if [ -n "$token" ]; then
+		if ! uci -q set "openfrp.$section.token=$token"; then
+			log "==> could not store the token for $section"
+			log "==> token: $token"
+			return 1
+		fi
+	fi
+
 	[ -n "$bind_port" ] && uci -q set "openfrp.$section.port=$bind_port"
 	[ -n "$fingerprint" ] && {
 		uci -q set "openfrp.$section.host_fingerprint=$fingerprint"
@@ -66,7 +89,19 @@ record_result() {
 		[ -n "$host" ] && uci -q set "openfrp.$section.addr=$host"
 	fi
 
-	uci -q commit openfrp
+	if ! uci -q commit openfrp; then
+		log "==> could not commit the configuration"
+		log "==> token: $token"
+		return 1
+	fi
+
+	# Read back rather than assume: the whole point of the deployment is that
+	# this value ends up where the client will look for it.
+	if [ -n "$token" ] && [ "$(uci -q get "openfrp.$section.token")" != "$token" ]; then
+		log "==> the token did not survive being written to openfrp.$section"
+		log "==> token: $token"
+		return 1
+	fi
 	log "==> token and connection settings saved"
 
 	if /etc/init.d/openfrp enabled 2>/dev/null; then
@@ -150,7 +185,10 @@ case "$KIND" in
 		log "==> starting server deployment"
 
 		if printf '%s' "$ARGS" | openfrpc deploy -stdin -json >> "$LOG" 2>&1; then
-			record_result
+			if ! record_result; then
+				log "==> the server is deployed, but its token could not be stored"
+				finish failed
+			fi
 			log "==> deployment finished"
 			finish succeeded
 		fi

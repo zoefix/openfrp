@@ -448,8 +448,8 @@ msgstr "多工連線"
 msgid "Name"
 msgstr "名稱"
 
-msgid "Names under the domain"
-msgstr "域名下的名稱"
+msgid "Prefix"
+msgstr "前綴"
 
 msgid "No DNS account configured. Wildcards need one — add it on the DNS page."
 msgstr "未設定 DNS 帳戶。泛網域需要它——請先在 DNS 頁面新增。"

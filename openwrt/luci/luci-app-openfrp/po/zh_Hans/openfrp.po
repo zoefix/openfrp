@@ -448,8 +448,8 @@ msgstr "多路复用连接"
 msgid "Name"
 msgstr "名称"
 
-msgid "Names under the domain"
-msgstr "域名下的名称"
+msgid "Prefix"
+msgstr "前缀"
 
 msgid "No DNS account configured. Wildcards need one — add it on the DNS page."
 msgstr "未配置 DNS 账户。泛域名需要它——请先在 DNS 页面添加。"

@@ -448,8 +448,8 @@ msgstr "接続の多重化"
 msgid "Name"
 msgstr "名前"
 
-msgid "Names under the domain"
-msgstr "ドメイン下の名前"
+msgid "Prefix"
+msgstr "プレフィックス"
 
 msgid "No DNS account configured. Wildcards need one — add it on the DNS page."
 msgstr "DNS アカウント未設定。ワイルドカードには必要です。DNS ページで追加してください。"

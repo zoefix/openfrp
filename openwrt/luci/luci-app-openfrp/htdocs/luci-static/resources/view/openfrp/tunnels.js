@@ -503,7 +503,7 @@ return view.extend({
 			}));
 		};
 
-		o = s.option(form.DynamicList, 'cf_prefix', _('Names under the domain'));
+		o = s.option(form.DynamicList, 'cf_prefix', _('Prefix'));
 		o.modalonly = true;
 		o.placeholder = 'nas';
 		cloudflare.forEach(function (server) {

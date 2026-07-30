@@ -16,7 +16,7 @@ import (
 
 func TestTerminationOffersOnlyHTTP11(t *testing.T) {
 	store := NewCertStore()
-	chain, key := selfSigned(t, "*.aiqno.com")
+	chain, key := selfSigned(t, "*.example.com")
 	if _, err := store.Install(chain, key); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestTerminationOffersOnlyHTTP11(t *testing.T) {
 	conn := tls.Client(client, &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"h2", "http/1.1"},
-		ServerName:         "www.aiqno.com",
+		ServerName:         "www.example.com",
 	})
 	if err := conn.HandshakeContext(t.Context()); err != nil {
 		t.Fatalf("handshake: %v", err)

@@ -802,7 +802,9 @@ msgid "One label only: letters, digits and dashes."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/cert.js:281
-msgid "One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com."
+msgid ""
+"One per line. \"*\" covers one level only: *.example.com, not "
+"a.b.example.com."
 msgstr ""
 
 #: openwrt/luci/luci-app-openfrp/htdocs/luci-static/resources/view/openfrp/tunnels.js:605

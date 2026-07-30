@@ -175,7 +175,7 @@ func TestWildcardOrderNeedsDNSAccount(t *testing.T) {
 	s, _ := service(t)
 
 	_, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"*.aiqno.com"},
+		Domains: []string{"*.example.com"},
 		KeyType: "ec256",
 		CA:      "letsencrypt",
 		Email:   "ops@example.com",
@@ -213,7 +213,7 @@ func TestIssueReachesTheCA(t *testing.T) {
 	account := cloudflareAccount(t, s)
 
 	order, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"*.aiqno.com"}, KeyType: "ec256", CA: "letsencrypt",
+		Domains: []string{"*.example.com"}, KeyType: "ec256", CA: "letsencrypt",
 		Email: "ops@example.com", AccountID: account.ID,
 	})
 	if err != nil {
@@ -245,7 +245,7 @@ func TestNewOrdersAutoRenewByDefault(t *testing.T) {
 	account := cloudflareAccount(t, s)
 
 	order, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"*.aiqno.com"}, KeyType: "ec256", CA: "letsencrypt",
+		Domains: []string{"*.example.com"}, KeyType: "ec256", CA: "letsencrypt",
 		Email: "ops@example.com", AccountID: account.ID,
 	})
 	if err != nil {
@@ -277,7 +277,7 @@ func TestOrderWithoutDNSUsesHTTPValidation(t *testing.T) {
 	s, _ := service(t)
 
 	_, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"openwrt.arm.moe"},
+		Domains: []string{"router.example.org"},
 		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
 	})
 	if err == nil {
@@ -289,14 +289,14 @@ func TestOrderWithoutDNSUsesHTTPValidation(t *testing.T) {
 	}, "test")
 
 	if _, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"openwrt.arm.moe"},
+		Domains: []string{"router.example.org"},
 		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
 	}); err != nil {
 		t.Errorf("an order that can be validated over HTTP was rejected: %v", err)
 	}
 
 	_, err = s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"*.arm.moe"},
+		Domains: []string{"*.example.org"},
 		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
 	})
 	if err == nil {
@@ -316,11 +316,11 @@ func TestHTTPValidationChecksWhereTheNamePoints(t *testing.T) {
 	}, "test")
 
 	s.SetHTTPChallengeResolver(func(context.Context, string) []string {
-		return []string{"64.90.22.142"}
+		return []string{"203.0.113.10"}
 	})
 
 	order, err := s.CreateOrder(ctx, manage.OrderInput{
-		Domains: []string{"openwrt.arm.moe"},
+		Domains: []string{"router.example.org"},
 		KeyType: "ec256", CA: "letsencrypt", Email: "ops@example.com",
 	})
 	if err != nil {
@@ -331,7 +331,7 @@ func TestHTTPValidationChecksWhereTheNamePoints(t *testing.T) {
 	if err == nil {
 		t.Fatal("issuance proceeded for a name that points elsewhere")
 	}
-	if !strings.Contains(err.Error(), "64.90.22.142") {
+	if !strings.Contains(err.Error(), "203.0.113.10") {
 		t.Errorf("the error does not say where the name points: %v", err)
 	}
 	if !strings.Contains(err.Error(), "203.0.113.1") {

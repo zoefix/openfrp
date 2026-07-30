@@ -2,7 +2,6 @@ package manage
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -325,8 +324,8 @@ func (s *Service) acmeAccount(ctx context.Context, ca, email string) (*cert.Acco
 		EABKeyID:   stored.EABKeyID,
 		EABHMAC:    stored.EABHMAC,
 	}
-	if len(stored.Registration) > 0 {
-		account.Registration = stored.Registration
+	if err := account.LoadRegistration(stored.Registration); err != nil {
+		return nil, err
 	}
 	return account, nil
 }
@@ -334,16 +333,12 @@ func (s *Service) acmeAccount(ctx context.Context, ca, email string) (*cert.Acco
 func (s *Service) saveACMEAccount(ctx context.Context, ca string, account *cert.Account) error {
 	accounts := repo.NewACMEAccounts(s.db.DB)
 
-	registration := account.Registration
-	if len(registration) == 0 && account.Registration != nil {
-		encoded, err := json.Marshal(account.Registration)
-		if err != nil {
-			return err
-		}
-		registration = encoded
+	registration, err := account.MarshalRegistration()
+	if err != nil {
+		return err
 	}
 
-	_, err := accounts.Save(ctx, repo.ACMEAccount{
+	_, err = accounts.Save(ctx, repo.ACMEAccount{
 		CA: ca, Email: account.Email,
 		PrivateKey: account.PrivateKey, Registration: registration,
 		EABKeyID: account.EABKeyID, EABHMAC: account.EABHMAC,

@@ -34,7 +34,7 @@ func TestCodecRoundTripsEveryMessageType(t *testing.T) {
 			PrivateKeyPEM: []byte("-----BEGIN PRIVATE KEY-----"),
 			NotAfter:      1700000000},
 		&CertPushResp{},
-		&HTTPChallenge{Domain: "openwrt.arm.moe", Token: "tok", KeyAuth: "tok.thumb"},
+		&HTTPChallenge{Domain: "router.example.org", Token: "tok", KeyAuth: "tok.thumb"},
 		&HTTPChallengeResp{},
 		&NewMuxConn{RunID: "abc", Timestamp: 1700000000, AuthKey: "cafe"},
 	}

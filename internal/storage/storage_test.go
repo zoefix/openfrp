@@ -193,7 +193,7 @@ func TestDeletingAccountKeepsCertificates(t *testing.T) {
 	}
 
 	order, err := orders.Create(ctx, repo.Order{
-		Domains: []string{"*.aiqno.com"}, KeyType: "ec256",
+		Domains: []string{"*.example.com"}, KeyType: "ec256",
 		CA: "https://acme-v02.api.letsencrypt.org/directory", AccountID: account.ID,
 	})
 	if err != nil {

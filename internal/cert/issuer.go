@@ -5,12 +5,16 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
+	"github.com/go-acme/lego/v4/acme"
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
@@ -67,6 +71,40 @@ func (a *Account) GetEmail() string { return a.Email }
 func (a *Account) GetRegistration() *registration.Resource { return a.registration }
 
 func (a *Account) GetPrivateKey() crypto.PrivateKey { return a.key }
+
+// LoadRegistration restores a registration saved by an earlier issuance.
+//
+// Without it every issuance posts to new-account again. That normally returns
+// the account the key already owns, so it looks free — until the directory
+// answers 500 there and issuance fails despite a perfectly good account
+// sitting in the database.
+func (a *Account) LoadRegistration(raw []byte) error {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	var resource registration.Resource
+	if err := json.Unmarshal(raw, &resource); err != nil {
+		return fmt.Errorf("cert: stored registration is not readable: %w", err)
+	}
+	// A registration with no URI cannot be used to sign anything, so treating
+	// it as usable would replace one round trip with a failure.
+	if resource.URI == "" {
+		return nil
+	}
+
+	a.registration = &resource
+	a.Registration = raw
+	return nil
+}
+
+// MarshalRegistration returns the registration to store, if there is one.
+func (a *Account) MarshalRegistration() ([]byte, error) {
+	if a.registration == nil {
+		return a.Registration, nil
+	}
+	return json.Marshal(a.registration)
+}
 
 func (a *Account) ensureKey() error {
 	if a.key != nil {
@@ -208,7 +246,7 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 	i.logger.Info("requesting certificate",
 		"domains", domains, "ca", ca.Label, "key_type", req.KeyType.Label())
 
-	resource, err := client.Certificate.Obtain(certificate.ObtainRequest{
+	resource, err := i.obtain(ctx, client, certificate.ObtainRequest{
 		Domains:        domains,
 		Bundle:         true,
 		PreferredChain: req.PreferredChain,
@@ -232,6 +270,60 @@ func (i *Issuer) Issue(ctx context.Context, req IssueRequest) (*Certificate, err
 		"issuer", issued.Issuer)
 
 	return issued, nil
+}
+
+const (
+	obtainAttempts   = 4
+	obtainRetryDelay = 20 * time.Second
+)
+
+// transientACME reports an error the directory expects to be retried.
+//
+// A busy or rate-limited authority is not a misconfiguration, and failing on
+// it leaves an operator reading "Service busy; retry later" with no way to do
+// the retrying except by hand.
+func transientACME(err error) bool {
+	var problem *acme.ProblemDetails
+	if !errors.As(err, &problem) {
+		return false
+	}
+	switch problem.HTTPStatus {
+	case http.StatusTooManyRequests, http.StatusInternalServerError,
+		http.StatusBadGateway, http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	}
+	return false
+}
+
+func (i *Issuer) obtain(ctx context.Context, client *lego.Client, request certificate.ObtainRequest) (*certificate.Resource, error) {
+	var lastErr error
+
+	for attempt := 1; attempt <= obtainAttempts; attempt++ {
+		resource, err := client.Certificate.Obtain(request)
+		if err == nil {
+			return resource, nil
+		}
+		lastErr = err
+
+		if !transientACME(err) || attempt == obtainAttempts {
+			return nil, err
+		}
+
+		wait := time.Duration(attempt) * obtainRetryDelay
+		i.logger.Warn("the authority asked us to retry",
+			"attempt", attempt, "of", obtainAttempts,
+			"waiting", wait.String(), "error", err)
+
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return nil, lastErr
 }
 
 func (i *Issuer) register(_ context.Context, client *lego.Client, account *Account, ca CA) error {

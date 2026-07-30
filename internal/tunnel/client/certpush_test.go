@@ -70,7 +70,7 @@ func pushes(t *testing.T, wire *bytes.Buffer) []*protocol.CertPush {
 
 func material(chain string) Certificate {
 	return Certificate{
-		Domains:       []string{"*.aiqno.com"},
+		Domains:       []string{"*.example.com"},
 		FullchainPEM:  []byte(chain),
 		PrivateKeyPEM: []byte("KEY-" + chain),
 		NotAfter:      1893456000,
@@ -229,7 +229,7 @@ func TestRejectedRetriesOnlyAStaleClaim(t *testing.T) {
 	}{
 		{
 			name:  "a route still held by the previous session",
-			error: `vhost: "*.aiqno.com" is already routed to tunnel "acgshop" on client "fd31c9e5"`,
+			error: `vhost: "*.example.com" is already routed to tunnel "acgshop" on client "fd31c9e5"`,
 			retry: true,
 		},
 		{
@@ -253,7 +253,7 @@ func TestRejectedRetriesOnlyAStaleClaim(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tunnel := config.Tunnel{
 				Name: "acgshop", Enabled: true, Type: "https",
-				Domains: []string{"*.aiqno.com"},
+				Domains: []string{"*.example.com"},
 			}
 
 			client, sess, wire := harness(t, []config.Tunnel{tunnel}, nil)
@@ -291,7 +291,7 @@ func TestRejectedRetriesOnlyAStaleClaim(t *testing.T) {
 func TestRejectedGivesUpEventually(t *testing.T) {
 	tunnel := config.Tunnel{
 		Name: "acgshop", Enabled: true, Type: "https",
-		Domains: []string{"*.aiqno.com"},
+		Domains: []string{"*.example.com"},
 	}
 
 	_, sess, wire := harness(t, []config.Tunnel{tunnel}, nil)
@@ -300,7 +300,7 @@ func TestRejectedGivesUpEventually(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	stale := `vhost: "*.aiqno.com" is already routed to tunnel "acgshop" on client "other"`
+	stale := `vhost: "*.example.com" is already routed to tunnel "acgshop" on client "other"`
 	for range republishAttempts + 4 {
 		sess.rejected(ctx, &protocol.NewProxyResp{Name: tunnel.Name, Error: stale})
 	}

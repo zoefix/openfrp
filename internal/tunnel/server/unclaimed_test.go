@@ -16,7 +16,7 @@ func TestUnclaimedPageExplainsItself(t *testing.T) {
 
 	listener := &vhostListener{scheme: vhost.SchemeHTTP}
 	go func() {
-		listener.unclaimed(server, "openwrt.arm.moe")
+		listener.unclaimed(server, "router.example.org")
 		server.Close()
 	}()
 
@@ -39,7 +39,7 @@ func TestUnclaimedPageExplainsItself(t *testing.T) {
 	}
 	page := string(body)
 
-	if !strings.Contains(page, "openwrt.arm.moe") {
+	if !strings.Contains(page, "router.example.org") {
 		t.Error("the page does not name the host that was asked for")
 	}
 	if !strings.Contains(page, "OpenFrp") {

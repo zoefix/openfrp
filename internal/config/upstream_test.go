@@ -9,7 +9,7 @@ import (
 func TestOldSingleServerConfigStillWorks(t *testing.T) {
 	var cfg Client
 	err := json.Unmarshal([]byte(`{
-		"server_addr": "64.83.33.99",
+		"server_addr": "198.51.100.7",
 		"server_port": 7000,
 		"token": "shared",
 		"transport": {"protocol": "tcp", "pool_count": 4},
@@ -29,7 +29,7 @@ func TestOldSingleServerConfigStillWorks(t *testing.T) {
 	if len(servers) != 1 {
 		t.Fatalf("got %d servers, want 1", len(servers))
 	}
-	if servers[0].Addr != "64.83.33.99" || servers[0].Port != 7000 {
+	if servers[0].Addr != "198.51.100.7" || servers[0].Port != 7000 {
 		t.Errorf("server = %s:%d", servers[0].Addr, servers[0].Port)
 	}
 	if servers[0].Token != "shared" {

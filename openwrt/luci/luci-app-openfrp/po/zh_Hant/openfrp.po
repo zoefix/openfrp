@@ -502,8 +502,8 @@ msgstr "該憑證還沒有任何記錄。"
 msgid "One label only: letters, digits and dashes."
 msgstr "只能是一段：字母、數字和短橫線。"
 
-msgid "One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com."
-msgstr "每行一個。\"*\" 只涵蓋一級：*.aiqno.com 不含 a.b.aiqno.com。"
+msgid "One per line. \"*\" covers one level only: *.example.com, not a.b.example.com."
+msgstr "每行一個。\"*\" 只涵蓋一級：*.example.com 不含 a.b.example.com。"
 
 msgid "Only certificates covering every domain are listed. Pushed without dropping connections."
 msgstr "僅列出涵蓋全部網域的憑證。推送時不會中斷連線。"

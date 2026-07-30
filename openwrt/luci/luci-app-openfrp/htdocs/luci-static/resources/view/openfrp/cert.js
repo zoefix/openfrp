@@ -137,7 +137,7 @@ function orderDialog() {
 
 	var domainsInput = E('textarea', {
 		'class': 'cbi-input-textarea', 'rows': 3, 'style': 'width:100%',
-		'placeholder': '*.aiqno.com\nacgshop.aiqno.com'
+		'placeholder': '*.example.com\nshop.example.com'
 	});
 	var emailInput = E('input', {
 		'type': 'text', 'class': 'cbi-input-text', 'style': 'width:100%',
@@ -278,7 +278,7 @@ function orderDialog() {
 
 	ui.showModal(_('Request a certificate'), [
 		field(_('Domains'), domainsInput,
-			_('One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com.')),
+			_('One per line. \"*\" covers one level only: *.example.com, not a.b.example.com.')),
 		field(_('Contact email'), emailInput,
 			_('The authority requires one, and uses it for expiry warnings.')),
 		field(_('Authority'), caSelect),

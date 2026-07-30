@@ -19,7 +19,7 @@ func TestChallengePathMatchesLego(t *testing.T) {
 func TestChallengeStoreAnswers(t *testing.T) {
 	store := NewChallengeStore()
 
-	if err := store.Publish("run-1", "openwrt.arm.moe", "tok", "tok.thumbprint"); err != nil {
+	if err := store.Publish("run-1", "router.example.org", "tok", "tok.thumbprint"); err != nil {
 		t.Fatal(err)
 	}
 

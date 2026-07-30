@@ -502,8 +502,8 @@ msgstr "この証明書にはまだ履歴がありません。"
 msgid "One label only: letters, digits and dashes."
 msgstr "ラベル一つだけ：英数字とハイフン。"
 
-msgid "One per line. \"*\" covers one level only: *.aiqno.com, not a.b.aiqno.com."
-msgstr "1 行に 1 つ。\"*\" は 1 階層のみ：*.aiqno.com は a.b.aiqno.com を含みません。"
+msgid "One per line. \"*\" covers one level only: *.example.com, not a.b.example.com."
+msgstr "1 行に 1 つ。\"*\" は 1 階層のみ：*.example.com は a.b.example.com を含みません。"
 
 msgid "Only certificates covering every domain are listed. Pushed without dropping connections."
 msgstr "全ドメインを含む証明書のみ表示。接続を切らずに配布されます。"
